@@ -85,6 +85,10 @@ class CORE_EXPORT QgsTriangularMesh
      */
     int faceIndexForPoint( const QgsPointXY &point ) const ;
 
+
+
+    int faceIndexForPoint_v2( const QgsPointXY &point ) const;
+
     /**
      * Finds indexes of triangles intersecting given bounding box
      * It uses spatial indexing
@@ -137,6 +141,23 @@ namespace QgsMeshUtils
    * \since QGIS 3.4
    */
   CORE_EXPORT QList<int> nativeFacesFromTriangles( const QList<int> &triangleIndexes, const QVector<int> &trianglesToNativeFaces );
+
+
+  /**
+   * Test if point p is : on the left, on, or on the right of the line(p1p2).
+   * Result: > 0 if on the left
+   *          = 0 if on the line
+   *          < 0 if on the right
+   *  NB : tirangle surface = Isleft / 2
+   *  * \since QGIS 3.12
+  */
+  CORE_EXPORT double IsLeft2D( const QgsPoint &p1, const QgsPoint &p2, const QgsPoint &p );
+
+  CORE_EXPORT bool isInTriangle2D( const QgsPoint &p, const QVector<QgsMeshVertex> &triangle );
+
+  CORE_EXPORT bool isInTriangleFace( const QgsPointXY point, const QgsMeshFace &face,  const QVector<QgsMeshVertex> &vertices )
+  ;
+
 };
 
 #endif // QGSTRIANGULARMESH_H

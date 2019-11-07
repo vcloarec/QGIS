@@ -174,6 +174,7 @@ SET(TESTS
  testqgsmaptopixel.cpp
  testqgsmarkerlinesymbol.cpp
  testqgsmeshlayer.cpp
+ testqgsmeshtrace.cpp
  testqgsmeshlayerinterpolator.cpp
  testqgsmeshlayerrenderer.cpp
  testqgsnetworkaccessmanager.cpp
