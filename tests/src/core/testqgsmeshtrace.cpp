@@ -77,13 +77,8 @@ void TestQgsMeshTrace::initTestCase()
 
 void TestQgsMeshTrace::vectorInterpolatorTest()
 {
-
-
-
   QgsMeshDatasetIndex dataIndex( 0, 0 );
   int count = mMeshLayer->nativeMesh()->vertexCount();
-
-
 
   QgsMeshDataBlock dataBlock = mDataProvider->datasetValues( dataIndex, 0, count );
   QgsMeshVectorValueInterpolatorFromNode interpolator( mMeshLayer->triangularMesh(), dataBlock );
@@ -94,7 +89,7 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
   double dy = extent.height() / 1000;
   QgsVector incPointX( -dx, 0 );
   QgsVector incPointY( 0, dy );
-  QgsPoint startPoint( extent.xMaximum() - 30, extent.yMinimum() );
+  QgsPoint startPoint( extent.xMaximum(), extent.yMinimum() );
   QgsPointXY point( startPoint );
 
   QgsVector vect;
@@ -114,10 +109,7 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
     point.setX( startPoint.x() );
   }
 
-
   QCOMPARE( goodPixelCount, 516641 );
-
-
 }
 
 void TestQgsMeshTrace::cleanupTestCase()

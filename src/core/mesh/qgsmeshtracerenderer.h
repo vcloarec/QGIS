@@ -18,8 +18,24 @@
 ///@cond PRIVATE
 
 
+class QgsMeshVectorValueInterpolator
+{
+  public:
+    QgsMeshVectorValueInterpolator( QgsTriangularMesh *triangularMesh, const QgsMeshDataBlock &datasetVectorValues ):
+      mTriangularMesh( triangularMesh ),
+      mDatasetValues( datasetVectorValues )
+    {
 
-class QgsMeshTrace;
+    }
+
+    virtual QgsVector value( const QgsPointXY &point ) = 0;
+
+  protected:
+    QgsTriangularMesh *mTriangularMesh;
+    const QgsMeshDataBlock &mDatasetValues;
+
+};
+
 
 /**
  * \ingroup core
@@ -29,17 +45,17 @@ class QgsMeshTrace;
  * \note not available in Python bindings
  * \since QGIS 3.12
  */
-class QgsMeshVectorValueInterpolatorFromNode
+class QgsMeshVectorValueInterpolatorFromNode: public QgsMeshVectorValueInterpolator
 {
   public:
     QgsMeshVectorValueInterpolatorFromNode() = default;
     QgsMeshVectorValueInterpolatorFromNode( QgsTriangularMesh *triangularMesh, const QgsMeshDataBlock &datasetVectorValues ):
-      mTriangularMesh( triangularMesh ),
-      mDatasetValues( datasetVectorValues )
+      QgsMeshVectorValueInterpolator( triangularMesh, datasetVectorValues )
     {
 
     }
-    QgsVector value( const QgsPointXY &point )
+
+    QgsVector value( const QgsPointXY &point ) override
     {
       if ( ! QgsMeshUtils::isInTriangleFace( point, mLastFace, mTriangularMesh->vertices() ) )
       {
@@ -78,18 +94,9 @@ class QgsMeshVectorValueInterpolatorFromNode
     }
 
   private:
-    QgsTriangularMesh *mTriangularMesh;
-    const QgsMeshDataBlock &mDatasetValues;
     QgsMeshFace mLastFace;
 
 };
-
-struct wayPoint
-{
-
-};
-
-typedef QPair<QPointF, QgsMeshTrace *> QgsMeshTraceWayPoint ;
 
 /**
  * \ingroup core
@@ -104,121 +111,221 @@ class QgsMeshTraceField
 
   public:
 
-    QgsMeshTraceField( const QSize size ): mTraceField( QVector<QVector<char>>( size.width(), QVector<char>( size.height(), static_cast<char>( 0 ) ) ) )
+    QgsMeshTraceField( const QgsRectangle &extent, const QgsRenderContext &renderContext ):
+      mExtent( extent ),
+      mRenderContext( renderContext )
     {
-
+      updateSize();
     }
 
     void addTrace( QPoint startPixel )
     {
+
+
+
+      if ( ! mVectorValueInterpolator )
+        return;
+
       bool end = false;
+      //position int the pixelField
       double x0, x1;
       double y0, y1;
+
+      QgsPointXY positionInPixel( 0, 0 );
+
       QPoint currentPixel = startPixel;
-      QPointF vector/*( mVectorValues.vectorValue( currentPixel ) )*/;
+      QgsPointXY mapPosition = positionToMapCoordinnate( currentPixel, positionInPixel );
+      QgsVector vector;
 
-      double Vx = vector.x();
-      double Vy = vector.y();
-
-      //initialise position of the first point int the pixel
-      if ( qgsDoubleNear( Vx, 0 ) )
-        x0 = x1 = 0;
-      else if ( Vx < 0 )
-        x0 = x1 = -0.5;
-      else
-        x0 = x1 = +0.5;
-
-      if ( qgsDoubleNear( Vy, 0 ) )
-        y0 = y1 = 0;
-      else if ( Vy < 0 )
-        y0 = y1 = -0.5;
-      else
-        y0 = y1 = +0.5;
-
+      int dt = 0;
 
       while ( !end )
       {
-        QPointF vector/*( mVectorValues.vectorValue( currentPixel ) )*/;
-        double Vx = vector.x();
-        double Vy = vector.y();
-        double Vu = sqrt( Vx * Vx + Vy * Vy ) / mVmax; //adimentional vector magnitude
+        vector = mVectorValueInterpolator->value( mapPosition ) ;
+        QgsVector vu = vector / mVmax;
+        double Vx = vector.x() / mVmax; //adimentional vector
+        double Vy = vector.y() / mVmax;
+        double Vu = vector.length() / mVmax; //adimentional vector magnitude
 
-
-        if ( qgsDoubleNear( Vy, 0 ) && qgsDoubleNear( Vx, 0 ) )
+        if ( qgsDoubleNear( Vu, 0 ) )
         {
           // no trace anymore
           break;
         }
 
-        double x2, y2;
+        //calculate where the particule will be after  dt=1, that permits to know where the particule will go after dt>1
+        QgsPointXY  nextPosition = positionInPixel + vu;
         int incX = 0;
         int incY = 0;
+        if ( nextPosition.x() > 1 )
+          incX = +1;
+        if ( nextPosition.x() < -1 )
+          incX = -1;
+        if ( nextPosition.y() > 1 )
+          incY = +1;
+        if ( nextPosition.y() < -1 )
+          incY = -1;
 
-        if ( qgsDoubleNear( Vy, 0 ) )
+        double x2, y2;
+
+        if ( incX != 0 || incY != 0 )
         {
-          y2 = y1;
-          if ( Vx > 0 )
-            incX = +1;
-          else
-            incX = -1;
+          //the particule leave the current pixel --> calculate where the particule is entered and change the current pixel
+          if ( incX * incY != 0 )
+          {
+            x2 = x1 + ( 1 - incY * y1 ) * Vx / Vy;
+            y2 = y1 + ( 1 - incX * x1 ) * Vy / Vx;
 
-          x2 = incX * 0.5;
+            if ( fabs( x2 ) > 1 )
+              y2 = incY;
+            if ( fabs( y2 ) > 1 )
+              x2 = incX;
+          }
+          else if ( incX != 0 )
+          {
+            x2 = incX;
+            y2 = y1 + ( 1 - incX * x1 ) * Vy / Vx;
+          }
+          else //incY != 0
+          {
+            x2 = x1 + ( 1 - incY * y1 ) * Vx / Vy;
+            y2 = incY;
+          }
+          //move the current position,adjust position in pixel and store the direction and dt in the pixel
+          currentPixel += QPoint( incX, incY );
+          x1 = x2 - 2 * incX;
+          x1 = y2 - 2 * incY;
 
-        }
-        else if ( qgsDoubleNear( Vx, 0 ) )
-        {
-          x2 = x1;
-          if ( Vy > 0 )
-            incY = +1;
-          else
-            incY = -1;
-
-          y2 = incY * 0.5;
         }
         else
         {
-          x2 = x1 + ( 0.5 - y1 ) * Vx / Vy;
-          y2 = y1 + ( 0.5 - x1 ) * Vy / Vx;
+          //the particule still in the pixel --> push with the vector value to join a border and calculate the time spent
+          if ( qgsDoubleNear( Vy, 0 ) )
+          {
+            y2 = y1;
+            if ( Vx > 0 )
+              incX = +1;
+            else
+              incX = -1;
 
-          if ( x2 >= 0.5 )
-          {
-            x2 = 0.5;
-            incX = +1;
+            x2 = incX ;
+
           }
-          if ( x2 <= -0.5 )
+          else if ( qgsDoubleNear( Vx, 0 ) )
           {
-            x2 = -0.5;
-            incX = -1;
+            x2 = x1;
+            if ( Vy > 0 )
+              incY = +1;
+            else
+              incY = -1;
+
+            y2 = incY ;
           }
-          if ( y2 >= 0.5 )
+          else
           {
-            y2 = 0.5;
-            incY = +1;
+            x2 = x1 + ( 1 - y1 ) * Vx / Vy;
+            y2 = y1 + ( 1 - x1 ) * Vy / Vx;
+
+            if ( x2 >= 1 )
+            {
+              x2 = 1;
+              incX = +1;
+            }
+            if ( x2 <= -1 )
+            {
+              x2 = -1;
+              incX = -1;
+            }
+            if ( y2 >= 1 )
+            {
+              y2 = 1;
+              incY = +1;
+            }
+            if ( y2 <= -1 )
+            {
+              y2 = -1;
+              incY = -1;
+            }
           }
-          if ( y2 <= -0.5 )
-          {
-            y2 = -0.5;
-            incY = -1;
-          }
+
+          //calculate distance
+          double dx = x2 - x1;
+          double dy = y2 - y1;
+          double dl = sqrt( dx * dx + dy * dy );
+
+          dt += int( dl / Vu ); //adimentional time step : this the time needed to go throught the pixel
+
+          //move to next pixel with incX and incY
+          currentPixel = currentPixel + QPoint( incX, incY );
         }
-
-        //calculate distance
-        double dx = x2 - x1;
-        double dy = y2 - y1;
-        double dl = sqrt( dx * dx + dy * dy );
-
-        int dt = int( dl / Vu ); //adimentional time step : this the time needed to go thought the pixel
-
-        //move to next pixel with incX and Incy
-        currentPixel = currentPixel + QPoint( incX, incY );
       }
     }
 
+    void setParticuleWidth( int width )
+    {
+      mParticuleWidth = width;
+    }
+
   private:
+    void updateSize()
+    {
+      int mapWidth = mRenderContext.mapToPixel().mapWidth();
+      int mapHeight = mRenderContext.mapToPixel().mapHeight();
+
+      int fieldWidth = int( mapWidth / mParticuleWidth );
+      int fieldHeight = int( mapHeight / mParticuleWidth );
+      if ( mapWidth % mParticuleWidth > 0 )
+        fieldWidth++;
+      if ( mapHeight % mParticuleWidth > 0 )
+        fieldHeight++;
+
+      mFieldSize = QSize( fieldWidth, fieldHeight );
+      mTraceField = QImage( mFieldSize, QImage::Format_Indexed8 );
+
+
+    }
+
+    QgsPointXY positionToMapCoordinnate( const QPoint &pixelPosition, const QgsPointXY &positionInPixel )
+    {
+      return QgsPointXY();//TODO
+    }
+
+    void setDt( const QPoint &pixel, int dt, int incX, int incY )
+    {
+      char byte = '\0';
+      //TODO
+      mTraceField.setPixel( pixel, uint( byte ) );
+    }
+
     //bounding box;
     QgsRectangle mExtent;
+    QgsRectangle mFieldsExtent;
+    QgsRenderContext mRenderContext;
+    int mParticuleWidth = 1;
+    QSize mFieldSize;
 
-    QVector<QVector<char>> mTraceField;
+    /*the direction and the speed to join the next pixel is defined with a char value
+     *
+     *     0  1  2
+     *     3  4  5
+     *     6  7  8
+     *
+     *     convenient to retrives the indexes of the next pixel :
+     *     Xnext= v%3-1
+     *     Ynext = v/3-1
+     *
+     *      the value of the char minus 8 represent the time spent by the particule in the pixel
+     *      1 -> near 0 value speed
+     *      247 --> max value speed
+     *
+     *      The byte is store in a QImage with format QImage::Format_Indexed8
+     *
+     */
+    QImage mTraceField;
+
+
+
+    QgsMeshVectorValueInterpolator *mVectorValueInterpolator;
 
 
 
@@ -236,73 +343,6 @@ class QgsMeshTraceParticule
     QPointF mCurrentPositionInPixel;
     QgsMeshTraceParticule *mCurrentTrace;
     QList<char>::iterator mCurrentPixelPosition;
-};
-
-/**
- * \ingroup core
- *
- * Class used to define a trace in a vector field
- *
- * \note not available in Python bindings
- * \since QGIS 3.12
- */
-class QgsMeshTrace
-{
-  public:
-
-
-
-  private:
-
-    // start point of the trace
-    QPointF mStartPoint;
-
-    /*the direction and the speed to join the next pixel is defined with a char value
-     *
-     *     0  1  2
-     *     3  4  5
-     *     6  7  8
-     *
-     *     convenient to retrives the indexes of the next pixel :
-     *     Xnext= v%3-1
-     *     Ynext = v/3-1
-     *
-     *      the value of the char minus 8 represent a factor to represent the speed of the particule :
-     *      1 -> near 0 value speed
-     *      247 --> max value speed
-     *
-     */
-    QList<char> mDirections;
-
-    /* a trace can be connected with another trace dowstream
-     * if null : no trace connected
-     * can be connected with itself (loop trace)
-     */
-    QgsMeshTrace *mDownStreamTrace;
-
-    //pointer to the trace field used to cosntruct the trace
-
-};
-
-
-
-
-
-/**
- * \ingroup core
- *
- * Class used so store to all the traces in a bounding box
- *
- * \note not available in Python bindings
- * \since QGIS 3.12
- */
-class QgsMeshTraces
-{
-  public:
-
-  private:
-    //bounding box;
-    QgsRectangle mExtent;
 };
 
 
