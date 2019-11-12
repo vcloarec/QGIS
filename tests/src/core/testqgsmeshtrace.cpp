@@ -1,9 +1,9 @@
 /***************************************************************************
-                         testqgsmeshlayer.cpp
-                         --------------------
-    begin                : April 2018
-    copyright            : (C) 2018 by Peter Petrik
-    email                : zilolv at gmail dot com
+                         testqgsmeshtrace.cpp
+                         -------------------------
+    begin                : November 2019
+    copyright            : (C) 2019 by Vincent Cloarec
+    email                : vcloarec at gmail dot com
  ***************************************************************************/
 
 /***************************************************************************
@@ -28,7 +28,7 @@
 
 /**
  * \ingroup UnitTests
- * This is a unit test for a mesh layer
+ * This is a unit test for mesh traces
  */
 class TestQgsMeshTrace : public QObject
 {
@@ -40,6 +40,11 @@ class TestQgsMeshTrace : public QObject
   private:
     QgsMeshLayer *mMeshLayer;
     QgsMeshDataProvider *mDataProvider;
+    QgsMeshDataBlock mDataBlock;
+    QgsMeshDataBlock mScalarActiveFaceFlagValues;
+    QgsMeshVectorValueInterpolatorFromVertex *mInterpolator;
+    QgsMeshTraceField *mTraceField;
+    double mVmax;
 
   private slots:
     void initTestCase();// will be called before the first testfunction is executed.
@@ -48,6 +53,7 @@ class TestQgsMeshTrace : public QObject
     void cleanup() {} // will be called after every testfunction.
 
     void vectorInterpolatorTest();
+    void traceFieldTest();
 
 };
 
@@ -71,18 +77,22 @@ void TestQgsMeshTrace::initTestCase()
   QgsRenderContext rc;
   mMeshLayer->triangularMesh()->update( mMeshLayer->nativeMesh(), &rc );
 
+  QgsMeshDatasetIndex dataIndex( 0, 0 );
+  int count = mMeshLayer->nativeMesh()->vertexCount();
+  mDataBlock = mDataProvider->datasetValues( dataIndex, 0, count );
+  mScalarActiveFaceFlagValues = mMeshLayer->dataProvider()->areFacesActive(
+                                  dataIndex,
+                                  0,
+                                  mMeshLayer->nativeMesh()->faces.count() );
+
+  mInterpolator = new QgsMeshVectorValueInterpolatorFromVertex( *mMeshLayer->triangularMesh(), mDataBlock, mScalarActiveFaceFlagValues );
+  mVmax = mDataProvider->datasetMetadata( dataIndex ).maximum();
 
 }
 
 
 void TestQgsMeshTrace::vectorInterpolatorTest()
 {
-  QgsMeshDatasetIndex dataIndex( 0, 0 );
-  int count = mMeshLayer->nativeMesh()->vertexCount();
-
-  QgsMeshDataBlock dataBlock = mDataProvider->datasetValues( dataIndex, 0, count );
-  QgsMeshVectorValueInterpolatorFromNode interpolator( mMeshLayer->triangularMesh(), dataBlock );
-
   int size = 1000;
   QgsRectangle extent = mMeshLayer->extent();
   double dx = extent.width() / 1000;
@@ -100,7 +110,7 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
   {
     for ( int j = 0; j < size; ++j )
     {
-      vect = interpolator.value( point );
+      vect = mInterpolator->value( point );
       point = point + incPointX;
       if ( vect != QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) )
         goodPixelCount++;
@@ -112,9 +122,33 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
   QCOMPARE( goodPixelCount, 516641 );
 }
 
+void TestQgsMeshTrace::traceFieldTest()
+{
+  QgsRenderContext rc;
+  QgsRectangle mapExtent = mMeshLayer->extent();
+  QSize outputSize( 1000, 1000 );
+  double mapUnitPerOutputPixel = mapExtent.width() / outputSize.width();
+  QgsMapToPixel maptToPixel( mapUnitPerOutputPixel,
+                             mapExtent.xMinimum() + mapExtent.width() / 2,
+                             mapExtent.yMinimum() + mapExtent.height() / 2,
+                             outputSize.width(), outputSize.width(), 0 );
+  rc.setMapToPixel( maptToPixel );
+  QgsMeshTraceUniqueColor traceColor( Qt::red );
+  QgsMeshTraceFieldStatic field( rc, mInterpolator, mMeshLayer->extent(), mVmax, traceColor );
+
+  QTime time;
+  time.start();
+  std::srand( std::time( nullptr ) );
+  for ( int i = 0; i < 10000; ++i )
+    field.addRandomTrace();
+  qDebug() << "Time elapsed " << time.elapsed();
+  field.exportImage();
+}
+
 void TestQgsMeshTrace::cleanupTestCase()
 {
   delete mMeshLayer;
+  delete mInterpolator;
   QgsApplication::exitQgis();
 }
 

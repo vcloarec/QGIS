@@ -97,6 +97,7 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
     void renderMesh( const QgsMeshRendererMeshSettings &settings, const QVector<QgsMeshFace> &faces, const QList<int> &facesInExtent );
     void renderScalarDataset();
     void renderVectorDataset();
+    void renderVectorTrace();
     void copyScalarDatasetValues( QgsMeshLayer *layer );
     void copyVectorDatasetValues( QgsMeshLayer *layer );
     void calculateOutputSize();
@@ -110,6 +111,9 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
 
     // copy from mesh layer
     QgsTriangularMesh mTriangularMesh;
+
+    // copy from mesh layer
+    QgsRectangle mLayerExtent;
 
     // copy of the scalar dataset
     QVector<double> mScalarDatasetValues;

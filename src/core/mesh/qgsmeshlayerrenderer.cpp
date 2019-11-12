@@ -31,6 +31,7 @@
 #include "qgsmeshlayerinterpolator.h"
 #include "qgsmeshlayerutils.h"
 #include "qgsmeshvectorrenderer.h"
+#include "qgsmeshtracerenderer.h"
 #include "qgsfillsymbollayer.h"
 #include "qgssettings.h"
 #include "qgsstyle.h"
@@ -49,6 +50,7 @@ QgsMeshLayerRenderer::QgsMeshLayerRenderer( QgsMeshLayer *layer, QgsRenderContex
 
   mNativeMesh = *( layer->nativeMesh() );
   mTriangularMesh = *( layer->triangularMesh() );
+  mLayerExtent = layer->extent();
 
   copyScalarDatasetValues( layer );
   copyVectorDatasetValues( layer );
@@ -217,7 +219,8 @@ bool QgsMeshLayerRenderer::render()
 {
   renderScalarDataset();
   renderMesh();
-  renderVectorDataset();
+  //renderVectorDataset();
+  renderVectorTrace();
   return true;
 }
 
@@ -357,6 +360,31 @@ void QgsMeshLayerRenderer::renderVectorDataset()
                                   mRendererSettings.vectorSettings( index.group() ),
                                   *renderContext(),
                                   mOutputSize );
+
+  renderer.draw();
+}
+
+void QgsMeshLayerRenderer::renderVectorTrace()
+{
+  QgsMeshDatasetIndex index = mRendererSettings.activeVectorDataset();
+  if ( !index.isValid() )
+    return;
+
+  if ( !mVectorDatasetValues.isValid() )
+    return; // no data at all
+
+  if ( std::isnan( mVectorDatasetMagMinimum ) || std::isnan( mVectorDatasetMagMaximum ) )
+    return; // only NODATA values
+
+  QgsMeshTraceRenderer renderer( mLayerExtent,
+                                 mTriangularMesh,
+                                 mVectorDatasetValues,
+                                 mScalarActiveFaceFlagValues,
+                                 mVectorDatasetMagMinimum,
+                                 mVectorDatasetMagMaximum,
+                                 *renderContext(),
+                                 mOutputSize,
+                                 QgsMeshTraceRenderer::streamLines );
 
   renderer.draw();
 }
