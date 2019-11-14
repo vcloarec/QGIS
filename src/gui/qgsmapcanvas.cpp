@@ -539,6 +539,7 @@ void QgsMapCanvas::refreshMap()
 
   mSettings.setExpressionContext( expressionContext );
   mSettings.setPathResolver( QgsProject::instance()->pathResolver() );
+  mSettings.setFlag( QgsMapSettings::RenderOnlyInMainCanvas );
 
   if ( !mTheme.isEmpty() )
   {

@@ -44,23 +44,29 @@ class CORE_EXPORT QgsMeshVectorValueInterpolator
 {
   public:
     //! Constructor
-    QgsMeshVectorValueInterpolator( QgsTriangularMesh triangularMesh,
-                                    QgsMeshDataBlock datasetVectorValues,
-                                    QgsMeshDataBlock scalarActiveFaceFlagValues );
+    QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
+                                    const QgsMeshDataBlock &datasetVectorValues );
+
+    //! Constructor with scalar active face flag value to not interpolate on inactive face
+    QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
+                                    const QgsMeshDataBlock &datasetVectorValues,
+                                    const QgsMeshDataBlock &scalarActiveFaceFlagValues );
     //! Destructor
-    virtual ~QgsMeshVectorValueInterpolator();
+    virtual ~QgsMeshVectorValueInterpolator() = default;
 
     //! Returns the interpolated vector
-    virtual QgsVector value( const QgsPointXY &point ) = 0;
+    virtual QgsVector value( const QgsPointXY &point ) const = 0;
 
   protected:
-    void updateFace( const QgsPointXY &point );
+    void updateCacheFaceIndex( const QgsPointXY &point ) const;
 
     QgsTriangularMesh mTriangularMesh;
     QgsMeshDataBlock mDatasetValues;
-    QgsMeshDataBlock mActiveFaceFlagValue;
-    QgsMeshFace face;
-    int mCacheFaceIndex;
+    QgsMeshDataBlock mActiveFaceFlagValues;
+    mutable QgsMeshFace mFaceCache;
+    mutable int mCacheFaceIndex;
+    mutable QMutex mMutex;
+    bool mUseScalarActiveFaceFlagValues = false;
 };
 
 
@@ -76,15 +82,23 @@ class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromVertex: public QgsMeshVecto
 {
   public:
     //! Constructor
-    QgsMeshVectorValueInterpolatorFromVertex( QgsTriangularMesh triangularMesh,
-        QgsMeshDataBlock datasetVectorValues,
-        QgsMeshDataBlock scalarActiveFaceFlagValues ):
+    QgsMeshVectorValueInterpolatorFromVertex( const QgsTriangularMesh &triangularMesh,
+        const QgsMeshDataBlock &datasetVectorValues ):
+      QgsMeshVectorValueInterpolator( triangularMesh, datasetVectorValues )
+    {
+
+    }
+
+    //! Constructor with scalar active face flag value to not interpolate on inactive face
+    QgsMeshVectorValueInterpolatorFromVertex( const QgsTriangularMesh &triangularMesh,
+        const QgsMeshDataBlock &datasetVectorValues,
+        const QgsMeshDataBlock &scalarActiveFaceFlagValues ):
       QgsMeshVectorValueInterpolator( triangularMesh, datasetVectorValues, scalarActiveFaceFlagValues )
     {
 
     }
 
-    QgsVector value( const QgsPointXY &point ) override;
+    QgsVector value( const QgsPointXY &point ) const override;
 
 
 };
@@ -102,13 +116,41 @@ class CORE_EXPORT QgsMeshTraceField
 
   public:
 
-    QgsMeshTraceField( const QgsRenderContext &renderContext, QgsMeshVectorValueInterpolator *interpolator, const QgsRectangle &layerExtent, double Vmax );
+    QgsMeshTraceField( const QgsRenderContext &renderContext,
+                       const QgsRectangle &layerExtent,
+                       double Vmax,
+                       int resolution = 1 );
 
     virtual ~QgsMeshTraceField() {}
 
+
     //! update the size of the fiels and the QgsMapToPixel instance to retrieve map point
     //! from pixel in the field depending on the resolution of the device
-    void updateSize();
+    //! if the extent of renderer context and the resolution are the same than before, do nothing
+    //! Else, updates the size and cleans
+    void updateSize( const QgsRenderContext &renderContext, int resolution );
+
+    //! set the data from the mesh using scalar active face flag values
+    void setDataFromVertex( const QgsTriangularMesh &triangularMesh,
+                            const QgsMeshDataBlock &dataSetVectorValues,
+                            const QgsMeshDataBlock &scalarActiveFaceFlagValues )
+    {
+      QMutexLocker locker( &mPrivateMutex );
+      mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                      dataSetVectorValues,
+                                      scalarActiveFaceFlagValues ) );
+    }
+
+    //! set the data from the mesh using scalar active face flag values
+    void setDataFromVertex( const QgsTriangularMesh &triangularMesh,
+                            const QgsMeshDataBlock &dataSetVectorValues )
+    {
+      QMutexLocker locker( &mPrivateMutex );
+      mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                      dataSetVectorValues ) );
+    }
+
+    bool isValid() const;
 
     //! Returns the size of the field
     QSize size() const;
@@ -133,33 +175,50 @@ class CORE_EXPORT QgsMeshTraceField
     //! Adds traces in the field from start points in the border of the field, pixelSpace is the space between points in pixel field
     void addTracesFromBorder( int pixelSpace );
 
-    //! Sets the width of particle in device pixel, the particle width define the resolution of the field
-    void setParticleWidth( int width );
+    //! Sets the resolution of the field
+    void setResolution( int width );
 
     //!Return the width of particle
-    int particleWidth() const;
+    int resolution() const;
+
+    //! Returns the size of the image that represents the trace field
+    QSize imageSize() const;
+
+    //! Returns the current render image of the field
+    virtual QImage image();
+
+    void stopProcessing()
+    {
+      mProcessingStop = true;
+    }
+
+    bool isWayExist( const QPoint &pixel ) const;
+
+    virtual bool way( const QPoint &pixel, float &dt, int &incX, int &incY ) const;
+
 
   protected:
-    QPointF fieldToDevice( const QPoint &pixel ) const
-    {
-      QPointF p( pixel );
-      p = mFieldResolution * p + QPointF( mFieldResolution - 1, mFieldResolution - 1 ) / 2;
-
-      return p;
-    }
+    QPointF fieldToDevice( const QPoint &pixel ) const;
+    QImage mTraceImage;
+    QPainter *mPainter = nullptr;
+    bool mProcessingStop = false;
+    QSize mFieldSize;
+    int mFieldResolution = 1;
+    mutable QMutex mSizeMutex; ///TODO : only one mutex should do the job
+    mutable QMutex mPrivateMutex;
 
   private:
 
 
-    QgsPointXY positionToMapCoordinnate( const QPoint &pixelPosition, const QgsPointXY &positionInPixel );
+    QgsPointXY positionToMapCoordinates( const QPoint &pixelPosition, const QgsPointXY &positionInPixel );
 
 
+    //Set the way in the field, not thread safe
+    virtual void setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY ) = 0;
 
-    virtual void setWay( const QPoint &pixel, float dt, float mag, int incX, int incY ) = 0;
+    virtual bool wayPrivate( const QPoint &pixel, float &dt, int &incX, int &incY ) const = 0;
 
-    virtual bool way( const QPoint &pixel, float &dt, int &incX, int &incY ) const = 0;
-
-    virtual bool isWayExist( const QPoint &pixel ) = 0;
+    virtual bool isWayExistPrivate( const QPoint &pixel ) const = 0;
 
     virtual void initField() = 0;
 
@@ -168,19 +227,53 @@ class CORE_EXPORT QgsMeshTraceField
 
 //attribute
     QgsRectangle mLayerExtent;
-    QgsRenderContext mRenderContext;
+    QgsRectangle mMapExtent;
     QgsMapToPixel mMapToFieldPixel;
-    QSize mFieldSize;
     QPoint mFieldTopLeftInDeviceCoordinates;
-    bool mValid;
+    bool mValid = false;
 
-    QgsMeshVectorValueInterpolator *mVectorValueInterpolator;
-    double mVmax;
-    QImage mTraceImage;
+    std::unique_ptr<QgsMeshVectorValueInterpolator> mVectorValueInterpolator;
+    double mVmax = 0;
     QPoint mLastPixel;
 
     //settings
-    int mFieldResolution = 1;
+
+
+};
+
+
+class QgsMeshTraceFieldDynamic;
+
+
+/**
+ * \ingroup core
+ *
+ * TODO
+ *
+ * \note not available in Python bindings
+ * \since QGIS 3.12
+ */
+class QgsMeshTraceParticle
+{
+  public:
+    QgsMeshTraceParticle( const QPoint &startPoint ):
+      mCurrentPositionInTheField( startPoint )
+    {
+
+    }
+
+    void move( float totalTime, const QgsMeshTraceFieldDynamic &field );
+
+    void  draw( const QgsMeshTraceFieldDynamic &field, double width ) const;
+
+    bool isLost() const;
+
+  private:
+    QPoint mCurrentPositionInTheField;
+    QList<QPoint> mPath;
+    float mTimeRemaingInTheCurrentPixel = 0;
+    bool mLost = false;
+    float mTimeLife = 1000;
 };
 
 
@@ -196,19 +289,64 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
 {
   public:
     QgsMeshTraceFieldDynamic( const QgsRenderContext &renderContext,
-                              QgsMeshVectorValueInterpolator *interpolator,
                               const QgsRectangle &layerExtent,
                               double Vmax ):
-      QgsMeshTraceField( renderContext, interpolator, layerExtent, Vmax )
+      QgsMeshTraceField( renderContext, layerExtent, Vmax )
     {
 
     }
+
+    void addParticle( QPoint startPoint )
+    {
+      QMutexLocker locker( &mParticleMutex );
+      if ( !isWayExist( startPoint ) )
+        addTrace( startPoint );
+
+      if ( !isWayExist( startPoint ) )
+        return;
+
+      mParticles.append( QgsMeshTraceParticle( startPoint ) );
+      mParticlesCount++;
+    }
+
+    void addRandomParticle()
+    {
+      if ( !isValid() )
+        return;
+
+      int xRandom =  1 + std::rand() / int( ( RAND_MAX + 1u ) / uint( size().width() ) )  ;
+      int yRandom = 1 + std::rand() / int ( ( RAND_MAX + 1u ) / uint( size().height() ) ) ;
+
+      addParticle( QPoint( xRandom, yRandom ) );
+    }
+
+    void addRandomParticles( int count )
+    {
+      while ( mParticlesCount < count && !mProcessingStop )
+      {
+        addRandomParticle();
+      }
+    }
+
+    void moveParticles( float time );
+
+    int particleCount() const
+    {
+      QMutexLocker locjker( &mParticleMutex );
+      return  mParticlesCount;
+    }
+
+
 
   private:
 
     QVector<float> mTimeField;
     QVector<char> mDirectionField;
     QVector<bool> mParticleField;
+    QList<QgsMeshTraceParticle> mParticles;
+    int mParticlesCount = 0;
+    mutable QMutex mParticleMutex;
+    QImage mShaderImg;
 
 
     /*the direction and the time spent in a pixel is defined with a char value
@@ -234,32 +372,16 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
 
     void initField() override;
 
-    void setWay( const QPoint &pixel, float dt, float mag, int incX, int incY ) override;
-
-    bool way( const QPoint &pixel, float &dt, int &incX, int &incY ) const override;
-
-    bool isWayExist( const QPoint &pixel ) override;
+    void setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY ) override;
+    bool isWayExistPrivate( const QPoint &pixel ) const override;
+    bool wayPrivate( const QPoint &pixel, float &dt, int &incX, int &incY ) const override;
 
     void startTrace( const QPoint &startPixel ) override {}
     void endTrace( const QPoint &endPixel ) override {}
-};
 
 
-/**
- * \ingroup core
- *
- * TODO
- *
- * \note not available in Python bindings
- * \since QGIS 3.12
- */
-class QgsMeshTraceParticule
-{
-  private:
-    //store the real positon in the pixel
-    QPointF mCurrentPositionInPixel;
-    QgsMeshTraceParticule *mCurrentTrace;
-    QList<char>::iterator mCurrentPixelPosition;
+    friend class QgsMeshTraceParticle;
+
 };
 
 
@@ -354,9 +476,8 @@ class CORE_EXPORT QgsMeshTraceFieldStatic: public QgsMeshTraceField //draw stati
 
     //! Constructor
     QgsMeshTraceFieldStatic( const QgsRenderContext &renderContext,
-                             QgsMeshVectorValueInterpolator *interpolator,
                              const QgsRectangle &layerExtent,
-                             double Vmax, QgsMeshTraceColor &traceColor );
+                             double Vmax, QColor color = Qt::lightGray );
 
     //! Destructor
     ~QgsMeshTraceFieldStatic() override;
@@ -365,34 +486,27 @@ class CORE_EXPORT QgsMeshTraceFieldStatic: public QgsMeshTraceField //draw stati
     void exportImage() const;
 
 
-    //! Returns the size of the image that represents the trace field
-    QSize imageSize() const;
-
-    //! Returns the image that represents the trace field
-    QImage image() const;
-
   private:
     //******************methods
     virtual void initField() override;
 
-    void setWay( const QPoint &pixel, float dt, float mag, int incX, int incY ) override;
+    void setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY ) override;
 
-    bool way( const QPoint &pixel, float &dt, int &incX, int &incY ) const override {return true;}
+    bool wayPrivate( const QPoint &pixel, float &dt, int &incX, int &incY ) const override {return true;}
 
-    bool isWayExist( const QPoint &pixel ) override;
+    bool isWayExistPrivate( const QPoint &pixel ) const override;
 
     void startTrace( const QPoint &startPixel ) override;
     void endTrace( const QPoint &endPixel ) override;
 
     //******************operating attributes
-    QImage mTraceImage;
-    QPainter *mPainter = nullptr;
+
     QPen mPen;
     QVector<float> mMagnitudeField;
     QPointF mLastPixel;
     bool mTraceInProgress = false;
     void( *color )( QPen &pen, const QPoint &pixel );
-    QgsMeshTraceColor &mTraceColor;
+    std::unique_ptr<QgsMeshTraceColor> mTraceColor;
 
     //******************settings attributes
 
@@ -406,56 +520,57 @@ class CORE_EXPORT QgsMeshTraceFieldStatic: public QgsMeshTraceField //draw stati
 class QgsMeshTraceRenderer
 {
   public:
-    enum Type {streamLines, particleAnimation};
-    QgsMeshTraceRenderer( const QgsRectangle &layerExtent,
-                          QgsTriangularMesh triangularMesh,
-                          QgsMeshDataBlock vectorDatasetValues,
-                          QgsMeshDataBlock scalarActiveFaceFlagValues,
-                          double vectorDatasetMagMinimum,
-                          double vectorDatasetMagMaximum,
-                          QgsRenderContext rendererContext,
-                          QSize outputSize,
-                          Type type ):
-      mContext( rendererContext )
+    QgsMeshTraceRenderer( QgsMeshTraceFieldDynamic *traceFieldDynamic, QgsMeshTraceFieldStatic *traceFieldStatic, QgsRenderContext &rendererContext ):
+      mTraceFieldDynamic( traceFieldDynamic ),
+      mTraceFieldStatic( traceFieldStatic ),
+      mRendererContext( rendererContext )
     {
-      mVectorInterpolator = new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh, vectorDatasetValues, scalarActiveFaceFlagValues );
-      traceColor = QgsMeshTraceUniqueColor( Qt::white );
-      mTraceField = new QgsMeshTraceFieldStatic( rendererContext, mVectorInterpolator, layerExtent, vectorDatasetMagMaximum, traceColor );
+      qDebug() << "start : " << QTime::currentTime();
+      QPoint startPoint( traceFieldDynamic->size().width() - 5, 5 );
+      traceFieldDynamic->addRandomParticles( 150 );
+      mTraceFieldStatic->addTrace( startPoint );
     }
 
     ~QgsMeshTraceRenderer()
     {
-      delete mVectorInterpolator;
-      delete mTraceField;
+
     }
 
     void draw()
     {
-      QPainter *painter = mContext.painter();
-      painter->save();
-      if ( mContext.flags() & QgsRenderContext::Antialiasing )
-        painter->setRenderHint( QPainter::Antialiasing, true );
 
-      mTraceField->updateSize();
+      if ( mRendererContext.renderingStopped() )
+        return;
+      //while ( true )
+      {
 
-      mTraceField->addRandomTraces( 5000 );
-      //mTraceField->addGriddedTrace( 40 );
-      //mTraceField->addTracesFromBorder( 40 );
-      QSize imageSize = mTraceField->imageSize();
 
-      QRectF targetRect( mTraceField->topLeft(), imageSize );
-      QRectF sourceRect( QPoint( 0, 0 ), imageSize );
-      painter->drawImage( targetRect, mTraceField->image(), sourceRect );
+        //      QRectF targetRect( mTraceField->topLeft(), mTraceField->imageSize() );
+        //      QRectF sourceRect( QPoint( 0, 0 ), mTraceField->imageSize() );
+        if ( mRendererContext.renderingStopped() )
+          return;
 
-      painter->restore();
+        qDebug() << "start render: " << QTime::currentTime();
+        mRendererContext.painter()->drawImage( mTraceFieldDynamic->topLeft(), mTraceFieldDynamic->image() );
+        mRendererContext.painter()->drawImage( mTraceFieldStatic->topLeft(), mTraceFieldStatic->image() );
+      }
+
+      qDebug() << "Finished : " << QTime::currentTime();
+
+
+
+      mTraceFieldDynamic->moveParticles( 150 );
+      int pc = mTraceFieldDynamic->particleCount();
+
+      if ( mTraceFieldDynamic->particleCount() < 150 )
+        mTraceFieldDynamic->addRandomParticles( 150 - pc );
 
     }
 
   private:
-    QgsMeshVectorValueInterpolatorFromVertex *mVectorInterpolator;
-    QgsMeshTraceFieldStatic *mTraceField;
-    QgsRenderContext mContext;
-    QgsMeshTraceUniqueColor traceColor;
+    QgsMeshTraceFieldDynamic *mTraceFieldDynamic;
+    QgsMeshTraceFieldStatic *mTraceFieldStatic;
+    QgsRenderContext &mRendererContext;
 };
 
 #endif // QGSMESHTRACERENDERER_H

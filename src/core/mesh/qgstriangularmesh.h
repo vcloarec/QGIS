@@ -151,11 +151,11 @@ namespace QgsMeshUtils
    *  NB : tirangle surface = Isleft / 2
    *  * \since QGIS 3.12
   */
-  CORE_EXPORT double IsLeft2D( const QgsPoint &p1, const QgsPoint &p2, const QgsPoint &p );
+  double IsLeft2D( const QgsPoint &p1, const QgsPoint &p2, const QgsPoint &p );
 
-  CORE_EXPORT bool isInTriangle2D( const QgsPoint &p, const QVector<QgsMeshVertex> &triangle );
+  bool isInTriangle2D( const QgsPoint &p, const QVector<QgsMeshVertex> &triangle );
 
-  CORE_EXPORT bool isInTriangleFace( const QgsPointXY point, const QgsMeshFace &face,  const QVector<QgsMeshVertex> &vertices )
+  bool isInTriangleFace( const QgsPointXY point, const QgsMeshFace &face,  const QVector<QgsMeshVertex> &vertices )
   ;
 
 };

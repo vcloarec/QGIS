@@ -284,6 +284,16 @@ void QgsMeshRendererVectorSettings::setUserGridCellHeight( int height )
   mUserGridCellHeight = height;
 }
 
+void QgsMeshRendererVectorSettings::setAnimatedTrace( bool enabled )
+{
+  mAnimatedTrace = enabled;
+}
+
+bool QgsMeshRendererVectorSettings::animatedTrace() const
+{
+  return mAnimatedTrace;
+}
+
 QDomElement QgsMeshRendererVectorSettings::writeXml( QDomDocument &doc ) const
 {
   QDomElement elem = doc.createElement( QStringLiteral( "vector-settings" ) );

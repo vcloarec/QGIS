@@ -42,7 +42,6 @@ class TestQgsMeshTrace : public QObject
     QgsMeshDataProvider *mDataProvider;
     QgsMeshDataBlock mDataBlock;
     QgsMeshDataBlock mScalarActiveFaceFlagValues;
-    QgsMeshVectorValueInterpolatorFromVertex *mInterpolator;
     QgsMeshTraceField *mTraceField;
     double mVmax;
 
@@ -85,7 +84,6 @@ void TestQgsMeshTrace::initTestCase()
                                   0,
                                   mMeshLayer->nativeMesh()->faces.count() );
 
-  mInterpolator = new QgsMeshVectorValueInterpolatorFromVertex( *mMeshLayer->triangularMesh(), mDataBlock, mScalarActiveFaceFlagValues );
   mVmax = mDataProvider->datasetMetadata( dataIndex ).maximum();
 
 }
@@ -102,6 +100,9 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
   QgsPoint startPoint( extent.xMaximum(), extent.yMinimum() );
   QgsPointXY point( startPoint );
 
+  std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex> interpolator =
+    std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex>( new QgsMeshVectorValueInterpolatorFromVertex( *mMeshLayer->triangularMesh(), mDataBlock, mScalarActiveFaceFlagValues ) );
+
   QgsVector vect;
   QTime time;
   time.start();
@@ -110,7 +111,7 @@ void TestQgsMeshTrace::vectorInterpolatorTest()
   {
     for ( int j = 0; j < size; ++j )
     {
-      vect = mInterpolator->value( point );
+      vect = interpolator->value( point );
       point = point + incPointX;
       if ( vect != QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) )
         goodPixelCount++;
@@ -133,8 +134,10 @@ void TestQgsMeshTrace::traceFieldTest()
                              mapExtent.yMinimum() + mapExtent.height() / 2,
                              outputSize.width(), outputSize.width(), 0 );
   rc.setMapToPixel( maptToPixel );
-  QgsMeshTraceUniqueColor traceColor( Qt::red );
-  QgsMeshTraceFieldStatic field( rc, mInterpolator, mMeshLayer->extent(), mVmax, traceColor );
+
+  std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex> interpolator =
+    std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex>( new QgsMeshVectorValueInterpolatorFromVertex( *mMeshLayer->triangularMesh(), mDataBlock, mScalarActiveFaceFlagValues ) );
+  QgsMeshTraceFieldStatic field( rc, mMeshLayer->extent(), mVmax, Qt::blue );
 
   QTime time;
   time.start();
@@ -148,7 +151,6 @@ void TestQgsMeshTrace::traceFieldTest()
 void TestQgsMeshTrace::cleanupTestCase()
 {
   delete mMeshLayer;
-  delete mInterpolator;
   QgsApplication::exitQgis();
 }
 

@@ -55,6 +55,40 @@ QgsMeshLayerRenderer::QgsMeshLayerRenderer( QgsMeshLayer *layer, QgsRenderContex
   copyScalarDatasetValues( layer );
   copyVectorDatasetValues( layer );
 
+  if ( context.testFlag( QgsRenderContext::RenderOnlyInMainCanvas )
+       && !context.testFlag( QgsRenderContext::RenderPreviewJob ) )
+  {
+    if ( !layer->rendererCache()->mTraceFieldDynamic )
+    {
+      layer->rendererCache()->mTraceFieldDynamic =
+        std::shared_ptr<QgsMeshTraceFieldDynamic>( new QgsMeshTraceFieldDynamic( context, layer->extent(), 15 ) );
+    }
+
+    mTraceFieldDynamic = layer->rendererCache()->mTraceFieldDynamic;
+    mTraceFieldDynamic->updateSize( context, 1 );
+    if ( mRendererSettings.activeScalarDataset().isValid() )
+      mTraceFieldDynamic->setDataFromVertex( mTriangularMesh, mVectorDatasetValues, mScalarActiveFaceFlagValues );
+    else
+      mTraceFieldDynamic->setDataFromVertex( mTriangularMesh, mVectorDatasetValues );
+
+    layer->rendererCache()->mTraceFieldDynamic = mTraceFieldDynamic;
+
+
+    if ( !layer->rendererCache()->mTraceFieldStatic )
+    {
+      layer->rendererCache()->mTraceFieldStatic =
+        std::shared_ptr<QgsMeshTraceFieldStatic>( new QgsMeshTraceFieldStatic( context, layer->extent(), 15, Qt::blue ) );
+    }
+    mTraceFieldStatic = layer->rendererCache()->mTraceFieldStatic;
+    mTraceFieldStatic->updateSize( context, 1 );
+    if ( mRendererSettings.activeScalarDataset().isValid() )
+      mTraceFieldStatic->setDataFromVertex( mTriangularMesh, mVectorDatasetValues, mScalarActiveFaceFlagValues );
+    else
+      mTraceFieldDynamic->setDataFromVertex( mTriangularMesh, mVectorDatasetValues );
+
+    layer->rendererCache()->mTraceFieldStatic = mTraceFieldStatic;
+  }
+
   calculateOutputSize();
 }
 
@@ -217,8 +251,11 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
 
 bool QgsMeshLayerRenderer::render()
 {
+  qDebug() << "start render data set: " << QTime::currentTime();
   renderScalarDataset();
+  qDebug() << "start render mesh: " << QTime::currentTime();
   renderMesh();
+  qDebug() << "start render trace: " << QTime::currentTime();
   //renderVectorDataset();
   renderVectorTrace();
   return true;
@@ -366,6 +403,15 @@ void QgsMeshLayerRenderer::renderVectorDataset()
 
 void QgsMeshLayerRenderer::renderVectorTrace()
 {
+  if ( ! renderContext()->testFlag( QgsRenderContext::RenderOnlyInMainCanvas )
+       || renderContext()->testFlag( QgsRenderContext::RenderPreviewJob ) )
+  {
+    return;
+  }
+
+  if ( ! mTraceFieldDynamic )
+    return;
+
   QgsMeshDatasetIndex index = mRendererSettings.activeVectorDataset();
   if ( !index.isValid() )
     return;
@@ -376,15 +422,7 @@ void QgsMeshLayerRenderer::renderVectorTrace()
   if ( std::isnan( mVectorDatasetMagMinimum ) || std::isnan( mVectorDatasetMagMaximum ) )
     return; // only NODATA values
 
-  QgsMeshTraceRenderer renderer( mLayerExtent,
-                                 mTriangularMesh,
-                                 mVectorDatasetValues,
-                                 mScalarActiveFaceFlagValues,
-                                 mVectorDatasetMagMinimum,
-                                 mVectorDatasetMagMaximum,
-                                 *renderContext(),
-                                 mOutputSize,
-                                 QgsMeshTraceRenderer::streamLines );
+  QgsMeshTraceRenderer renderer( mTraceFieldDynamic.get(), mTraceFieldStatic.get(), *renderContext() );
 
   renderer.draw();
 }

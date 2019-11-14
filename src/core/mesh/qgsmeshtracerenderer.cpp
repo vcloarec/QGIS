@@ -19,31 +19,32 @@
 
 
 
-QgsVector QgsMeshVectorValueInterpolatorFromVertex::value( const QgsPointXY &point )
+QgsVector QgsMeshVectorValueInterpolatorFromVertex::value( const QgsPointXY &point ) const
 {
-  updateFace( point );
+  QMutexLocker locker( &mMutex );
+  updateCacheFaceIndex( point );
 
   if ( mCacheFaceIndex == -1 || mCacheFaceIndex >= mTriangularMesh.triangles().count() )
     return ( QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) );
 
-  if ( ! mActiveFaceFlagValue.active( mTriangularMesh.trianglesToNativeFaces()[mCacheFaceIndex] ) )
+  if ( mUseScalarActiveFaceFlagValues && ! mActiveFaceFlagValues.active( mTriangularMesh.trianglesToNativeFaces()[mCacheFaceIndex] ) )
     return ( QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) );
 
-  face = mTriangularMesh.triangles().at( mCacheFaceIndex );
+  mFaceCache = mTriangularMesh.triangles().at( mCacheFaceIndex );
 
 
-  QgsPoint p1 = mTriangularMesh.vertices().at( face[0] );
-  QgsPoint p2 = mTriangularMesh.vertices().at( face[1] );
-  QgsPoint p3 = mTriangularMesh.vertices().at( face[2] );
+  QgsPoint p1 = mTriangularMesh.vertices().at( mFaceCache.at( 0 ) );
+  QgsPoint p2 = mTriangularMesh.vertices().at( mFaceCache.at( 1 ) );
+  QgsPoint p3 = mTriangularMesh.vertices().at( mFaceCache.at( 2 ) );
 
-  QgsVector v1 = QgsVector( mDatasetValues.value( face[0] ).x(),
-                            mDatasetValues.value( face[0] ).y() );
+  QgsVector v1 = QgsVector( mDatasetValues.value( mFaceCache.at( 0 ) ).x(),
+                            mDatasetValues.value( mFaceCache.at( 0 ) ).y() );
 
-  QgsVector v2 = QgsVector( mDatasetValues.value( face[1] ).x(),
-                            mDatasetValues.value( face[1] ).y() );
+  QgsVector v2 = QgsVector( mDatasetValues.value( mFaceCache.at( 1 ) ).x(),
+                            mDatasetValues.value( mFaceCache.at( 1 ) ).y() );
 
-  QgsVector v3 = QgsVector( mDatasetValues.value( face[2] ).x(),
-                            mDatasetValues.value( face[2] ).y() );
+  QgsVector v3 = QgsVector( mDatasetValues.value( mFaceCache.at( 2 ) ).x(),
+                            mDatasetValues.value( mFaceCache.at( 2 ) ).y() );
 
 
   return QgsMeshLayerUtils::interpolateVectorFromVerticesData(
@@ -56,21 +57,30 @@ QgsVector QgsMeshVectorValueInterpolatorFromVertex::value( const QgsPointXY &poi
            point );
 }
 
-QgsMeshVectorValueInterpolator::QgsMeshVectorValueInterpolator( QgsTriangularMesh triangularMesh,
-    QgsMeshDataBlock datasetVectorValues,
-    QgsMeshDataBlock scalarActiveFaceFlagValues ):
+QgsMeshVectorValueInterpolator::QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
+    const QgsMeshDataBlock &datasetVectorValues ):
   mTriangularMesh( triangularMesh ),
   mDatasetValues( datasetVectorValues ),
-  mActiveFaceFlagValue( scalarActiveFaceFlagValues )
+  mUseScalarActiveFaceFlagValues( false )
 {
 
 }
 
-QgsMeshVectorValueInterpolator::~QgsMeshVectorValueInterpolator() {}
-
-void QgsMeshVectorValueInterpolator::updateFace( const QgsPointXY &point )
+QgsMeshVectorValueInterpolator::QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
+    const QgsMeshDataBlock &datasetVectorValues,
+    const QgsMeshDataBlock &scalarActiveFaceFlagValues ):
+  mTriangularMesh( triangularMesh ),
+  mDatasetValues( datasetVectorValues ),
+  mActiveFaceFlagValues( scalarActiveFaceFlagValues ),
+  mUseScalarActiveFaceFlagValues( true )
 {
-  if ( ! QgsMeshUtils::isInTriangleFace( point, face, mTriangularMesh.vertices() ) )
+
+}
+
+
+void QgsMeshVectorValueInterpolator::updateCacheFaceIndex( const QgsPointXY &point ) const
+{
+  if ( ! QgsMeshUtils::isInTriangleFace( point, mFaceCache, mTriangularMesh.vertices() ) )
   {
     /*the first version of this method uses QgsGeometry::contain to check if the point is in triangles,
     *  not too time consuming for a simple triangle?
@@ -83,20 +93,23 @@ void QgsMeshVectorValueInterpolator::updateFace( const QgsPointXY &point )
 
 QSize QgsMeshTraceField::size() const
 {
+  QMutexLocker locker( &mSizeMutex );
   return mFieldSize;
 }
 
 QPoint QgsMeshTraceField::topLeft() const
 {
+  QMutexLocker locker( &mSizeMutex );
   return mFieldTopLeftInDeviceCoordinates;
 }
 
-int QgsMeshTraceField::particleWidth() const
+int QgsMeshTraceField::resolution() const
 {
+  QMutexLocker locker( &mSizeMutex );
   return mFieldResolution;
 }
 
-QgsPointXY QgsMeshTraceField::positionToMapCoordinnate( const QPoint &pixelPosition, const QgsPointXY &positionInPixel )
+QgsPointXY QgsMeshTraceField::positionToMapCoordinates( const QPoint &pixelPosition, const QgsPointXY &positionInPixel )
 {
   QgsPointXY mapPoint = mMapToFieldPixel.toMapCoordinates( pixelPosition );
   mapPoint = mapPoint + QgsVector( positionInPixel.x() * mMapToFieldPixel.mapUnitsPerPixel(),
@@ -104,22 +117,41 @@ QgsPointXY QgsMeshTraceField::positionToMapCoordinnate( const QPoint &pixelPosit
   return mapPoint;
 }
 
-QgsMeshTraceField::QgsMeshTraceField( const QgsRenderContext &renderContext, QgsMeshVectorValueInterpolator *interpolator, const QgsRectangle &layerExtent, double Vmax ):
+QgsMeshTraceField::QgsMeshTraceField( const QgsRenderContext &renderContext,
+                                      const QgsRectangle &layerExtent, double Vmax, int resolution ):
   mLayerExtent( layerExtent ),
-  mRenderContext( renderContext ),
-  mVectorValueInterpolator( interpolator ),
   mVmax( Vmax )
 {
 }
 
-void QgsMeshTraceField::updateSize()
+void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext, int resolution )
 {
-  const QgsMapToPixel &deviceMapToPixel = mRenderContext.mapToPixel();
+  QMutexLocker locker( &mSizeMutex );
+  if ( renderContext.mapExtent() == mMapExtent && resolution == mFieldResolution )
+    return;
 
-  QgsRectangle layerExtent = mRenderContext.coordinateTransform().transform( mLayerExtent );
-  QgsRectangle mapExtent = mRenderContext.extent();
+  stopProcessing();
 
-  QgsRectangle interestZoneExtent = layerExtent.intersect( mapExtent );
+
+  qDebug() << "*************************************** Fields updated*****************************";
+  mMapExtent = renderContext.mapExtent();
+  mFieldResolution = resolution;
+
+  const QgsMapToPixel &deviceMapToPixel = renderContext.mapToPixel();
+
+  QgsRectangle layerExtent;
+  try
+  {
+    layerExtent = renderContext.coordinateTransform().transform( mLayerExtent );
+
+  }
+  catch ( QgsCsException &cse )
+  {
+    Q_UNUSED( cse );
+    layerExtent = mLayerExtent;
+  }
+
+  QgsRectangle interestZoneExtent = layerExtent.intersect( mMapExtent );
   if ( interestZoneExtent == QgsRectangle() )
   {
     mValid = false;
@@ -153,11 +185,11 @@ void QgsMeshTraceField::updateSize()
   mFieldSize.setHeight( fieldHeight );
 
 
-  double mapUnitperFieldPixel;
+  double mapUnitPerFieldPixel;
   if ( interestZoneExtent.width() > 0 )
-    mapUnitperFieldPixel = interestZoneExtent.width() / fieldWidthInDeviceCoordinate * mFieldResolution;
+    mapUnitPerFieldPixel = interestZoneExtent.width() / fieldWidthInDeviceCoordinate * mFieldResolution;
   else
-    mapUnitperFieldPixel = 1e-8;
+    mapUnitPerFieldPixel = 1e-8;
 
   int fieldRightDevice = mFieldTopLeftInDeviceCoordinates.x() + mFieldSize.width() * mFieldResolution;
   int fieldBottomDevice = mFieldTopLeftInDeviceCoordinates.y() + mFieldSize.height() * mFieldResolution;
@@ -170,7 +202,7 @@ void QgsMeshTraceField::updateSize()
   double xc = ( fieldRightBottomMap.x() + fieldTopLeftMap.x() ) / 2;
   double yc = ( fieldTopLeftMap.y() + fieldRightBottomMap.y() ) / 2;
 
-  mMapToFieldPixel = QgsMapToPixel( mapUnitperFieldPixel,
+  mMapToFieldPixel = QgsMapToPixel( mapUnitPerFieldPixel,
                                     xc,
                                     yc,
                                     fieldWidth,
@@ -180,15 +212,27 @@ void QgsMeshTraceField::updateSize()
   mValid = true;
 }
 
+bool QgsMeshTraceField::isValid() const
+{
+  return mValid;
+}
+
 void QgsMeshTraceField::addTrace( QgsPointXY startPoint )
 {
+  QPoint sp;
+  mSizeMutex.lock();
+  sp = mMapToFieldPixel.transform( startPoint ).toQPointF().toPoint();
+  mSizeMutex.unlock();
   addTrace( mMapToFieldPixel.transform( startPoint ).toQPointF().toPoint() );
 }
 
 void QgsMeshTraceField::addRandomTraces( int count )
 {
   for ( int i = 0; i < count; ++i )
+  {
     addRandomTrace();
+  }
+
 }
 
 void QgsMeshTraceField::addRandomTrace()
@@ -196,15 +240,20 @@ void QgsMeshTraceField::addRandomTrace()
   if ( !mValid )
     return;
 
+  mSizeMutex.lock();
   int xRandom =  1 + std::rand() / int( ( RAND_MAX + 1u ) / uint( mFieldSize.width() ) )  ;
   int yRandom = 1 + std::rand() / int ( ( RAND_MAX + 1u ) / uint( mFieldSize.height() ) ) ;
+  mSizeMutex.unlock();
 
   addTrace( QPoint( xRandom, yRandom ) );
 }
 
 void QgsMeshTraceField::addGriddedTraces( int pixelSpace )
 {
+  mSizeMutex.lock();
   int fieldSpace = pixelSpace / mFieldResolution;
+  mSizeMutex.unlock();
+
   int i = 0;
   while ( i < size().width() )
   {
@@ -254,15 +303,15 @@ void QgsMeshTraceField::addTracesFromBorder( int pixelSpace )
 
 void QgsMeshTraceField::addTrace( QPoint startPixel )
 {
-  //This is where each trace are contructed
-
+  //This is where each trace are constructed
+  QMutexLocker locker( &mPrivateMutex );
   if ( !mValid )
     return;
 
-  if ( isWayExist( startPixel ) )
+  if ( isWayExistPrivate( startPixel ) )
     return;
 
-  if ( ! mVectorValueInterpolator )
+  if ( !mVectorValueInterpolator )
     return;
 
   bool end = false;
@@ -279,7 +328,9 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
   int i = 0;
   while ( !end )
   {
-    QgsPointXY mapPosition = positionToMapCoordinnate( currentPixel, QgsPointXY( x1, y1 ) );
+    if ( mProcessingStop )
+      break;
+    QgsPointXY mapPosition = positionToMapCoordinates( currentPixel, QgsPointXY( x1, y1 ) );
     vector = mVectorValueInterpolator->value( mapPosition ) ;
 
     if ( std::isnan( vector.x() ) || std::isnan( vector.y() ) )
@@ -294,7 +345,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     QgsVector vu = vector / mVmax * 2;
     double Vx = vu.x();
     double Vy = vu.y();
-    double Vu = vu.length(); //adimentional vector magnitude
+    double Vu = vu.length(); //nondimentional vector magnitude
 
     if ( qgsDoubleNear( Vu, 0 ) )
     {
@@ -304,7 +355,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     }
 
     /*calculates where the particule will be after dt=1,
-     * that permits to know i, which pixel the time spent have to be calculated
+     * that permits to know which pixel the time spent have to be calculated
      */
 
     QgsPointXY  nextPosition = QgsPointXY( x1, y1 ) + vu;
@@ -346,7 +397,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
         y2 = incY;
       }
       //move the current position, adjust position in pixel and store the direction and dt in the pixel
-      setWay( currentPixel, dt, float( Vu / 2 ), incX, incY );
+      setWayPrivate( currentPixel, dt, float( Vu / 2 ), incX, incY );
       dt = 1;
       currentPixel += QPoint( incX, -incY );
       ++i;
@@ -429,7 +480,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     }
 
     //test if the new current pixel is already defined, if yes no need to continue
-    if ( isWayExist( currentPixel ) )
+    if ( isWayExistPrivate( currentPixel ) )
     {
       break;
     }
@@ -437,35 +488,58 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
   }
 }
 
-void QgsMeshTraceField::setParticleWidth( int width )
+void QgsMeshTraceField::setResolution( int width )
 {
+  QMutexLocker locker( &mSizeMutex );
   mFieldResolution = width;
 }
 
 void QgsMeshTraceFieldDynamic::initField()
 {
-  mDirectionField = QVector<char>( size().width() * size().height(), char( 0 ) );
-  mTimeField = QVector<float>( size().width() * size().height(), 0 );
+  QMutexLocker locker( &mParticleMutex );
+  mDirectionField = QVector<char>( mFieldSize.width() * mFieldSize.height(), char( 0 ) );
+  mTimeField = QVector<float>( mFieldSize.width() * mFieldSize.height(), 0 );
+  mParticleField = QVector<bool>( mFieldSize.width() * mFieldSize.height(), 0 );
+
+  if ( mPainter )
+    delete mPainter;
+
+  mTraceImage = QImage( mFieldSize * mFieldResolution, QImage::Format_ARGB32 );
+  mTraceImage.fill( QColor( 0, 0, 0, 0 ) );
+
+  mPainter = new QPainter( &mTraceImage );
+  mPainter->setRenderHint( QPainter::Antialiasing, true );
+  mPainter->setCompositionMode( QPainter::CompositionMode_SourceOut );
+
+  mShaderImg = QImage( mFieldSize * mFieldResolution, QImage::Format_ARGB32 );
+  mShaderImg.fill( QColor( 0, 0, 0, 1 ) );
+
+  mParticles.clear();
+  mParticlesCount = 0;
+
+  mProcessingStop = false;
 }
 
-void QgsMeshTraceFieldDynamic::setWay( const QPoint &pixel, float dt, float mag, int incX, int incY )
+void QgsMeshTraceFieldDynamic::setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY )
 {
   char pixelValue = char( incX + 2 + ( incY + 1 ) * 3 );
   int i = pixel.x();
   int j = pixel.y();
-  if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
+  if ( i >= 0 && i < mFieldSize.width() && j >= 0 && j < mFieldSize.height() )
   {
-    mDirectionField[j * size().width() + i] = pixelValue;
+    int index = j * mFieldSize.width() + i;
+    mDirectionField[index] = pixelValue;
+    mTimeField[index] = dt;
   }
 }
 
-bool QgsMeshTraceFieldDynamic::way( const QPoint &pixel, float &dt, int &incX, int &incY ) const
+bool QgsMeshTraceFieldDynamic::wayPrivate( const QPoint &pixel, float &dt, int &incX, int &incY ) const
 {
   int i = pixel.x();
   int j = pixel.y();
-  if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
+  if ( i >= 0 && i < mFieldSize.width() && j >= 0 && j < mFieldSize.height() )
   {
-    int index = j * size().width() + i;
+    int index = j * mFieldSize.width() + i;
     int direction = int( mDirectionField[index] );
     if ( direction != 0 )
     {
@@ -479,18 +553,40 @@ bool QgsMeshTraceFieldDynamic::way( const QPoint &pixel, float &dt, int &incX, i
 
 }
 
-bool QgsMeshTraceFieldDynamic::isWayExist( const QPoint &pixel )
+void QgsMeshTraceFieldDynamic::moveParticles( float time )
+{
+  QMutexLocker locker( &mParticleMutex );
+  mPainter->drawImage( 0, 0, mShaderImg );
+
+  auto part = mParticles.begin();
+  while ( part != mParticles.end() )
+  {
+    part->move( time, *this );
+    part->draw( *this, 5 );
+
+    if ( part->isLost() )
+    {
+      part = mParticles.erase( part );
+      mParticlesCount--;
+    }
+    else
+      part++;
+  }
+
+
+}
+
+bool QgsMeshTraceFieldDynamic::isWayExistPrivate( const QPoint &pixel ) const
 {
   int i = pixel.x();
   int j = pixel.y();
   uint direction;
-  if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
+  if ( i >= 0 && i < mFieldSize.width() && j >= 0 && j < mFieldSize.height() )
   {
-    direction = uint( mDirectionField[j * size().width() + i] );
+    direction = uint( mDirectionField[j * mFieldSize.width() + i] );
     if ( direction == 0 )
       return false;
   }
-
   return true;
 
 }
@@ -519,9 +615,11 @@ QgsMeshTraceColorRamp::~QgsMeshTraceColorRamp()
   delete mColorRamp;
 }
 
-QgsMeshTraceFieldStatic::QgsMeshTraceFieldStatic( const QgsRenderContext &renderContext, QgsMeshVectorValueInterpolator *interpolator, const QgsRectangle &layerExtent, double Vmax, QgsMeshTraceColor &traceColor ):
-  QgsMeshTraceField( renderContext, interpolator, layerExtent, Vmax ),
-  mTraceColor( traceColor )
+QgsMeshTraceFieldStatic::QgsMeshTraceFieldStatic( const QgsRenderContext &renderContext,
+    const QgsRectangle &layerExtent,
+    double Vmax, QColor color ):
+  QgsMeshTraceField( renderContext, layerExtent, Vmax ),
+  mTraceColor( new QgsMeshTraceUniqueColor( color ) )
 {
   mPen.setWidthF( 0.5 );
 }
@@ -537,36 +635,64 @@ void QgsMeshTraceFieldStatic::exportImage() const
   mTraceImage.save( "traceField", "PNG" );
 }
 
-QSize QgsMeshTraceFieldStatic::imageSize() const
+QSize QgsMeshTraceField::imageSize() const
 {
-  return size() * particleWidth();
+  QMutexLocker locker( &mSizeMutex );
+  return mFieldSize * mFieldResolution;
 }
 
-QImage QgsMeshTraceFieldStatic::image() const
+QPointF QgsMeshTraceField::fieldToDevice( const QPoint &pixel ) const
 {
-  return mTraceImage.scaled( imageSize(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
+  QPointF p( pixel );
+  QMutexLocker locker( &mSizeMutex );
+  p = mFieldResolution * p + QPointF( mFieldResolution - 1, mFieldResolution - 1 ) / 2;
+  return p;
+}
+
+QImage QgsMeshTraceField::image()
+{
+  QMutexLocker locker1( &mPrivateMutex );
+  QMutexLocker locker2( &mSizeMutex );
+  return mTraceImage.scaled( mFieldSize * mFieldResolution, Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
+}
+
+bool QgsMeshTraceField::isWayExist( const QPoint &pixel ) const
+{
+  QMutexLocker locker( &mPrivateMutex );
+  return isWayExistPrivate( pixel );
+}
+
+bool QgsMeshTraceField::way( const QPoint &pixel, float &dt, int &incX, int &incY ) const
+{
+  QMutexLocker locker( &mPrivateMutex );
+  return wayPrivate( pixel, dt, incX, incY );
 }
 
 void QgsMeshTraceFieldStatic::initField()
 {
-  mMagnitudeField = QVector<float>( size().width() * size().height(), -1 );
-  mTraceImage = QImage( imageSize(), QImage::Format_ARGB32 );
-  mTraceImage.fill( 0X00000000 );
+  mMagnitudeField = QVector<float>( mFieldSize.width() * mFieldSize.height(), -1 );
+
   if ( mPainter )
     delete mPainter;
+
+  mTraceImage = QImage( mFieldSize * mFieldResolution, QImage::Format_ARGB32 );
+  mTraceImage.fill( 0X00000000 );
+
   mPainter = new QPainter( &mTraceImage );
   mPainter->setRenderHint( QPainter::Antialiasing, true );
   mPainter->setPen( mPen );
+  mProcessingStop = false;
+
 }
 
-void QgsMeshTraceFieldStatic::setWay( const QPoint &pixel, float dt, float mag, int incX, int incY )
+void QgsMeshTraceFieldStatic::setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY )
 {
   int i = pixel.x();
   int j = pixel.y();
   if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
   {
     mMagnitudeField[j * size().width() + i] = mag;
-    mPen.setColor( mTraceColor.color( mag ) );
+    mPen.setColor( mTraceColor->color( mag ) );
     mPainter->setPen( mPen );
 
     QPointF devicePixel = fieldToDevice( pixel );
@@ -578,7 +704,7 @@ void QgsMeshTraceFieldStatic::setWay( const QPoint &pixel, float dt, float mag, 
   }
 }
 
-bool QgsMeshTraceFieldStatic::isWayExist( const QPoint &pixel )
+bool QgsMeshTraceFieldStatic::isWayExistPrivate( const QPoint &pixel ) const
 {
   int i = pixel.x();
   int j = pixel.y();
@@ -602,4 +728,50 @@ void QgsMeshTraceFieldStatic::startTrace( const QPoint &startPixel )
 void QgsMeshTraceFieldStatic::endTrace( const QPoint &endPixel )
 {
   mTraceInProgress = false;
+}
+
+void QgsMeshTraceParticle::move( float totalTime, const QgsMeshTraceFieldDynamic &field )
+{
+  float timeRemaining = totalTime - mTimeRemaingInTheCurrentPixel;
+  QPoint position = mCurrentPositionInTheField;
+  mPath.clear();
+  while ( timeRemaining > 0 && !mLost )
+  {
+    int incX, incY;
+    float dt;
+    mLost = !field.way( position, dt, incX, incY );
+    if ( !mLost )
+    {
+      mPath.append( position );
+      position += QPoint( incX, -incY );
+      timeRemaining -= dt;
+    }
+  }
+  mCurrentPositionInTheField = position;
+  mTimeLife -= totalTime;
+  if ( mTimeLife < 0 )
+  {
+    mLost = true;
+  }
+
+
+  if ( timeRemaining < 0 )
+    mTimeRemaingInTheCurrentPixel = timeRemaining;
+}
+
+void QgsMeshTraceParticle::draw( const QgsMeshTraceFieldDynamic &field, double width ) const
+{
+  for ( auto &p : mPath )
+  {
+    QPointF devicePoint = field.fieldToDevice( p );
+
+    auto elips = QRectF( devicePoint.x() - width / 2, devicePoint.y() - width / 2, width / 2, width / 2 );
+    field.mPainter->drawEllipse( elips );
+  }
+
+}
+
+bool QgsMeshTraceParticle::isLost() const
+{
+  return mLost;
 }

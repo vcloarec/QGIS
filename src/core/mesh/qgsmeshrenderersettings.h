@@ -294,6 +294,10 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     int userGridCellHeight() const;
     //! Sets height of user grid cell (in pixels)
     void setUserGridCellHeight( int height );
+    //! set if trace is animated
+    void setAnimatedTrace( bool enabled );
+    //! Return true is trace is animated
+    bool animatedTrace() const;
 
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc ) const;
@@ -315,6 +319,9 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     bool mOnUserDefinedGrid = false;
     int mUserGridCellWidth = 10; // in pixels
     int mUserGridCellHeight = 10; // in pixels
+
+    //Vector trace setting
+    bool mAnimatedTrace = true;
 };
 
 
