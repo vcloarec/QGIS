@@ -93,19 +93,19 @@ void QgsMeshVectorValueInterpolator::updateCacheFaceIndex( const QgsPointXY &poi
 
 QSize QgsMeshTraceField::size() const
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   return mFieldSize;
 }
 
 QPoint QgsMeshTraceField::topLeft() const
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   return mFieldTopLeftInDeviceCoordinates;
 }
 
 int QgsMeshTraceField::resolution() const
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   return mFieldResolution;
 }
 
@@ -126,7 +126,7 @@ QgsMeshTraceField::QgsMeshTraceField( const QgsRenderContext &renderContext,
 
 void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext, int resolution )
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   if ( renderContext.mapExtent() == mMapExtent && resolution == mFieldResolution )
     return;
 
@@ -220,9 +220,9 @@ bool QgsMeshTraceField::isValid() const
 void QgsMeshTraceField::addTrace( QgsPointXY startPoint )
 {
   QPoint sp;
-  mSizeMutex.lock();
+  mMutex.lock();
   sp = mMapToFieldPixel.transform( startPoint ).toQPointF().toPoint();
-  mSizeMutex.unlock();
+  mMutex.unlock();
   addTrace( mMapToFieldPixel.transform( startPoint ).toQPointF().toPoint() );
 }
 
@@ -240,19 +240,19 @@ void QgsMeshTraceField::addRandomTrace()
   if ( !mValid )
     return;
 
-  mSizeMutex.lock();
+  mMutex.lock();
   int xRandom =  1 + std::rand() / int( ( RAND_MAX + 1u ) / uint( mFieldSize.width() ) )  ;
   int yRandom = 1 + std::rand() / int ( ( RAND_MAX + 1u ) / uint( mFieldSize.height() ) ) ;
-  mSizeMutex.unlock();
+  mMutex.unlock();
 
   addTrace( QPoint( xRandom, yRandom ) );
 }
 
 void QgsMeshTraceField::addGriddedTraces( int pixelSpace )
 {
-  mSizeMutex.lock();
+  mMutex.lock();
   int fieldSpace = pixelSpace / mFieldResolution;
-  mSizeMutex.unlock();
+  mMutex.unlock();
 
   int i = 0;
   while ( i < size().width() )
@@ -304,7 +304,7 @@ void QgsMeshTraceField::addTracesFromBorder( int pixelSpace )
 void QgsMeshTraceField::addTrace( QPoint startPixel )
 {
   //This is where each trace are constructed
-  QMutexLocker locker( &mPrivateMutex );
+  QMutexLocker locker( &mMutex );
   if ( !mValid )
     return;
 
@@ -490,13 +490,12 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
 
 void QgsMeshTraceField::setResolution( int width )
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   mFieldResolution = width;
 }
 
 void QgsMeshTraceFieldDynamic::initField()
 {
-  QMutexLocker locker( &mParticleMutex );
   mDirectionField = QVector<char>( mFieldSize.width() * mFieldSize.height(), char( 0 ) );
   mTimeField = QVector<float>( mFieldSize.width() * mFieldSize.height(), 0 );
   mParticleField = QVector<bool>( mFieldSize.width() * mFieldSize.height(), 0 );
@@ -555,7 +554,6 @@ bool QgsMeshTraceFieldDynamic::wayPrivate( const QPoint &pixel, float &dt, int &
 
 void QgsMeshTraceFieldDynamic::moveParticles( float time )
 {
-  QMutexLocker locker( &mParticleMutex );
   mPainter->drawImage( 0, 0, mShaderImg );
 
   auto part = mParticles.begin();
@@ -566,6 +564,7 @@ void QgsMeshTraceFieldDynamic::moveParticles( float time )
 
     if ( part->isLost() )
     {
+      QMutexLocker locker( &mMutex );
       part = mParticles.erase( part );
       mParticlesCount--;
     }
@@ -637,34 +636,32 @@ void QgsMeshTraceFieldStatic::exportImage() const
 
 QSize QgsMeshTraceField::imageSize() const
 {
-  QMutexLocker locker( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   return mFieldSize * mFieldResolution;
 }
 
 QPointF QgsMeshTraceField::fieldToDevice( const QPoint &pixel ) const
 {
   QPointF p( pixel );
-  QMutexLocker locker( &mSizeMutex );
   p = mFieldResolution * p + QPointF( mFieldResolution - 1, mFieldResolution - 1 ) / 2;
   return p;
 }
 
 QImage QgsMeshTraceField::image()
 {
-  QMutexLocker locker1( &mPrivateMutex );
-  QMutexLocker locker2( &mSizeMutex );
+  QMutexLocker locker( &mMutex );
   return mTraceImage.scaled( mFieldSize * mFieldResolution, Qt::IgnoreAspectRatio, Qt::SmoothTransformation );
 }
 
 bool QgsMeshTraceField::isWayExist( const QPoint &pixel ) const
 {
-  QMutexLocker locker( &mPrivateMutex );
+  QMutexLocker locker( &mMutex );
   return isWayExistPrivate( pixel );
 }
 
 bool QgsMeshTraceField::way( const QPoint &pixel, float &dt, int &incX, int &incY ) const
 {
-  QMutexLocker locker( &mPrivateMutex );
+  QMutexLocker locker( &mMutex );
   return wayPrivate( pixel, dt, incX, incY );
 }
 
@@ -689,9 +686,9 @@ void QgsMeshTraceFieldStatic::setWayPrivate( const QPoint &pixel, float dt, floa
 {
   int i = pixel.x();
   int j = pixel.y();
-  if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
+  if ( i >= 0 && i < mFieldSize.width() && j >= 0 && j < mFieldSize.height() )
   {
-    mMagnitudeField[j * size().width() + i] = mag;
+    mMagnitudeField[j * mFieldSize.width() + i] = mag;
     mPen.setColor( mTraceColor->color( mag ) );
     mPainter->setPen( mPen );
 
@@ -708,9 +705,9 @@ bool QgsMeshTraceFieldStatic::isWayExistPrivate( const QPoint &pixel ) const
 {
   int i = pixel.x();
   int j = pixel.y();
-  if ( i >= 0 && i < size().width() && j >= 0 && j < size().height() )
+  if ( i >= 0 && i < mFieldSize.width() && j >= 0 && j < mFieldSize.height() )
   {
-    float mag = mMagnitudeField[j * size().width() + i];
+    float mag = mMagnitudeField[j * mFieldSize.width() + i];
     if ( mag < 0 )
       return false;
   }
@@ -759,14 +756,14 @@ void QgsMeshTraceParticle::move( float totalTime, const QgsMeshTraceFieldDynamic
     mTimeRemaingInTheCurrentPixel = timeRemaining;
 }
 
-void QgsMeshTraceParticle::draw( const QgsMeshTraceFieldDynamic &field, double width ) const
+void QgsMeshTraceParticle::draw( QgsMeshTraceFieldDynamic &field, double width ) const
 {
   for ( auto &p : mPath )
   {
     QPointF devicePoint = field.fieldToDevice( p );
 
     auto elips = QRectF( devicePoint.x() - width / 2, devicePoint.y() - width / 2, width / 2, width / 2 );
-    field.mPainter->drawEllipse( elips );
+    field.drawTrace( elips );
   }
 
 }

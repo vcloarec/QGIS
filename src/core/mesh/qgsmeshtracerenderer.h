@@ -135,7 +135,7 @@ class CORE_EXPORT QgsMeshTraceField
                             const QgsMeshDataBlock &dataSetVectorValues,
                             const QgsMeshDataBlock &scalarActiveFaceFlagValues )
     {
-      QMutexLocker locker( &mPrivateMutex );
+      QMutexLocker locker( &mMutex );
       mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
                                       dataSetVectorValues,
                                       scalarActiveFaceFlagValues ) );
@@ -145,7 +145,7 @@ class CORE_EXPORT QgsMeshTraceField
     void setDataFromVertex( const QgsTriangularMesh &triangularMesh,
                             const QgsMeshDataBlock &dataSetVectorValues )
     {
-      QMutexLocker locker( &mPrivateMutex );
+      QMutexLocker locker( &mMutex );
       mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
                                       dataSetVectorValues ) );
     }
@@ -204,8 +204,8 @@ class CORE_EXPORT QgsMeshTraceField
     bool mProcessingStop = false;
     QSize mFieldSize;
     int mFieldResolution = 1;
-    mutable QMutex mSizeMutex; ///TODO : only one mutex should do the job
-    mutable QMutex mPrivateMutex;
+    mutable QMutex mMutex; ///TODO : only one mutex should do the job
+
 
   private:
 
@@ -264,7 +264,7 @@ class QgsMeshTraceParticle
 
     void move( float totalTime, const QgsMeshTraceFieldDynamic &field );
 
-    void  draw( const QgsMeshTraceFieldDynamic &field, double width ) const;
+    void  draw( QgsMeshTraceFieldDynamic &field, double width ) const;
 
     bool isLost() const;
 
@@ -298,13 +298,14 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
 
     void addParticle( QPoint startPoint )
     {
-      QMutexLocker locker( &mParticleMutex );
+
       if ( !isWayExist( startPoint ) )
         addTrace( startPoint );
 
       if ( !isWayExist( startPoint ) )
         return;
 
+      QMutexLocker locker( &mMutex );
       mParticles.append( QgsMeshTraceParticle( startPoint ) );
       mParticlesCount++;
     }
@@ -332,8 +333,14 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
 
     int particleCount() const
     {
-      QMutexLocker locjker( &mParticleMutex );
+      QMutexLocker locjker( &mMutex );
       return  mParticlesCount;
+    }
+
+    void drawTrace( const QRectF &part )
+    {
+      QMutexLocker locker( &mMutexDrawing );
+      mPainter->drawEllipse( part );
     }
 
 
@@ -345,8 +352,8 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
     QVector<bool> mParticleField;
     QList<QgsMeshTraceParticle> mParticles;
     int mParticlesCount = 0;
-    mutable QMutex mParticleMutex;
     QImage mShaderImg;
+    QMutex mMutexDrawing;
 
 
     /*the direction and the time spent in a pixel is defined with a char value
@@ -355,7 +362,7 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
      *     4  5  6
      *     7  8  9
      *
-     *     convenient to retrives the indexes of the next pixel :
+     *     convenient to retrieve the indexes of the next pixel :
      *     Xnext= (v-1)%3-1
      *     Ynext = (v-1)/3-1
      *
