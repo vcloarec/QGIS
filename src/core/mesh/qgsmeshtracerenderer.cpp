@@ -19,32 +19,54 @@
 
 
 
-QgsVector QgsMeshVectorValueInterpolatorFromVertex::value( const QgsPointXY &point ) const
+QgsVector QgsMeshVectorValueInterpolator::value( const QgsPointXY &point ) const
 {
   QMutexLocker locker( &mMutex );
-  updateCacheFaceIndex( point );
 
-  if ( mCacheFaceIndex == -1 || mCacheFaceIndex >= mTriangularMesh.triangles().count() )
-    return ( QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) );
+  if ( mCacheFaceIndex != -1 && mCacheFaceIndex < mTriangularMesh.triangles().count() )
+  {
+    QgsMeshFace face = mTriangularMesh.triangles().at( mCacheFaceIndex );
+    QgsVector res = interpolatedValuePrivate( face, point );
+    if ( isVectorValid( res ) )
+    {
+      activeFaceFilter( res, mCacheFaceIndex );
+      return res;
+    }
+  }
 
-  if ( mUseScalarActiveFaceFlagValues && ! mActiveFaceFlagValues.active( mTriangularMesh.trianglesToNativeFaces()[mCacheFaceIndex] ) )
-    return ( QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) );
+  //point is not on the face associated with mCacheIndex --> search for the face containing the point
+  QList<int> potentialFaceIndexes = mTriangularMesh.faceIndexesForRectangle( QgsRectangle( point, point ) );
+  mCacheFaceIndex = -1;
+  for ( const int faceIndex : potentialFaceIndexes )
+  {
+    QgsVector res = interpolatedValuePrivate( mTriangularMesh.triangles().at( faceIndex ), point );
+    if ( isVectorValid( res ) )
+    {
+      mCacheFaceIndex = faceIndex;
+      activeFaceFilter( res, mCacheFaceIndex );
+      return res;
+    }
+  }
 
-  mFaceCache = mTriangularMesh.triangles().at( mCacheFaceIndex );
+  //--> no face found return non valid vector
+  return ( QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) );
 
+}
 
-  QgsPoint p1 = mTriangularMesh.vertices().at( mFaceCache.at( 0 ) );
-  QgsPoint p2 = mTriangularMesh.vertices().at( mFaceCache.at( 1 ) );
-  QgsPoint p3 = mTriangularMesh.vertices().at( mFaceCache.at( 2 ) );
+QgsVector QgsMeshVectorValueInterpolatorFromVertex::interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const
+{
+  QgsPoint p1 = mTriangularMesh.vertices().at( face.at( 0 ) );
+  QgsPoint p2 = mTriangularMesh.vertices().at( face.at( 1 ) );
+  QgsPoint p3 = mTriangularMesh.vertices().at( face.at( 2 ) );
 
-  QgsVector v1 = QgsVector( mDatasetValues.value( mFaceCache.at( 0 ) ).x(),
-                            mDatasetValues.value( mFaceCache.at( 0 ) ).y() );
+  QgsVector v1 = QgsVector( mDatasetValues.value( face.at( 0 ) ).x(),
+                            mDatasetValues.value( face.at( 0 ) ).y() );
 
-  QgsVector v2 = QgsVector( mDatasetValues.value( mFaceCache.at( 1 ) ).x(),
-                            mDatasetValues.value( mFaceCache.at( 1 ) ).y() );
+  QgsVector v2 = QgsVector( mDatasetValues.value( face.at( 1 ) ).x(),
+                            mDatasetValues.value( face.at( 1 ) ).y() );
 
-  QgsVector v3 = QgsVector( mDatasetValues.value( mFaceCache.at( 2 ) ).x(),
-                            mDatasetValues.value( mFaceCache.at( 2 ) ).y() );
+  QgsVector v3 = QgsVector( mDatasetValues.value( face.at( 2 ) ).x(),
+                            mDatasetValues.value( face.at( 2 ) ).y() );
 
 
   return QgsMeshLayerUtils::interpolateVectorFromVerticesData(
@@ -55,6 +77,7 @@ QgsVector QgsMeshVectorValueInterpolatorFromVertex::value( const QgsPointXY &poi
            v2,
            v3,
            point );
+
 }
 
 QgsMeshVectorValueInterpolator::QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
@@ -90,6 +113,7 @@ void QgsMeshVectorValueInterpolator::updateCacheFaceIndex( const QgsPointXY &poi
   }
 
 }
+
 
 QSize QgsMeshTraceField::size() const
 {
@@ -614,7 +638,7 @@ QgsMeshTraceColorRamp::~QgsMeshTraceColorRamp()
   delete mColorRamp;
 }
 
-QgsMeshTraceFieldStatic::QgsMeshTraceFieldStatic( const QgsRenderContext &renderContext,
+QgsMeshStreamLineField::QgsMeshStreamLineField( const QgsRenderContext &renderContext,
     const QgsRectangle &layerExtent,
     double Vmax, QColor color ):
   QgsMeshTraceField( renderContext, layerExtent, Vmax ),
@@ -623,13 +647,13 @@ QgsMeshTraceFieldStatic::QgsMeshTraceFieldStatic( const QgsRenderContext &render
   mPen.setWidthF( 0.5 );
 }
 
-QgsMeshTraceFieldStatic::~QgsMeshTraceFieldStatic()
+QgsMeshStreamLineField::~QgsMeshStreamLineField()
 {
   if ( mPainter )
     delete mPainter;
 }
 
-void QgsMeshTraceFieldStatic::exportImage() const
+void QgsMeshStreamLineField::exportImage() const
 {
   mTraceImage.save( "traceField", "PNG" );
 }
@@ -665,7 +689,7 @@ bool QgsMeshTraceField::way( const QPoint &pixel, float &dt, int &incX, int &inc
   return wayPrivate( pixel, dt, incX, incY );
 }
 
-void QgsMeshTraceFieldStatic::initField()
+void QgsMeshStreamLineField::initField()
 {
   mMagnitudeField = QVector<float>( mFieldSize.width() * mFieldSize.height(), -1 );
 
@@ -682,7 +706,7 @@ void QgsMeshTraceFieldStatic::initField()
 
 }
 
-void QgsMeshTraceFieldStatic::setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY )
+void QgsMeshStreamLineField::setWayPrivate( const QPoint &pixel, float dt, float mag, int incX, int incY )
 {
   int i = pixel.x();
   int j = pixel.y();
@@ -701,7 +725,7 @@ void QgsMeshTraceFieldStatic::setWayPrivate( const QPoint &pixel, float dt, floa
   }
 }
 
-bool QgsMeshTraceFieldStatic::isWayExistPrivate( const QPoint &pixel ) const
+bool QgsMeshStreamLineField::isWayExistPrivate( const QPoint &pixel ) const
 {
   int i = pixel.x();
   int j = pixel.y();
@@ -716,13 +740,13 @@ bool QgsMeshTraceFieldStatic::isWayExistPrivate( const QPoint &pixel ) const
 
 }
 
-void QgsMeshTraceFieldStatic::startTrace( const QPoint &startPixel )
+void QgsMeshStreamLineField::startTrace( const QPoint &startPixel )
 {
   mLastPixel = fieldToDevice( startPixel );
   mTraceInProgress = true;
 }
 
-void QgsMeshTraceFieldStatic::endTrace( const QPoint &endPixel )
+void QgsMeshStreamLineField::endTrace( const QPoint &endPixel )
 {
   mTraceInProgress = false;
 }

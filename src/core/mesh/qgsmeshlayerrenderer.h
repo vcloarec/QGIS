@@ -76,7 +76,7 @@ struct CORE_NO_EXPORT QgsMeshLayerRendererCache
 
   //trace cache
   QgsRenderContext mTraceRendererContext;
-  std::shared_ptr<QgsMeshTraceFieldStatic> mTraceFieldStatic;
+  std::shared_ptr<QgsMeshStreamLineField> mTraceFieldStatic;
   std::shared_ptr<QgsMeshTraceFieldDynamic> mTraceFieldDynamic;
 };
 
@@ -119,7 +119,7 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
     void renderMesh( const QgsMeshRendererMeshSettings &settings, const QVector<QgsMeshFace> &faces, const QList<int> &facesInExtent );
     void renderScalarDataset();
     void renderVectorDataset();
-    void renderVectorTrace();
+    void renderVectorStreamLine();
     void copyScalarDatasetValues( QgsMeshLayer *layer );
     void copyVectorDatasetValues( QgsMeshLayer *layer );
     void calculateOutputSize();
@@ -158,7 +158,7 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
 
     // pointers to the traceField
     std::shared_ptr<QgsMeshTraceFieldDynamic> mTraceFieldDynamic = nullptr;
-    std::shared_ptr<QgsMeshTraceFieldStatic> mTraceFieldStatic = nullptr;
+    std::shared_ptr<QgsMeshStreamLineField> mStreamLineField = nullptr;
 
     // output screen size
     QSize mOutputSize;

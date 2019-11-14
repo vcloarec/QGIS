@@ -115,6 +115,19 @@ class CORE_EXPORT QgsMeshLayerUtils
       double val, const QgsPointXY &pt );
 
     /**
+    * Interpolate value based on known value on the face of a triangle
+    * \param p1 first vertex of the triangle
+    * \param p2 second vertex of the triangle
+    * \param p3 third vertex of the triangle
+    * \param vect face vector
+    * \param pt point where to calculate value
+    * \returns vector on the point pt or NaN in case the point is outside the triangle
+    */
+    static QgsVector interpolateVectorFromFacesData(
+      const QgsPointXY &p1, const QgsPointXY &p2, const QgsPointXY &p3,
+      QgsVector vect, const QgsPointXY &pt );
+
+    /**
     * Interpolate values on vertices from values on faces
     *
     * \since QGIS 3.12

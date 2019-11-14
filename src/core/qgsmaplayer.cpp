@@ -296,12 +296,6 @@ bool QgsMapLayer::readLayerXml( const QDomElement &layerElement, QgsReadWriteCon
   setRefreshOnNofifyMessage( layerElement.attribute( QStringLiteral( "refreshOnNotifyMessage" ), QString() ) );
   setRefreshOnNotifyEnabled( layerElement.attribute( QStringLiteral( "refreshOnNotifyEnabled" ), QStringLiteral( "0" ) ).toInt() );
 
-
-  setAutoRefreshInterval( 60 );
-  setAutoRefreshEnabled( true );
-
-
-
   // set name
   mnl = layerElement.namedItem( QStringLiteral( "layername" ) );
   mne = mnl.toElement();

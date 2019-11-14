@@ -55,7 +55,7 @@ class CORE_EXPORT QgsMeshVectorValueInterpolator
     virtual ~QgsMeshVectorValueInterpolator() = default;
 
     //! Returns the interpolated vector
-    virtual QgsVector value( const QgsPointXY &point ) const = 0;
+    virtual QgsVector value( const QgsPointXY &point ) const;
 
   protected:
     void updateCacheFaceIndex( const QgsPointXY &point ) const;
@@ -64,9 +64,23 @@ class CORE_EXPORT QgsMeshVectorValueInterpolator
     QgsMeshDataBlock mDatasetValues;
     QgsMeshDataBlock mActiveFaceFlagValues;
     mutable QgsMeshFace mFaceCache;
-    mutable int mCacheFaceIndex;
+    mutable int mCacheFaceIndex = -1;
     mutable QMutex mMutex;
     bool mUseScalarActiveFaceFlagValues = false;
+
+    bool isVectorValid( const QgsVector &v ) const
+    {
+      return !( std::isnan( v.x() ) || std::isnan( v.y() ) );
+
+    }
+
+    void activeFaceFilter( QgsVector &v, int faceIndex ) const
+    {
+      if ( mUseScalarActiveFaceFlagValues && ! mActiveFaceFlagValues.active( mTriangularMesh.trianglesToNativeFaces()[faceIndex] ) )
+        v = QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) ;
+    }
+
+    virtual QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const = 0;
 };
 
 
@@ -98,9 +112,55 @@ class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromVertex: public QgsMeshVecto
 
     }
 
-    QgsVector value( const QgsPointXY &point ) const override;
+    QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const override;
 
+};
 
+/**
+ * \ingroup core
+ *
+ * Class used to retrieve the value of the vector for a pixel from vertex
+ *
+ * \note not available in Python bindings
+ * \since QGIS 3.12
+ */
+class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromFace: public QgsMeshVectorValueInterpolator //CORE_EXPORT needed to no have v-table error ????
+{
+  public:
+    //! Constructor
+    QgsMeshVectorValueInterpolatorFromFace( const QgsTriangularMesh &triangularMesh,
+                                            const QgsMeshDataBlock &datasetVectorValues ):
+      QgsMeshVectorValueInterpolator( triangularMesh, datasetVectorValues )
+    {
+
+    }
+
+    //! Constructor with scalar active face flag value to not interpolate on inactive face
+    QgsMeshVectorValueInterpolatorFromFace( const QgsTriangularMesh &triangularMesh,
+                                            const QgsMeshDataBlock &datasetVectorValues,
+                                            const QgsMeshDataBlock &scalarActiveFaceFlagValues ):
+      QgsMeshVectorValueInterpolator( triangularMesh, datasetVectorValues, scalarActiveFaceFlagValues )
+    {
+
+    }
+
+  protected:
+    QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const override
+    {
+      QgsPoint p1 = mTriangularMesh.vertices().at( face.at( 0 ) );
+      QgsPoint p2 = mTriangularMesh.vertices().at( face.at( 1 ) );
+      QgsPoint p3 = mTriangularMesh.vertices().at( face.at( 2 ) );
+
+      QgsVector vect = QgsVector( mDatasetValues.value( face.at( 0 ) ).x(),
+                                  mDatasetValues.value( face.at( 0 ) ).y() );
+
+      return QgsMeshLayerUtils::interpolateVectorFromFacesData(
+               p1,
+               p2,
+               p3,
+               vect,
+               point );
+    }
 };
 
 /**
@@ -477,17 +537,17 @@ class QgsMeshTraceColorRamp: public QgsMeshTraceColor
  * \note not available in Python bindings
  * \since QGIS 3.12
  */
-class CORE_EXPORT QgsMeshTraceFieldStatic: public QgsMeshTraceField //draw static streamLine
+class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static streamLine
 {
   public:
 
     //! Constructor
-    QgsMeshTraceFieldStatic( const QgsRenderContext &renderContext,
-                             const QgsRectangle &layerExtent,
-                             double Vmax, QColor color = Qt::lightGray );
+    QgsMeshStreamLineField( const QgsRenderContext &renderContext,
+                            const QgsRectangle &layerExtent,
+                            double Vmax, QColor color = Qt::lightGray );
 
     //! Destructor
-    ~QgsMeshTraceFieldStatic() override;
+    ~QgsMeshStreamLineField() override;
 
     //! Exports the field in png file in the working directory, used for debugging
     void exportImage() const;
@@ -524,59 +584,26 @@ class CORE_EXPORT QgsMeshTraceFieldStatic: public QgsMeshTraceField //draw stati
 
 
 
-class QgsMeshTraceRenderer
+class QgsMeshStreamLineRenderer
 {
   public:
-    QgsMeshTraceRenderer( QgsMeshTraceFieldDynamic *traceFieldDynamic, QgsMeshTraceFieldStatic *traceFieldStatic, QgsRenderContext &rendererContext ):
-      mTraceFieldDynamic( traceFieldDynamic ),
-      mTraceFieldStatic( traceFieldStatic ),
+    QgsMeshStreamLineRenderer( QgsMeshStreamLineField *traceFieldStatic, QgsRenderContext &rendererContext ):
+      mStreamLineField( traceFieldStatic ),
       mRendererContext( rendererContext )
     {
-      qDebug() << "start : " << QTime::currentTime();
-      QPoint startPoint( traceFieldDynamic->size().width() - 5, 5 );
-      traceFieldDynamic->addRandomParticles( 150 );
-      mTraceFieldStatic->addTrace( startPoint );
-    }
-
-    ~QgsMeshTraceRenderer()
-    {
-
+      mStreamLineField->addRandomTraces( 50 );
     }
 
     void draw()
     {
-
       if ( mRendererContext.renderingStopped() )
         return;
-      //while ( true )
-      {
-
-
-        //      QRectF targetRect( mTraceField->topLeft(), mTraceField->imageSize() );
-        //      QRectF sourceRect( QPoint( 0, 0 ), mTraceField->imageSize() );
-        if ( mRendererContext.renderingStopped() )
-          return;
-
-        qDebug() << "start render: " << QTime::currentTime();
-        mRendererContext.painter()->drawImage( mTraceFieldDynamic->topLeft(), mTraceFieldDynamic->image() );
-        mRendererContext.painter()->drawImage( mTraceFieldStatic->topLeft(), mTraceFieldStatic->image() );
-      }
-
-      qDebug() << "Finished : " << QTime::currentTime();
-
-
-
-      mTraceFieldDynamic->moveParticles( 150 );
-      int pc = mTraceFieldDynamic->particleCount();
-
-      if ( mTraceFieldDynamic->particleCount() < 150 )
-        mTraceFieldDynamic->addRandomParticles( 150 - pc );
+      mRendererContext.painter()->drawImage( mStreamLineField->topLeft(), mStreamLineField->image() );
 
     }
 
   private:
-    QgsMeshTraceFieldDynamic *mTraceFieldDynamic;
-    QgsMeshTraceFieldStatic *mTraceFieldStatic;
+    QgsMeshStreamLineField *mStreamLineField;
     QgsRenderContext &mRendererContext;
 };
 

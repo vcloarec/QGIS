@@ -137,7 +137,7 @@ void TestQgsMeshTrace::traceFieldTest()
 
   std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex> interpolator =
     std::unique_ptr<QgsMeshVectorValueInterpolatorFromVertex>( new QgsMeshVectorValueInterpolatorFromVertex( *mMeshLayer->triangularMesh(), mDataBlock, mScalarActiveFaceFlagValues ) );
-  QgsMeshTraceFieldStatic field( rc, mMeshLayer->extent(), mVmax, Qt::blue );
+  QgsMeshStreamLineField field( rc, mMeshLayer->extent(), mVmax, Qt::blue );
 
   QTime time;
   time.start();

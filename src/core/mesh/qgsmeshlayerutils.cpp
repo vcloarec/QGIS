@@ -133,6 +133,17 @@ double QgsMeshLayerUtils::interpolateFromFacesData( const QgsPointXY &p1, const 
   return val;
 }
 
+QgsVector QgsMeshLayerUtils::interpolateVectorFromFacesData( const QgsPointXY &p1, const QgsPointXY &p2, const QgsPointXY &p3,
+    QgsVector vect, const QgsPointXY &pt )
+{
+  double lam1, lam2, lam3;
+  if ( !E3T_physicalToBarycentric( p1, p2, p3, pt, lam1, lam2, lam3 ) )
+    return QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() );
+
+  return vect;
+}
+
+
 QVector<double> QgsMeshLayerUtils::interpolateFromFacesData( QVector<double> valuesOnFaces, QgsMesh *nativeMesh,
     QgsTriangularMesh *triangularMesh,
     QgsMeshDataBlock *active,
