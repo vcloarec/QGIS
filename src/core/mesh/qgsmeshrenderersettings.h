@@ -140,16 +140,19 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
 
 };
 
+
+
+
 /**
  * \ingroup core
  *
- * Represents a mesh renderer settings for vector datasets
+ * Represents a mesh renderer settings for vector datasets displayed with arrows
  *
  * \note The API is considered EXPERIMENTAL and can be changed without a notice
  *
  * \since QGIS 3.2
  */
-class CORE_EXPORT QgsMeshRendererVectorSettings
+class CORE_EXPORT QgsMeshRendererVectorArrowSettings
 {
   public:
 
@@ -212,7 +215,7 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     void setFilterMax( double filterMax );
 
     //! Returns method used for drawing arrows
-    QgsMeshRendererVectorSettings::ArrowScalingMethod shaftLengthMethod() const;
+    QgsMeshRendererVectorArrowSettings::ArrowScalingMethod shaftLengthMethod() const;
     //! Sets method used for drawing arrows
     void setShaftLengthMethod( ArrowScalingMethod shaftLengthMethod );
 
@@ -294,10 +297,6 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     int userGridCellHeight() const;
     //! Sets height of user grid cell (in pixels)
     void setUserGridCellHeight( int height );
-    //! set if trace is animated
-    void setAnimatedTrace( bool enabled );
-    //! Return true is trace is animated
-    bool animatedTrace() const;
 
     //! Writes configuration to a new DOM element
     QDomElement writeXml( QDomDocument &doc ) const;
@@ -309,7 +308,7 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     QColor mColor = Qt::black;
     double mFilterMin = -1; //disabled
     double mFilterMax = -1; //disabled
-    QgsMeshRendererVectorSettings::ArrowScalingMethod mShaftLengthMethod = QgsMeshRendererVectorSettings::ArrowScalingMethod::MinMax;
+    QgsMeshRendererVectorArrowSettings::ArrowScalingMethod mShaftLengthMethod = QgsMeshRendererVectorArrowSettings::ArrowScalingMethod::MinMax;
     double mMinShaftLength = 0.8; //in millimeters
     double mMaxShaftLength = 10; //in millimeters
     double mScaleFactor = 10;
@@ -320,8 +319,199 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     int mUserGridCellWidth = 10; // in pixels
     int mUserGridCellHeight = 10; // in pixels
 
-    //Vector trace setting
-    bool mAnimatedTrace = true;
+};
+
+/**
+ * \ingroup core
+ *
+ * Represents a streamline renderer settings for vector datasets displayed by streamlines
+ *
+ * \note The API is considered EXPERIMENTAL and can be changed without a notice
+ *
+ * \since QGIS 3.12
+ */
+class CORE_EXPORT QgsMeshRendererVectorStreamlineSettings
+{
+  public:
+    //! Method used to define start points thats are used to draw streamlines
+    enum SeedingStartPointsMethod
+    {
+      /**
+       * Seeds start points on a regular grid
+       */
+      Gridded = 0,
+      /**
+       * Seeds start points regulary on the border of the screen or of the mesh extent
+       */
+      OnBorder,
+      /**
+       * Seeds start points randomly on the mesh
+       */
+      Random,
+    };
+
+    //! Method used to define the color of the streamlines
+    enum ColorMethod
+    {
+      /**
+       * The color of streamlines is fix and defined by user
+       */
+      Fixe = 0,
+      /**
+       * The color of the stream line is defined bye values linked with a color ramp
+       */
+      ColorRamp,
+
+    };
+
+    //! Returns the method used for seeding start points of strealines
+    SeedingStartPointsMethod seedingMethod() const;
+    //! Sets the method used for seeding start points of strealines
+    void setSeedingMethod( const SeedingStartPointsMethod &seedingMethod );
+    //! Return the density used for seeding start points
+    double seedingDensity() const;
+    //! Sets the density used for seeding start points
+    void setSeedingDensity( double seedingDensity );
+
+    //! Returns the method used to color the streamlines
+    QgsMeshRendererVectorStreamlineSettings::ColorMethod colorMethod() const;
+    //! Sets the method used to color the streamlines
+    void setColorMethod( const QgsMeshRendererVectorStreamlineSettings::ColorMethod &colorMethod );
+
+    //! Returns line width of the streamline (in millimeters)
+    double lineWidth() const;
+    //! Sets line width of the streamline (in millimeters)
+    void setLineWidth( double lineWidth );
+
+    //! Returns the fixed color used to draw the streamlines
+    QColor fixedColor() const;
+    //! Sets the fixed color used to draw the streamlines
+    void setFixedColor( const QColor &fixedColor );
+
+    //! Returns the color ramp sahder used ti draw streamlines
+    QgsColorRampShader colorRampShader() const;
+    //! Sets the color ramp sahder used ti draw streamlines
+    void setColorRampShader( const QgsColorRampShader &colorRampShader );
+
+
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc ) const
+    {
+
+    }
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem ) {}
+
+
+
+
+  private:
+
+    QgsMeshRendererVectorStreamlineSettings::SeedingStartPointsMethod mSeedingMethod = Gridded;
+    double mSeedingDensity = 0.05;
+    double mLineWidth = DEFAULT_LINE_WIDTH; //in millimeters
+
+    //color
+    QgsMeshRendererVectorStreamlineSettings::ColorMethod mColorMethod = Fixe;
+    QColor mFixedColor = Qt::gray;
+    QgsColorRampShader mColorRampShader;
+
+};
+
+
+/**
+ * \ingroup core
+ *
+ * Represents a streamline renderer settings for vector datasets displayed by particle traces
+ *
+ * \note The API is considered EXPERIMENTAL and can be changed without a notice
+ *
+ * \since QGIS 3.12
+ */
+class CORE_EXPORT QgsMeshRendererVectorTracesSettings
+{
+
+  public:
+
+
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc ) const
+    {
+
+
+    }
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem ) {}
+
+};
+
+/**
+ * \ingroup core
+ *
+ * Represents a streamline renderer settings for vector datasets
+ *
+ * \note The API is considered EXPERIMENTAL and can be changed without a notice
+ *
+ * \since QGIS 3.12
+ */
+class CORE_EXPORT QgsMeshRendererVectorSettings
+{
+  public:
+    enum DisplayingMethod
+    {
+      //!Displying vctor dataset with arrows
+      Arrows = 0,
+      //!Displying vctor dataset with streamlines
+      Streamlines,
+      //!Displying vctor dataset with particle traces
+      Traces,
+    };
+
+    //! Returns the displaying method used to render vector datasets
+    DisplayingMethod displayingMethod() const;
+    //! Sets the displaying method used to render vector datasets
+    void setDisplayingMethod( const DisplayingMethod &displayingMethod );
+
+    //! Returns settings for vector rendered with arrows
+    QgsMeshRendererVectorArrowSettings arrowsSettings() const;
+    void setArrowsSettings( const QgsMeshRendererVectorArrowSettings &arrowsSettings );
+
+    //! Returns settings for vector rednered with streamlines
+    QgsMeshRendererVectorStreamlineSettings streamLinesSettings() const;
+    void setStreamLinesSettings( const QgsMeshRendererVectorStreamlineSettings &streamLinesSettings );
+
+    //! Returns settings for vector rendred with particule traces
+    QgsMeshRendererVectorTracesSettings tracesSettings() const;
+    void setTracesSettings( const QgsMeshRendererVectorTracesSettings &tracesSettings );
+
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc ) const
+    {
+      QDomElement elem = doc.createElement( QStringLiteral( "vector-settings" ) );
+      elem.setAttribute( QStringLiteral( "displaying-method" ), mDisplayingMethod );
+
+      elem.appendChild( mArrowsSettings.writeXml( doc ) );
+      elem.appendChild( mStreamLinesSettings.writeXml( doc ) );
+      elem.appendChild( mTracesSettings.writeXml( doc ) );
+
+      return elem;
+
+    }
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem )
+    {
+      mArrowsSettings.readXml( elem );
+    }
+
+
+  private:
+
+    DisplayingMethod mDisplayingMethod = Arrows;
+
+    QgsMeshRendererVectorArrowSettings mArrowsSettings;
+    QgsMeshRendererVectorStreamlineSettings mStreamLinesSettings;
+    QgsMeshRendererVectorTracesSettings mTracesSettings;
+
 };
 
 
@@ -386,5 +576,7 @@ class CORE_EXPORT QgsMeshRendererSettings
     //! index of active vector dataset
     QgsMeshDatasetIndex mActiveVectorDataset;
 };
+
+
 
 #endif //QGSMESHRENDERERSETTINGS_H

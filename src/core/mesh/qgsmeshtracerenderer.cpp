@@ -141,25 +141,13 @@ QgsPointXY QgsMeshTraceField::positionToMapCoordinates( const QPoint &pixelPosit
   return mapPoint;
 }
 
-QgsMeshTraceField::QgsMeshTraceField( const QgsRenderContext &renderContext,
-                                      const QgsRectangle &layerExtent, double Vmax, int resolution ):
-  mLayerExtent( layerExtent ),
-  mVmax( Vmax )
-{
-}
 
-void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext, int resolution )
-{
-  QMutexLocker locker( &mMutex );
-  if ( renderContext.mapExtent() == mMapExtent && resolution == mFieldResolution )
-    return;
 
+void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext )
+{
   stopProcessing();
-
-
-  qDebug() << "*************************************** Fields updated*****************************";
+  QMutexLocker locker( &mMutex );
   mMapExtent = renderContext.mapExtent();
-  mFieldResolution = resolution;
 
   const QgsMapToPixel &deviceMapToPixel = renderContext.mapToPixel();
 
@@ -236,6 +224,15 @@ void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext, int r
   mValid = true;
 }
 
+void QgsMeshTraceField::updateSize( const QgsRenderContext &renderContext, int resolution )
+{
+  if ( renderContext.mapExtent() == mMapExtent && resolution == mFieldResolution )
+    return;
+  mFieldResolution = resolution;
+
+  updateSize( renderContext );
+}
+
 bool QgsMeshTraceField::isValid() const
 {
   return mValid;
@@ -259,6 +256,12 @@ void QgsMeshTraceField::addRandomTraces( int count )
 
 }
 
+void QgsMeshTraceField::addRandomTraces()
+{
+  while ( mPixelFillingCount < mMaxPixelFillingCount )
+    addRandomTrace();
+}
+
 void QgsMeshTraceField::addRandomTrace()
 {
   if ( !mValid )
@@ -272,55 +275,77 @@ void QgsMeshTraceField::addRandomTrace()
   addTrace( QPoint( xRandom, yRandom ) );
 }
 
-void QgsMeshTraceField::addGriddedTraces( int pixelSpace )
+void QgsMeshTraceField::addGriddedTraces()
 {
   mMutex.lock();
-  int fieldSpace = pixelSpace / mFieldResolution;
+  int fieldSpacing;
+  if ( mPixelFillingDensity <= 0 )
+  {
+    fieldSpacing = mFieldSize.width() < mFieldSize.height() ?
+                   mFieldSize.width() : mFieldSize.height();
+  }
+  else
+  {
+    fieldSpacing = int( 1 / ( mPixelFillingDensity * mPixelFillingDensity ) );
+  }
   mMutex.unlock();
 
   int i = 0;
-  while ( i < size().width() )
+  while ( i < mFieldSize.width() )
   {
     int j = 0;
-    while ( j < size().height() )
+    while ( j < mFieldSize.height() )
     {
       addTrace( QPoint( i, j ) );
-      j += fieldSpace;
+      j += fieldSpacing;
     }
-    i += fieldSpace;
+    i += fieldSpacing;
   }
 }
 
-void QgsMeshTraceField::addTracesFromBorder( int pixelSpace )
+void QgsMeshTraceField::addTracesFromBorder()
 {
-  int fieldSpace = pixelSpace / mFieldResolution;
+  mMutex.lock();
+  int fieldSpacing;
+  if ( mPixelFillingDensity <= 0 )
+  {
+    fieldSpacing = mFieldSize.width() < mFieldSize.height() ?
+                   mFieldSize.width() : mFieldSize.height();
+  }
+  else
+  {
+    fieldSpacing = int( 1 / mPixelFillingDensity );
+  }
+  mMutex.unlock();
   int i = 0;
   int j = 0;
+
+
   while ( j < size().height() )
   {
     addTrace( QPoint( i, j ) );
-    j += fieldSpace;
+    j += fieldSpacing;
   }
   i = size().width() - 1;
   j = 0;
   while ( j < size().height() )
   {
     addTrace( QPoint( i, j ) );
-    j += fieldSpace;
+    j += fieldSpacing;
   }
   i = 0;
   j = 0;
   while ( i < size().width() )
   {
     addTrace( QPoint( i, j ) );
-    i += fieldSpace;
+    i += fieldSpacing;
   }
   i = 0;
   j = size().height() - 1;
   while ( i < size().width() )
   {
     addTrace( QPoint( i, j ) );
-    i += fieldSpace;
+    i += fieldSpacing;
   }
 
 }
@@ -359,6 +384,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
 
     if ( std::isnan( vector.x() ) || std::isnan( vector.y() ) )
     {
+      mPixelFillingCount++;
       endTrace( currentPixel );
       break;
     }
@@ -366,7 +392,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     /* adimentional value :  Vu=2 when the particule need dt=1 to go throught a pixel
      * The size of the side of a pixel is 2
      */
-    QgsVector vu = vector / mVmax * 2;
+    QgsVector vu = vector / mMagMax * 2;
     double Vx = vu.x();
     double Vy = vu.y();
     double Vu = vu.length(); //nondimentional vector magnitude
@@ -374,6 +400,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     if ( qgsDoubleNear( Vu, 0 ) )
     {
       // no trace anymore
+      mPixelFillingCount++;
       endTrace( currentPixel );
       break;
     }
@@ -497,6 +524,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
       if ( dt > 10000 ) //Guard to prevent that the particle never leave the pixel
       {
         endTrace( currentPixel );
+        mPixelFillingCount++;
         break;
       }
       x1 = x2;
@@ -616,36 +644,38 @@ bool QgsMeshTraceFieldDynamic::isWayExistPrivate( const QPoint &pixel ) const
 
 QgsMeshTraceColor::~QgsMeshTraceColor() {}
 
-QgsMeshTraceUniqueColor::QgsMeshTraceUniqueColor( const QColor &color ):
+QgsMeshTraceFixedColor::QgsMeshTraceFixedColor( const QColor &color ):
   mColor( color )
 {
 }
 
-QColor QgsMeshTraceUniqueColor::color( float value ) const
+QColor QgsMeshTraceFixedColor::color( float value ) const
 {
   Q_UNUSED( value );
   return mColor;
 }
 
-QgsMeshTraceColorRamp::QgsMeshTraceColorRamp( QgsColorRamp *colorRamp ):
-  mColorRamp( colorRamp )
+QgsMeshTraceColorRamp::QgsMeshTraceColorRamp( const QgsColorRampShader &colorRampShader ):
+  mColorRampShader( colorRampShader )
 {
 
 }
 
 QgsMeshTraceColorRamp::~QgsMeshTraceColorRamp()
 {
-  delete mColorRamp;
+
 }
 
-QgsMeshStreamLineField::QgsMeshStreamLineField( const QgsRenderContext &renderContext,
+QgsMeshStreamLineField::QgsMeshStreamLineField( const QgsTriangularMesh &triangularMesh,
+    const QgsMeshDataBlock &dataSetVectorValues,
+    const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+    const QgsRenderContext &rendererContext,
     const QgsRectangle &layerExtent,
-    double Vmax, QColor color ):
-  QgsMeshTraceField( renderContext, layerExtent, Vmax ),
-  mTraceColor( new QgsMeshTraceUniqueColor( color ) )
+    double Vmax ):
+  QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, Vmax )
 {
-  mPen.setWidthF( 0.5 );
 }
+
 
 QgsMeshStreamLineField::~QgsMeshStreamLineField()
 {
@@ -715,6 +745,7 @@ void QgsMeshStreamLineField::setWayPrivate( const QPoint &pixel, float dt, float
     mMagnitudeField[j * mFieldSize.width() + i] = mag;
     mPen.setColor( mTraceColor->color( mag ) );
     mPainter->setPen( mPen );
+    mPixelFillingCount++;
 
     QPointF devicePixel = fieldToDevice( pixel );
     if ( mTraceInProgress )
@@ -749,6 +780,17 @@ void QgsMeshStreamLineField::startTrace( const QPoint &startPixel )
 void QgsMeshStreamLineField::endTrace( const QPoint &endPixel )
 {
   mTraceInProgress = false;
+}
+
+
+void QgsMeshStreamLineField::setTraceColor( const QgsColorRampShader &shader )
+{
+  mTraceColor.reset( new QgsMeshTraceColorRamp( shader ) );
+}
+
+void QgsMeshStreamLineField::setTraceColor( QColor fixedColor )
+{
+  mTraceColor.reset( new QgsMeshTraceFixedColor( fixedColor ) );
 }
 
 void QgsMeshTraceParticle::move( float totalTime, const QgsMeshTraceFieldDynamic &field )

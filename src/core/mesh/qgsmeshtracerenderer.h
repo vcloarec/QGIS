@@ -28,6 +28,7 @@
 #include "qgstriangularmesh.h"
 #include "qgsmeshlayer.h"
 #include "qgsmeshlayerutils.h"
+#include "qgsmeshvectorrenderer.h"
 
 
 ///@cond PRIVATE
@@ -175,40 +176,39 @@ class CORE_EXPORT QgsMeshTraceField
 {
 
   public:
-
-    QgsMeshTraceField( const QgsRenderContext &renderContext,
+    QgsMeshTraceField( const QgsTriangularMesh &triangularMesh,
+                       const QgsMeshDataBlock &dataSetVectorValues,
+                       const QgsMeshDataBlock &scalarActiveFaceFlagValues,
                        const QgsRectangle &layerExtent,
-                       double Vmax,
-                       int resolution = 1 );
+                       double magMax,
+                       int resolution = 1 ):
+      mFieldResolution( resolution ),
+      mLayerExtent( layerExtent ),
+      mMagMax( magMax )
+    {
+      if ( scalarActiveFaceFlagValues.isValid() )
+        mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                        dataSetVectorValues,
+                                        scalarActiveFaceFlagValues ) );
+      else
+        mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                        dataSetVectorValues ) );
+
+    }
 
     virtual ~QgsMeshTraceField() {}
 
 
     //! update the size of the fiels and the QgsMapToPixel instance to retrieve map point
     //! from pixel in the field depending on the resolution of the device
-    //! if the extent of renderer context and the resolution are the same than before, do nothing
-    //! Else, updates the size and cleans
+    //! If the extent of renderer context and the resolution are not changed, do nothing
+    //! else, updates the size and cleans
+    void updateSize( const QgsRenderContext &renderContext );
+
+    //! update the size of the fiels and the QgsMapToPixel instance to retrieve map point
+    //! from pixel in the field depending on the resolution of the device
     void updateSize( const QgsRenderContext &renderContext, int resolution );
 
-    //! set the data from the mesh using scalar active face flag values
-    void setDataFromVertex( const QgsTriangularMesh &triangularMesh,
-                            const QgsMeshDataBlock &dataSetVectorValues,
-                            const QgsMeshDataBlock &scalarActiveFaceFlagValues )
-    {
-      QMutexLocker locker( &mMutex );
-      mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
-                                      dataSetVectorValues,
-                                      scalarActiveFaceFlagValues ) );
-    }
-
-    //! set the data from the mesh using scalar active face flag values
-    void setDataFromVertex( const QgsTriangularMesh &triangularMesh,
-                            const QgsMeshDataBlock &dataSetVectorValues )
-    {
-      QMutexLocker locker( &mMutex );
-      mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
-                                      dataSetVectorValues ) );
-    }
 
     bool isValid() const;
 
@@ -226,14 +226,18 @@ class CORE_EXPORT QgsMeshTraceField
 
     //! Adds count random traces in the field from random start point
     void addRandomTraces( int count );
+
+    //! Adds count random traces in the field from random start point, the number of traces dependinf on the max filling density
+    void addRandomTraces();
+
     //! Adds a trace in the field from one random start point
     void addRandomTrace();
 
     //! Adds traces in the field from gridded start points, pixelSpace is the space between points in pixel field
-    void addGriddedTraces( int pixelSpace );
+    void addGriddedTraces();
 
     //! Adds traces in the field from start points in the border of the field, pixelSpace is the space between points in pixel field
-    void addTracesFromBorder( int pixelSpace );
+    void addTracesFromBorder();
 
     //! Sets the resolution of the field
     void setResolution( int width );
@@ -247,15 +251,24 @@ class CORE_EXPORT QgsMeshTraceField
     //! Returns the current render image of the field
     virtual QImage image();
 
+    //! used to stop processing when working with multithreads
     void stopProcessing()
     {
       mProcessingStop = true;
     }
 
+    //! Returns true if a way was already defined in the pixel
     bool isWayExist( const QPoint &pixel ) const;
 
+    //! Gives information on the way defined in the pixel. If no way was defined, returns false.
     virtual bool way( const QPoint &pixel, float &dt, int &incX, int &incY ) const;
 
+    //! dets the maximum pixel filling, eg, the rate of number pixel that can be filled with way.
+    void setPixelFillingDensity( double maxFilling )
+    {
+      mPixelFillingDensity = maxFilling;
+      mMaxPixelFillingCount = int( mPixelFillingDensity * mFieldSize.width() * mFieldSize.height() );
+    }
 
   protected:
     QPointF fieldToDevice( const QPoint &pixel ) const;
@@ -264,7 +277,9 @@ class CORE_EXPORT QgsMeshTraceField
     bool mProcessingStop = false;
     QSize mFieldSize;
     int mFieldResolution = 1;
-    mutable QMutex mMutex; ///TODO : only one mutex should do the job
+    mutable QMutex mMutex;
+    int mPixelFillingCount = 0;
+    int mMaxPixelFillingCount = 0;
 
 
   private:
@@ -293,10 +308,12 @@ class CORE_EXPORT QgsMeshTraceField
     bool mValid = false;
 
     std::unique_ptr<QgsMeshVectorValueInterpolator> mVectorValueInterpolator;
-    double mVmax = 0;
+    double mMagMax = 0;
     QPoint mLastPixel;
+    double mPixelFillingDensity;
 
-    //settings
+
+
 
 
 };
@@ -348,12 +365,14 @@ class QgsMeshTraceParticle
 class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
 {
   public:
-    QgsMeshTraceFieldDynamic( const QgsRenderContext &renderContext,
+    QgsMeshTraceFieldDynamic( const QgsTriangularMesh &triangularMesh,
+                              const QgsMeshDataBlock &dataSetVectorValues,
+                              const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                              const QgsRenderContext &renderContext,
                               const QgsRectangle &layerExtent,
-                              double Vmax ):
-      QgsMeshTraceField( renderContext, layerExtent, Vmax )
+                              double magMax ):
+      QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, magMax )
     {
-
     }
 
     void addParticle( QPoint startPoint )
@@ -446,7 +465,6 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
     void startTrace( const QPoint &startPixel ) override {}
     void endTrace( const QPoint &endPixel ) override {}
 
-
     friend class QgsMeshTraceParticle;
 
 };
@@ -481,13 +499,13 @@ class CORE_EXPORT QgsMeshTraceColor
  * \note not available in Python bindings
  * \since QGIS 3.12
  */
-class CORE_EXPORT QgsMeshTraceUniqueColor: public QgsMeshTraceColor
+class CORE_EXPORT QgsMeshTraceFixedColor: public QgsMeshTraceColor
 {
   public:
     //! Constructor with the default color (black)
-    QgsMeshTraceUniqueColor() = default;
+    QgsMeshTraceFixedColor() = default;
     //! Constructor with the given color
-    QgsMeshTraceUniqueColor( const QColor &color );
+    QgsMeshTraceFixedColor( const QColor &color );
 
     QColor color( float value ) const override;
 
@@ -511,26 +529,27 @@ class QgsMeshTraceColorRamp: public QgsMeshTraceColor
     //! Constructor
     QgsMeshTraceColorRamp() = default;
     //! Constructor with a color ramp and takes the ownership
-    QgsMeshTraceColorRamp( QgsColorRamp *colorRamp );
+    QgsMeshTraceColorRamp( const QgsColorRampShader &colorRamp );
     ~QgsMeshTraceColorRamp() override;
 
+    //!Return the color
     QColor color( float value ) const override
     {
-      if ( mColorRamp )
-        return mColorRamp->color( double( value ) );
+      if ( mColorRampShader.sourceColorRamp() )
+        return mColorRampShader.sourceColorRamp()->color( double( value ) );
       else
         return Qt::black;
     }
 
   private:
-    QgsColorRamp *mColorRamp = nullptr;
+    QgsColorRampShader mColorRampShader;
 
 };
 
 /**
  * \ingroup core
  *
- * Class used to cache information about static trace (static streamlines)
+ * Class used to draw static streamlines
  *
  * Can be improve to reduce aliasing of streamlines
  *
@@ -542,9 +561,12 @@ class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static
   public:
 
     //! Constructor
-    QgsMeshStreamLineField( const QgsRenderContext &renderContext,
+    QgsMeshStreamLineField( const QgsTriangularMesh &triangularMesh,
+                            const QgsMeshDataBlock &dataSetVectorValues,
+                            const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                            const QgsRenderContext &renderContext,
                             const QgsRectangle &layerExtent,
-                            double Vmax, QColor color = Qt::lightGray );
+                            double Vmax );
 
     //! Destructor
     ~QgsMeshStreamLineField() override;
@@ -552,6 +574,14 @@ class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static
     //! Exports the field in png file in the working directory, used for debugging
     void exportImage() const;
 
+    void setLineWidth( double width )
+    {
+      mPen.setWidthF( width );
+    }
+
+
+    void setTraceColor( const QgsColorRampShader &shader );
+    void setTraceColor( QColor fixedColor );
 
   private:
     //******************methods
@@ -572,8 +602,7 @@ class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static
     QVector<float> mMagnitudeField;
     QPointF mLastPixel;
     bool mTraceInProgress = false;
-    void( *color )( QPen &pen, const QPoint &pixel );
-    std::unique_ptr<QgsMeshTraceColor> mTraceColor;
+    std::unique_ptr<QgsMeshTraceColor> mTraceColor = std::unique_ptr<QgsMeshTraceColor>( new QgsMeshTraceFixedColor() );
 
     //******************settings attributes
 
@@ -584,14 +613,64 @@ class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static
 
 
 
-class QgsMeshStreamLineRenderer
+class QgsMeshVectorStreamLineRenderer: public QgsMeshVectorRenderer
 {
   public:
-    QgsMeshStreamLineRenderer( QgsMeshStreamLineField *traceFieldStatic, QgsRenderContext &rendererContext ):
-      mStreamLineField( traceFieldStatic ),
+    //!Constructor
+    QgsMeshVectorStreamLineRenderer( const QgsTriangularMesh &triangularMesh,
+                                     const QgsMeshDataBlock &dataSetVectorValues,
+                                     const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                                     const QgsMeshRendererVectorStreamlineSettings &settings,
+                                     QgsRenderContext &rendererContext,
+                                     const QgsRectangle &layerExtent,
+                                     double magMax ):
       mRendererContext( rendererContext )
     {
-      mStreamLineField->addRandomTraces( 50 );
+      mStreamLineField.reset( new QgsMeshStreamLineField( triangularMesh,
+                              dataSetVectorValues,
+                              scalarActiveFaceFlagValues,
+                              rendererContext,
+                              layerExtent,
+                              magMax ) );
+
+      mStreamLineField->updateSize( rendererContext );
+      mStreamLineField->setPixelFillingDensity( settings.seedingDensity() );
+      mStreamLineField->setLineWidth(
+        rendererContext.convertToPainterUnits( settings.lineWidth(), QgsUnitTypes::RenderUnit::RenderMillimeters ) );
+
+
+      switch ( settings.colorMethod() )
+      {
+        case QgsMeshRendererVectorStreamlineSettings::Fixe:
+          mStreamLineField->setTraceColor( settings.fixedColor() );
+          break;
+        case QgsMeshRendererVectorStreamlineSettings::ColorRamp:
+          mStreamLineField->setTraceColor( settings.colorRampShader() );
+          break;
+      }
+
+      switch ( settings.seedingMethod() )
+      {
+        case QgsMeshRendererVectorStreamlineSettings::Gridded:
+          mStreamLineField->addGriddedTraces();
+          break;
+        case QgsMeshRendererVectorStreamlineSettings::OnBorder:
+          mStreamLineField->addTracesFromBorder();
+          break;
+        case QgsMeshRendererVectorStreamlineSettings::Random:
+          mStreamLineField->addRandomTraces();
+          break;
+      }
+
+      //mStreamLineField->addTrace( QgsPointXY( 57, 5 ) ); //for debugging
+    }
+
+    //!Constructor to used when the steamline already exists (cache)
+    QgsMeshVectorStreamLineRenderer( QgsMeshStreamLineField *streamLineField, QgsRenderContext &rendererContext ):
+      mStreamLineField( streamLineField ),
+      mRendererContext( rendererContext )
+    {
+
     }
 
     void draw()
@@ -599,11 +678,10 @@ class QgsMeshStreamLineRenderer
       if ( mRendererContext.renderingStopped() )
         return;
       mRendererContext.painter()->drawImage( mStreamLineField->topLeft(), mStreamLineField->image() );
-
     }
 
   private:
-    QgsMeshStreamLineField *mStreamLineField;
+    std::unique_ptr<QgsMeshStreamLineField> mStreamLineField;
     QgsRenderContext &mRendererContext;
 };
 

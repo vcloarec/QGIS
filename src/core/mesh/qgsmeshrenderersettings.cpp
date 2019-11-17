@@ -144,159 +144,150 @@ void QgsMeshRendererScalarSettings::readXml( const QDomElement &elem )
 
 // ---------------------------------------------------------------------
 
-double QgsMeshRendererVectorSettings::lineWidth() const
+double QgsMeshRendererVectorArrowSettings::lineWidth() const
 {
   return mLineWidth;
 }
 
-void QgsMeshRendererVectorSettings::setLineWidth( double lineWidth )
+void QgsMeshRendererVectorArrowSettings::setLineWidth( double lineWidth )
 {
   mLineWidth = lineWidth;
 }
 
-QColor QgsMeshRendererVectorSettings::color() const
+QColor QgsMeshRendererVectorArrowSettings::color() const
 {
   return mColor;
 }
 
-void QgsMeshRendererVectorSettings::setColor( const QColor &vectorColor )
+void QgsMeshRendererVectorArrowSettings::setColor( const QColor &vectorColor )
 {
   mColor = vectorColor;
 }
 
-double QgsMeshRendererVectorSettings::filterMin() const
+double QgsMeshRendererVectorArrowSettings::filterMin() const
 {
   return mFilterMin;
 }
 
-void QgsMeshRendererVectorSettings::setFilterMin( double vectorFilterMin )
+void QgsMeshRendererVectorArrowSettings::setFilterMin( double vectorFilterMin )
 {
   mFilterMin = vectorFilterMin;
 }
 
-double QgsMeshRendererVectorSettings::filterMax() const
+double QgsMeshRendererVectorArrowSettings::filterMax() const
 {
   return mFilterMax;
 }
 
-void QgsMeshRendererVectorSettings::setFilterMax( double vectorFilterMax )
+void QgsMeshRendererVectorArrowSettings::setFilterMax( double vectorFilterMax )
 {
   mFilterMax = vectorFilterMax;
 }
 
-QgsMeshRendererVectorSettings::ArrowScalingMethod QgsMeshRendererVectorSettings::shaftLengthMethod() const
+QgsMeshRendererVectorArrowSettings::ArrowScalingMethod QgsMeshRendererVectorArrowSettings::shaftLengthMethod() const
 {
   return mShaftLengthMethod;
 }
 
-void QgsMeshRendererVectorSettings::setShaftLengthMethod( QgsMeshRendererVectorSettings::ArrowScalingMethod shaftLengthMethod )
+void QgsMeshRendererVectorArrowSettings::setShaftLengthMethod( QgsMeshRendererVectorArrowSettings::ArrowScalingMethod shaftLengthMethod )
 {
   mShaftLengthMethod = shaftLengthMethod;
 }
 
-double QgsMeshRendererVectorSettings::minShaftLength() const
+double QgsMeshRendererVectorArrowSettings::minShaftLength() const
 {
   return mMinShaftLength;
 }
 
-void QgsMeshRendererVectorSettings::setMinShaftLength( double minShaftLength )
+void QgsMeshRendererVectorArrowSettings::setMinShaftLength( double minShaftLength )
 {
   mMinShaftLength = minShaftLength;
 }
 
-double QgsMeshRendererVectorSettings::maxShaftLength() const
+double QgsMeshRendererVectorArrowSettings::maxShaftLength() const
 {
   return mMaxShaftLength;
 }
 
-void QgsMeshRendererVectorSettings::setMaxShaftLength( double maxShaftLength )
+void QgsMeshRendererVectorArrowSettings::setMaxShaftLength( double maxShaftLength )
 {
   mMaxShaftLength = maxShaftLength;
 }
 
-double QgsMeshRendererVectorSettings::scaleFactor() const
+double QgsMeshRendererVectorArrowSettings::scaleFactor() const
 {
   return mScaleFactor;
 }
 
-void QgsMeshRendererVectorSettings::setScaleFactor( double scaleFactor )
+void QgsMeshRendererVectorArrowSettings::setScaleFactor( double scaleFactor )
 {
   mScaleFactor = scaleFactor;
 }
 
-double QgsMeshRendererVectorSettings::fixedShaftLength() const
+double QgsMeshRendererVectorArrowSettings::fixedShaftLength() const
 {
   return mFixedShaftLength;
 }
 
-void QgsMeshRendererVectorSettings::setFixedShaftLength( double fixedShaftLength )
+void QgsMeshRendererVectorArrowSettings::setFixedShaftLength( double fixedShaftLength )
 {
   mFixedShaftLength = fixedShaftLength;
 }
 
-double QgsMeshRendererVectorSettings::arrowHeadWidthRatio() const
+double QgsMeshRendererVectorArrowSettings::arrowHeadWidthRatio() const
 {
   return mArrowHeadWidthRatio;
 }
 
-void QgsMeshRendererVectorSettings::setArrowHeadWidthRatio( double vectorHeadWidthRatio )
+void QgsMeshRendererVectorArrowSettings::setArrowHeadWidthRatio( double vectorHeadWidthRatio )
 {
   mArrowHeadWidthRatio = vectorHeadWidthRatio;
 }
 
-double QgsMeshRendererVectorSettings::arrowHeadLengthRatio() const
+double QgsMeshRendererVectorArrowSettings::arrowHeadLengthRatio() const
 {
   return mArrowHeadLengthRatio;
 }
 
-void QgsMeshRendererVectorSettings::setArrowHeadLengthRatio( double vectorHeadLengthRatio )
+void QgsMeshRendererVectorArrowSettings::setArrowHeadLengthRatio( double vectorHeadLengthRatio )
 {
   mArrowHeadLengthRatio = vectorHeadLengthRatio;
 }
 
-bool QgsMeshRendererVectorSettings::isOnUserDefinedGrid() const
+bool QgsMeshRendererVectorArrowSettings::isOnUserDefinedGrid() const
 {
   return mOnUserDefinedGrid;
 }
 
-void QgsMeshRendererVectorSettings::setOnUserDefinedGrid( bool enabled )
+void QgsMeshRendererVectorArrowSettings::setOnUserDefinedGrid( bool enabled )
 {
   mOnUserDefinedGrid = enabled;
 }
 
-int QgsMeshRendererVectorSettings::userGridCellWidth() const
+int QgsMeshRendererVectorArrowSettings::userGridCellWidth() const
 {
   return mUserGridCellWidth;
 }
 
-void QgsMeshRendererVectorSettings::setUserGridCellWidth( int width )
+void QgsMeshRendererVectorArrowSettings::setUserGridCellWidth( int width )
 {
   mUserGridCellWidth = width;
 }
 
-int QgsMeshRendererVectorSettings::userGridCellHeight() const
+int QgsMeshRendererVectorArrowSettings::userGridCellHeight() const
 {
   return mUserGridCellHeight;
 }
 
-void QgsMeshRendererVectorSettings::setUserGridCellHeight( int height )
+void QgsMeshRendererVectorArrowSettings::setUserGridCellHeight( int height )
 {
   mUserGridCellHeight = height;
 }
 
-void QgsMeshRendererVectorSettings::setAnimatedTrace( bool enabled )
-{
-  mAnimatedTrace = enabled;
-}
 
-bool QgsMeshRendererVectorSettings::animatedTrace() const
+QDomElement QgsMeshRendererVectorArrowSettings::writeXml( QDomDocument &doc ) const
 {
-  return mAnimatedTrace;
-}
-
-QDomElement QgsMeshRendererVectorSettings::writeXml( QDomDocument &doc ) const
-{
-  QDomElement elem = doc.createElement( QStringLiteral( "vector-settings" ) );
+  QDomElement elem = doc.createElement( QStringLiteral( "vector-arrow-settings" ) );
   elem.setAttribute( QStringLiteral( "line-width" ), mLineWidth );
   elem.setAttribute( QStringLiteral( "color" ), QgsSymbolLayerUtils::encodeColor( mColor ) );
   elem.setAttribute( QStringLiteral( "filter-min" ), mFilterMin );
@@ -330,7 +321,7 @@ QDomElement QgsMeshRendererVectorSettings::writeXml( QDomDocument &doc ) const
   return elem;
 }
 
-void QgsMeshRendererVectorSettings::readXml( const QDomElement &elem )
+void QgsMeshRendererVectorArrowSettings::readXml( const QDomElement &elem )
 {
   mLineWidth = elem.attribute( QStringLiteral( "line-width" ) ).toDouble();
   mColor = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "color" ) ) );
@@ -448,4 +439,104 @@ void QgsMeshRendererSettings::readXml( const QDomElement &elem )
 
   QDomElement elemTriangularMesh = elem.firstChildElement( QStringLiteral( "mesh-settings-triangular" ) );
   mRendererTriangularMeshSettings.readXml( elemTriangularMesh );
+}
+
+QgsMeshRendererVectorStreamlineSettings::SeedingStartPointsMethod QgsMeshRendererVectorStreamlineSettings::seedingMethod() const
+{
+  return mSeedingMethod;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setSeedingMethod( const SeedingStartPointsMethod &seedingMethod )
+{
+  mSeedingMethod = seedingMethod;
+}
+
+double QgsMeshRendererVectorStreamlineSettings::seedingDensity() const
+{
+  return mSeedingDensity;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setSeedingDensity( double seedingDensity )
+{
+  mSeedingDensity = seedingDensity;
+}
+
+QgsMeshRendererVectorStreamlineSettings::ColorMethod QgsMeshRendererVectorStreamlineSettings::colorMethod() const
+{
+  return mColorMethod;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setColorMethod( const QgsMeshRendererVectorStreamlineSettings::ColorMethod &colorMethod )
+{
+  mColorMethod = colorMethod;
+}
+
+double QgsMeshRendererVectorStreamlineSettings::lineWidth() const
+{
+  return mLineWidth;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setLineWidth( double lineWidth )
+{
+  mLineWidth = lineWidth;
+}
+
+QColor QgsMeshRendererVectorStreamlineSettings::fixedColor() const
+{
+  return mFixedColor;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setFixedColor( const QColor &fixedColor )
+{
+  mFixedColor = fixedColor;
+}
+
+QgsColorRampShader QgsMeshRendererVectorStreamlineSettings::colorRampShader() const
+{
+  return mColorRampShader;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setColorRampShader( const QgsColorRampShader &colorRampShader )
+{
+  mColorRampShader = colorRampShader;
+}
+
+QgsMeshRendererVectorStreamlineSettings QgsMeshRendererVectorSettings::streamLinesSettings() const
+{
+  return mStreamLinesSettings;
+}
+
+void QgsMeshRendererVectorSettings::setStreamLinesSettings( const QgsMeshRendererVectorStreamlineSettings &streamLinesSettings )
+{
+  mStreamLinesSettings = streamLinesSettings;
+}
+
+QgsMeshRendererVectorArrowSettings QgsMeshRendererVectorSettings::arrowsSettings() const
+{
+  return mArrowsSettings;
+}
+
+void QgsMeshRendererVectorSettings::setArrowsSettings( const QgsMeshRendererVectorArrowSettings &arrowsSettings )
+{
+  mArrowsSettings = arrowsSettings;
+}
+
+QgsMeshRendererVectorTracesSettings QgsMeshRendererVectorSettings::tracesSettings() const
+{
+  return mTracesSettings;
+}
+
+void QgsMeshRendererVectorSettings::setTracesSettings( const QgsMeshRendererVectorTracesSettings &tracesSettings )
+{
+  mTracesSettings = tracesSettings;
+}
+
+QgsMeshRendererVectorSettings::DisplayingMethod QgsMeshRendererVectorSettings::displayingMethod() const
+{
+  return mDisplayingMethod;
+}
+
+void QgsMeshRendererVectorSettings::setDisplayingMethod( const DisplayingMethod &displayingMethod )
+{
+  mDisplayingMethod = displayingMethod;
 }

@@ -59,6 +59,28 @@ class APP_EXPORT QgsMeshRendererVectorSettingsWidget : public QWidget, private U
     //! Mesh rendering settings changed
     void widgetChanged();
 
+  private slots:
+    void onDisplayingMethodChange( int index )
+    {
+      //Arrows
+      for ( auto w : mArrowWidgetSettings )
+      {
+        w->setVisible( index == QgsMeshRendererVectorSettings::Arrows );
+      }
+
+      //Streamlines
+      for ( auto w : mStreamLinesWidgetSettings )
+      {
+        w->setVisible( index == QgsMeshRendererVectorSettings::Streamlines );
+      }
+
+      //Particle traces
+      for ( auto w : mTracesWidgetSettings )
+      {
+        w->setVisible( index == QgsMeshRendererVectorSettings::Traces );
+      }
+    }
+
   private:
 
     /**
@@ -69,6 +91,10 @@ class APP_EXPORT QgsMeshRendererVectorSettingsWidget : public QWidget, private U
 
     QgsMeshLayer *mMeshLayer = nullptr; //not owned
     int mActiveDatasetGroup = -1;
+
+    QList<QWidget *> mArrowWidgetSettings;
+    QList<QWidget *> mStreamLinesWidgetSettings;
+    QList<QWidget *> mTracesWidgetSettings;
 };
 
 #endif // QGSMESHRENDERERVECTORSETTINGSWIDGET_H

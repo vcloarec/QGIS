@@ -55,18 +55,6 @@ QgsMeshLayerRenderer::QgsMeshLayerRenderer( QgsMeshLayer *layer, QgsRenderContex
   copyScalarDatasetValues( layer );
   copyVectorDatasetValues( layer );
 
-  //cosntruct and set settings for stream lines
-  mStreamLineField =
-    std::shared_ptr<QgsMeshStreamLineField>( new QgsMeshStreamLineField( context, layer->extent(), 15, Qt::blue ) );
-
-  mStreamLineField->updateSize( context, 1 );
-  if ( mRendererSettings.activeScalarDataset().isValid() )
-    mStreamLineField->setDataFromVertex( mTriangularMesh, mVectorDatasetValues, mScalarActiveFaceFlagValues );
-  else
-    mTraceFieldDynamic->setDataFromVertex( mTriangularMesh, mVectorDatasetValues );
-
-  layer->rendererCache()->mTraceFieldStatic = mStreamLineField;
-
   calculateOutputSize();
 }
 
@@ -229,13 +217,9 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
 
 bool QgsMeshLayerRenderer::render()
 {
-  qDebug() << "start render data set: " << QTime::currentTime();
   renderScalarDataset();
-  qDebug() << "start render mesh: " << QTime::currentTime();
   renderMesh();
-  qDebug() << "start render trace: " << QTime::currentTime();
-  //renderVectorDataset();
-  renderVectorStreamLine();
+  renderVectorDataset();
   return true;
 }
 
@@ -366,35 +350,21 @@ void QgsMeshLayerRenderer::renderVectorDataset()
   if ( std::isnan( mVectorDatasetMagMinimum ) || std::isnan( mVectorDatasetMagMaximum ) )
     return; // only NODATA values
 
-  QgsMeshVectorRenderer renderer( mTriangularMesh,
-                                  mVectorDatasetValues,
-                                  mVectorDatasetValuesMag,
-                                  mVectorDatasetMagMinimum,
-                                  mVectorDatasetMagMaximum,
-                                  mVectorDataOnVertices,
-                                  mRendererSettings.vectorSettings( index.group() ),
-                                  *renderContext(),
-                                  mOutputSize );
+  std::unique_ptr<QgsMeshVectorRenderer> renderer( QgsMeshVectorRenderer::makeVectorRenderer(
+        mTriangularMesh,
+        mVectorDatasetValues,
+        mScalarActiveFaceFlagValues,
+        mVectorDatasetValuesMag,
+        mVectorDatasetMagMaximum,
+        mVectorDatasetMagMinimum,
+        mVectorDataOnVertices,
+        mRendererSettings.vectorSettings( index.group() ),
+        *renderContext(),
+        mLayerExtent,
+        mOutputSize ) );
 
-  renderer.draw();
+
+
+  renderer->draw();
 }
 
-void QgsMeshLayerRenderer::renderVectorStreamLine()
-{
-
-  QgsMeshDatasetIndex index = mRendererSettings.activeVectorDataset();
-  if ( !index.isValid() )
-    return;
-
-  if ( !mVectorDatasetValues.isValid() )
-    return; // no data at all
-
-  if ( std::isnan( mVectorDatasetMagMinimum ) || std::isnan( mVectorDatasetMagMaximum ) )
-    return; // only NODATA values
-
-
-
-  QgsMeshStreamLineRenderer renderer( mStreamLineField.get(), *renderContext() );
-
-  renderer.draw();
-}

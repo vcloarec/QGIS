@@ -149,11 +149,14 @@ Reads configuration from the given DOM element
 
 };
 
-class QgsMeshRendererVectorSettings
+
+
+
+class QgsMeshRendererVectorArrowSettings
 {
 %Docstring
 
-Represents a mesh renderer settings for vector datasets
+Represents a mesh renderer settings for vector datasets displayed with arrows
 
 .. note::
 
@@ -225,7 +228,7 @@ Sets filter value for vector magnitudes.
 .. seealso:: :py:func:`filterMax`
 %End
 
-    QgsMeshRendererVectorSettings::ArrowScalingMethod shaftLengthMethod() const;
+    QgsMeshRendererVectorArrowSettings::ArrowScalingMethod shaftLengthMethod() const;
 %Docstring
 Returns method used for drawing arrows
 %End
@@ -332,6 +335,14 @@ Returns height in pixels of user grid cell
 %Docstring
 Sets height of user grid cell (in pixels)
 %End
+    void setAnimatedTrace( bool enabled );
+%Docstring
+set if trace is animated
+%End
+    bool animatedTrace() const;
+%Docstring
+Return true is trace is animated
+%End
 
     QDomElement writeXml( QDomDocument &doc ) const;
 %Docstring
@@ -341,6 +352,151 @@ Writes configuration to a new DOM element
 %Docstring
 Reads configuration from the given DOM element
 %End
+
+};
+
+class QgsMeshRendererVectorStreamlineSettings
+{
+%Docstring
+
+Represents a streamline renderer settings for vector datasets displayed by streamlines
+
+.. note::
+
+   The API is considered EXPERIMENTAL and can be changed without a notice
+
+.. versionadded:: 3.12
+%End
+
+%TypeHeaderCode
+#include "qgsmeshrenderersettings.h"
+%End
+  public:
+    enum SeedingStartPointsMethod
+    {
+      Gridded,
+      OnBorder,
+      Random,
+      RandomOnBorder
+    };
+
+    enum ColorMethod
+    {
+      Fixe,
+      ColorRamp,
+
+    };
+
+    SeedingStartPointsMethod seedingMethod() const;
+%Docstring
+Returns the method used for seeding start points of strealines
+%End
+    void setSeedingMethod( const SeedingStartPointsMethod &seedingMethod );
+%Docstring
+Sets the method used for seeding start points of strealines
+%End
+    double seedingDensity() const;
+%Docstring
+Return the density used for seeding start points
+%End
+    void setSeedingDensity( double seedingDensity );
+%Docstring
+Sets the density used for seeding start points
+%End
+
+    QgsMeshRendererVectorStreamlineSettings::ColorMethod colorMethod() const;
+%Docstring
+Returns the method used to color the streamlines
+%End
+    void setColorMethod( const QgsMeshRendererVectorStreamlineSettings::ColorMethod &colorMethod );
+%Docstring
+Sets the method used to color the streamlines
+%End
+
+};
+
+
+class QgsMeshRendererVectorTracesSettings
+{
+%Docstring
+
+Represents a streamline renderer settings for vector datasets displayed by particle traces
+
+.. note::
+
+   The API is considered EXPERIMENTAL and can be changed without a notice
+
+.. versionadded:: 3.12
+%End
+
+%TypeHeaderCode
+#include "qgsmeshrenderersettings.h"
+%End
+};
+
+class QgsMeshRendererVectorSettings
+{
+%Docstring
+
+Represents a streamline renderer settings for vector datasets
+
+.. note::
+
+   The API is considered EXPERIMENTAL and can be changed without a notice
+
+.. versionadded:: 3.12
+%End
+
+%TypeHeaderCode
+#include "qgsmeshrenderersettings.h"
+%End
+  public:
+    enum DisplayingMethod
+    {
+      //!Displying vctor dataset with arrows
+      Arrows,
+      //!Displying vctor dataset with streamlines
+      Streamlines,
+      //!Displying vctor dataset with particle traces
+      Traces,
+    };
+
+    DisplayingMethod displayingMethod() const;
+%Docstring
+Returns the displaying method used to render vector datasets
+%End
+    void setDisplayingMethod( const DisplayingMethod &displayingMethod );
+%Docstring
+Sets the displaying method used to render vector datasets
+%End
+
+    QgsMeshRendererVectorArrowSettings arrowsSettings() const;
+%Docstring
+Returns settings for vector rendered with arrows
+%End
+    void setArrowsSettings( const QgsMeshRendererVectorArrowSettings &arrowsSettings );
+
+    QgsMeshRendererVectorStreamlineSettings streamLinesSettings() const;
+%Docstring
+Returns settings for vector rednered with streamlines
+%End
+    void setStreamLinesSettings( const QgsMeshRendererVectorStreamlineSettings &streamLinesSettings );
+
+    QgsMeshRendererVectorTracesSettings tracesSettings() const;
+%Docstring
+Returns settings for vector rendred with particule traces
+%End
+    void setTracesSettings( const QgsMeshRendererVectorTracesSettings &tracesSettings );
+
+    QDomElement writeXml( QDomDocument &doc ) const;
+%Docstring
+Writes configuration to a new DOM element
+%End
+    void readXml( const QDomElement &elem );
+%Docstring
+Reads configuration from the given DOM element
+%End
+
 
 };
 
@@ -427,6 +583,8 @@ Reads configuration from the given DOM element
 %End
 
 };
+
+
 
 /************************************************************************
  * This file has been generated automatically from                      *

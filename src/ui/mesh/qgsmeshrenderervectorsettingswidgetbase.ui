@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>287</width>
-    <height>520</height>
+    <width>332</width>
+    <height>811</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,6 +16,156 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>Displaying Method</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QComboBox" name="mDisplayingVectorMethodcomboBox">
+        <item>
+         <property name="text">
+          <string>Arrows</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Streamlines</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Particle traces</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="mStreamLinesSeedingMethodGroupBox">
+     <property name="title">
+      <string>Streamlines Seeding Method</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="3,2">
+      <item>
+       <widget class="QComboBox" name="mStreamlinesSeedingMethodComboBox">
+        <item>
+         <property name="text">
+          <string>Regular grid</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Regular on border</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Randomly on mesh</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Density</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="mStreamlinesDensitySpinBox">
+          <property name="suffix">
+           <string>%</string>
+          </property>
+          <property name="decimals">
+           <number>1</number>
+          </property>
+          <property name="value">
+           <double>5.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="mStreamlinesWidthColorGroupBox">
+     <property name="title">
+      <string>Streamlines Width and Color</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_4">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_6">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Line Width</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDoubleSpinBox" name="mStreamlinesWidthSpinBox">
+          <property name="singleStep">
+           <double>0.200000000000000</double>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QRadioButton" name="mStreamlinesFixedColorRadioButton">
+          <property name="text">
+           <string>Fixe color</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="mStreamlinesColorRampRadioButton">
+          <property name="text">
+           <string>Color ramp</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QgsColorButton" name="mStreamlinesFixeColorButton">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QgsColorRampShaderWidget" name="mStreamlinesColorRampShaderWidget" native="true"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="arrowWidthColorGroupBox">
      <property name="title">
       <string>Line Width and Color</string>
      </property>
@@ -225,7 +375,7 @@
       <item>
        <widget class="QStackedWidget" name="mShaftOptionsStackedWidget">
         <property name="currentIndex">
-         <number>2</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="page">
          <layout class="QFormLayout" name="formLayout">
@@ -315,6 +465,12 @@
    <class>QgsSpinBox</class>
    <extends>QSpinBox</extends>
    <header>qgsspinbox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsColorRampShaderWidget</class>
+   <extends>QWidget</extends>
+   <header>raster/qgscolorrampshaderwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

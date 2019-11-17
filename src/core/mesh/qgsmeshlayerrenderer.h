@@ -119,7 +119,6 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
     void renderMesh( const QgsMeshRendererMeshSettings &settings, const QVector<QgsMeshFace> &faces, const QList<int> &facesInExtent );
     void renderScalarDataset();
     void renderVectorDataset();
-    void renderVectorStreamLine();
     void copyScalarDatasetValues( QgsMeshLayer *layer );
     void copyVectorDatasetValues( QgsMeshLayer *layer );
     void calculateOutputSize();
