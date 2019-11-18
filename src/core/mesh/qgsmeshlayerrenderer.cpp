@@ -162,7 +162,7 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
   QgsMeshLayerRendererCache *cache = layer->rendererCache();
   if ( ( cache->mDatasetGroupsCount == datasetGroupCount ) &&
        ( cache->mActiveVectorDatasetIndex == datasetIndex ) &&
-       ( cache->mScalarWeightDatasetIndex == mScalarWeightDatasetIndex ) )
+       ( cache->mScalarWeightDatasetIndex.group() == mScalarWeightDatasetIndex.group() ) ) //scalar weight data set can have a different datasetIndex
   {
     mVectorDatasetValues = cache->mVectorDatasetValues;
     mVectorDatasetValuesMag = cache->mVectorDatasetValuesMag;
@@ -223,8 +223,17 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
         else
           scalarCount = mNativeMesh.faces.count();
 
-        mVectorScalarWeightDataSetValues =
-          QgsMeshLayerUtils::calculateMagnitudes( layer->dataProvider()->datasetValues( mScalarWeightDatasetIndex, 0, scalarCount ) );
+
+        QgsMeshDataBlock scalarWeightDataBlock =  layer->dataProvider()->datasetValues( mScalarWeightDatasetIndex, 0, scalarCount );
+        if ( !scalarWeightDataBlock.isValid() )
+        {
+          //try with datraset index =0
+          QgsMeshDatasetIndex ind( mScalarWeightDatasetIndex.group(), 0 );
+          scalarWeightDataBlock =  layer->dataProvider()->datasetValues( ind, 0, scalarCount );
+        }
+        if ( scalarWeightDataBlock.isValid() )
+          mVectorScalarWeightDataSetValues =
+            QgsMeshLayerUtils::calculateMagnitudes( scalarWeightDataBlock );
       }
       else
         mScalarWeightDatasetIndex = QgsMeshDatasetIndex();
