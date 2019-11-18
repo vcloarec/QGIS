@@ -20,12 +20,13 @@
 #include "qgis_app.h"
 #include "qgsmeshrenderersettings.h"
 #include "qgsmeshdataprovider.h"
+#include "qgsmeshdatasetgrouptreeview.h"
 
 #include <memory>
 #include <QWidget>
 
 class QgsMeshLayer;
-
+class QgsMeshDatasetGroupTreeModelSelectable;
 /**
  * A widget for setup of the vector dataset renderer settings of
  * a mesh layer. The layer must be connected and an active dataset
@@ -60,25 +61,10 @@ class APP_EXPORT QgsMeshRendererVectorSettingsWidget : public QWidget, private U
     void widgetChanged();
 
   private slots:
-    void onDisplayingMethodChange( int index )
+    void onMinMaxChange();
+    void onWeightScalarChanged()
     {
-      //Arrows
-      for ( auto w : mArrowWidgetSettings )
-      {
-        w->setVisible( index == QgsMeshRendererVectorSettings::Arrows );
-      }
 
-      //Streamlines
-      for ( auto w : mStreamLinesWidgetSettings )
-      {
-        w->setVisible( index == QgsMeshRendererVectorSettings::Streamlines );
-      }
-
-      //Particle traces
-      for ( auto w : mTracesWidgetSettings )
-      {
-        w->setVisible( index == QgsMeshRendererVectorSettings::Traces );
-      }
     }
 
   private:
@@ -92,9 +78,23 @@ class APP_EXPORT QgsMeshRendererVectorSettingsWidget : public QWidget, private U
     QgsMeshLayer *mMeshLayer = nullptr; //not owned
     int mActiveDatasetGroup = -1;
 
-    QList<QWidget *> mArrowWidgetSettings;
-    QList<QWidget *> mStreamLinesWidgetSettings;
-    QList<QWidget *> mTracesWidgetSettings;
+    QgsMeshDatasetGroupTreeModelSelectable *mGroupDataSetModel;
+
+};
+
+/**
+ * Model derived from QgsMeshDatasetGroupTreeModel to display available datasetgroup that can be selectable
+ */
+class QgsMeshDatasetGroupTreeModelSelectable: public QgsMeshDatasetGroupTreeModel
+{
+  public:
+    QgsMeshDatasetGroupTreeModelSelectable( QObject *parent = nullptr ): QgsMeshDatasetGroupTreeModel( parent ) {}
+
+  public:
+    Qt::ItemFlags flags( const QModelIndex &index ) const override
+    {
+      return QgsMeshDatasetGroupTreeModel::flags( index ) | Qt::ItemIsSelectable;
+    }
 };
 
 #endif // QGSMESHRENDERERVECTORSETTINGSWIDGET_H

@@ -222,7 +222,7 @@ void TestQgsMeshRenderer::test_vertex_vector_dataset_rendering()
 
   QgsMeshRendererSettings rendererSettings = mMemoryLayer->rendererSettings();
   QgsMeshRendererVectorSettings settings = rendererSettings.vectorSettings( ds.group() );
-  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowsSettings();
+  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowSettings();
   arrowSettings.setMinShaftLength( 15 );
   rendererSettings.setVectorSettings( ds.group(), settings );
   rendererSettings.setActiveVectorDataset( ds );
@@ -295,7 +295,7 @@ void TestQgsMeshRenderer::test_face_vector_on_user_grid()
 
   QgsMeshRendererSettings rendererSettings = mMemoryLayer->rendererSettings();
   QgsMeshRendererVectorSettings settings = rendererSettings.vectorSettings( ds.group() );
-  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowsSettings();
+  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowSettings();
   arrowSettings.setOnUserDefinedGrid( true );
   arrowSettings.setUserGridCellWidth( 30 );
   arrowSettings.setUserGridCellHeight( 20 );
@@ -315,7 +315,7 @@ void TestQgsMeshRenderer::test_vertex_vector_on_user_grid()
 
   QgsMeshRendererSettings rendererSettings = mMemoryLayer->rendererSettings();
   QgsMeshRendererVectorSettings settings = rendererSettings.vectorSettings( ds.group() );
-  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowsSettings();
+  QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowSettings();
   arrowSettings.setOnUserDefinedGrid( true );
   arrowSettings.setUserGridCellWidth( 60 );
   arrowSettings.setUserGridCellHeight( 40 );

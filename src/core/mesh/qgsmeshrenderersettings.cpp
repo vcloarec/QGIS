@@ -501,6 +501,101 @@ void QgsMeshRendererVectorStreamlineSettings::setColorRampShader( const QgsColor
   mColorRampShader = colorRampShader;
 }
 
+QDomElement QgsMeshRendererVectorStreamlineSettings::writeXml( QDomDocument &doc ) const
+{
+  QDomElement elem = doc.createElement( QStringLiteral( "vector-streamline-settings" ) );
+
+  elem.setAttribute( QStringLiteral( "seeding-method" ), mSeedingMethod );
+  elem.setAttribute( QStringLiteral( "seeding-density" ), mSeedingDensity );
+  elem.setAttribute( QStringLiteral( "line-width" ), mLineWidth );
+
+  elem.setAttribute( QStringLiteral( "is-weght-with-scalar" ), mIsWeightWithScalar );
+  elem.setAttribute( QStringLiteral( "weight-dataset-group-scalar-index" ), mWeightDatasetGroupScalarIndex );
+  elem.setAttribute( QStringLiteral( "minimum-magnitude-filter" ), mMinMagFilter );
+  elem.setAttribute( QStringLiteral( "maximum-magnitude-filter" ), mMaxMagFilter );
+
+  //color
+  elem.setAttribute( QStringLiteral( "color-method" ), mColorMethod );
+  elem.setAttribute( QStringLiteral( "fixed-color" ), QgsSymbolLayerUtils::encodeColor( mFixedColor ) );
+  QDomElement elemShader = mColorRampShader.writeXml( doc );
+  elem.appendChild( elemShader );
+  elem.setAttribute( QStringLiteral( "opacity" ), mOpacity );
+
+  return elem;
+}
+
+double QgsMeshRendererVectorStreamlineSettings::opacity() const
+{
+  return mOpacity;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setOpacity( double opacity )
+{
+  mOpacity = opacity;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::readXml( const QDomElement &elem )
+{
+  mSeedingMethod =
+    static_cast<QgsMeshRendererVectorStreamlineSettings::SeedingStartPointsMethod>(
+      elem.attribute( QStringLiteral( "seeding-method" ) ).toInt() );
+  mSeedingDensity = elem.attribute( QStringLiteral( "seeding-density" ) ).toDouble();
+  mLineWidth = elem.attribute( QStringLiteral( "line-width" ) ).toDouble();
+
+  mIsWeightWithScalar = elem.attribute( QStringLiteral( "is-weght-with-scalar" ) ).toInt(); //bool
+  mWeightDatasetGroupScalarIndex = elem.attribute( QStringLiteral( "weight-dataset-group-scalar-index" ) ).toInt();
+  mMinMagFilter = elem.attribute( QStringLiteral( "minimum-magnitude-filter" ) ).toDouble();
+  mMaxMagFilter = elem.attribute( QStringLiteral( "maximum-magnitude-filter" ) ).toDouble();
+
+  //color
+  mColorMethod = static_cast<QgsMeshRendererVectorStreamlineSettings::ColorMethod>(
+                   elem.attribute( QStringLiteral( "color-method" ) ).toInt() );
+  mFixedColor = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "fixed-color" ) ) );
+  QDomElement elemShader = elem.firstChildElement( QStringLiteral( "colorrampshader" ) );
+  mColorRampShader.readXml( elemShader );
+  mOpacity = elem.attribute( QStringLiteral( "opacity" ) ).toDouble();
+}
+
+bool QgsMeshRendererVectorStreamlineSettings::isWeightWithScalar() const
+{
+  return mIsWeightWithScalar;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setIsWeightWithScalar( bool isWeightWithScalar )
+{
+  mIsWeightWithScalar = isWeightWithScalar;
+}
+
+int QgsMeshRendererVectorStreamlineSettings::weightDatasetGroupScalarIndex() const
+{
+  return mWeightDatasetGroupScalarIndex;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setWeightDatasetGroupScalarIndex( int weightDatasetGroupScalarIndex )
+{
+  mWeightDatasetGroupScalarIndex = weightDatasetGroupScalarIndex;
+}
+
+double QgsMeshRendererVectorStreamlineSettings::minMagFilter() const
+{
+  return mMinMagFilter;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setMinMagFilter( double minMagFilter )
+{
+  mMinMagFilter = minMagFilter;
+}
+
+double QgsMeshRendererVectorStreamlineSettings::maxMagFilter() const
+{
+  return mMaxMagFilter;
+}
+
+void QgsMeshRendererVectorStreamlineSettings::setMaxMagFilter( double maxMagFilter )
+{
+  mMaxMagFilter = maxMagFilter;
+}
+
 QgsMeshRendererVectorStreamlineSettings QgsMeshRendererVectorSettings::streamLinesSettings() const
 {
   return mStreamLinesSettings;
@@ -511,7 +606,7 @@ void QgsMeshRendererVectorSettings::setStreamLinesSettings( const QgsMeshRendere
   mStreamLinesSettings = streamLinesSettings;
 }
 
-QgsMeshRendererVectorArrowSettings QgsMeshRendererVectorSettings::arrowsSettings() const
+QgsMeshRendererVectorArrowSettings QgsMeshRendererVectorSettings::arrowSettings() const
 {
   return mArrowsSettings;
 }

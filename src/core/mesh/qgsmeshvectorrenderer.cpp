@@ -444,7 +444,10 @@ QgsMeshVectorRenderer::~QgsMeshVectorRenderer() = default;
 
 
 QgsMeshVectorRenderer *QgsMeshVectorRenderer::makeVectorRenderer( const QgsTriangularMesh &m,
-    const QgsMeshDataBlock &datasetVectorValues, const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+    const QgsMeshDataBlock &datasetVectorValues,
+    const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+    const QVector<double> &datasetVectorScalarWeightValues,
+    bool datasetVectorScalarWeightValuesOnVertices,
     const QVector<double> &datasetValuesMag,
     double datasetMagMaximumValue,
     double datasetMagMinimumValue,
@@ -466,14 +469,18 @@ QgsMeshVectorRenderer *QgsMeshVectorRenderer::makeVectorRenderer( const QgsTrian
         datasetMagMaximumValue,
         datasetMagMinimumValue,
         dataIsOnVertices,
-        settings.arrowsSettings(),
+        settings.arrowSettings(),
         context, size );
       break;
     case QgsMeshRendererVectorSettings::Streamlines:
       renderer = new QgsMeshVectorStreamLineRenderer(
         m,
         datasetVectorValues,
-        scalarActiveFaceFlagValues, settings.streamLinesSettings(),
+        scalarActiveFaceFlagValues,
+        datasetVectorScalarWeightValues,
+        datasetVectorScalarWeightValuesOnVertices,
+        dataIsOnVertices,
+        settings.streamLinesSettings(),
         context,
         layerExtent,
         datasetMagMaximumValue );

@@ -59,22 +59,19 @@ QgsMeshRendererVectorSettingsWidget::QgsMeshRendererVectorSettingsWidget( QWidge
   //*****
 
   connect( mDisplayingVectorMethodcomboBox, qgis::overload<int>::of( &QComboBox::currentIndexChanged ),
-           this, &QgsMeshRendererVectorSettingsWidget::onDisplayingMethodChange );
-  mDisplayingVectorMethodcomboBox->setCurrentIndex( 0 );
+           mDisplayingMethodStacked, &QStackedWidget::setCurrentIndex );
+  mDisplayingMethodStacked->setCurrentIndex( 0 );
 
   connect( mStreamlinesFixedColorRadioButton, &QRadioButton::toggled, mStreamlinesFixeColorButton, &QWidget::setVisible );
   connect( mStreamlinesColorRampRadioButton, &QRadioButton::toggled, mStreamlinesColorRampShaderWidget, &QWidget::setVisible );
 
-  mArrowWidgetSettings << arrowWidthColorGroupBox
-                       << filterByMagGroupBox
-                       << headOptionsGroupBox
-                       << generalOptionsGroupBox
-                       << mDisplayVectorsOnGridGroupBox;
+  connect( mStreamlinesMaxMaglineEdit, &QLineEdit::textChanged, this, &QgsMeshRendererVectorSettingsWidget::onMinMaxChange );
+  connect( mStreamlinesMinMaglineEdit, &QLineEdit::textChanged, this, &QgsMeshRendererVectorSettingsWidget::onMinMaxChange );
+  onMinMaxChange();
 
-  mStreamLinesWidgetSettings << mStreamLinesSeedingMethodGroupBox
-                             << mStreamlinesWidthColorGroupBox;
+  mGroupDataSetModel = new QgsMeshDatasetGroupTreeModelSelectable( this );
+  mStreamlinesScalarWeightcomboBox->setModel( mGroupDataSetModel );
 
-  onDisplayingMethodChange( mDisplayingVectorMethodcomboBox->currentIndex() );
 }
 
 void QgsMeshRendererVectorSettingsWidget::setLayer( QgsMeshLayer *layer )
@@ -139,8 +136,12 @@ QgsMeshRendererVectorSettings QgsMeshRendererVectorSettingsWidget::settings() co
     static_cast<QgsMeshRendererVectorStreamlineSettings::SeedingStartPointsMethod>( mStreamlinesSeedingMethodComboBox->currentIndex() ) );
 
   streamlineSettings.setSeedingDensity( mStreamlinesDensitySpinBox->value() / 100 );
-
   streamlineSettings.setLineWidth( mStreamlinesWidthSpinBox->value() );
+
+  streamlineSettings.setIsWeightWithScalar( mStreamlinesWeightWithScalarCheckBox->isChecked() );
+  streamlineSettings.setWeightDatasetGroupScalarIndex( mStreamlinesScalarWeightcomboBox->currentIndex() );
+  streamlineSettings.setMinMagFilter( filterValue( mStreamlinesMinMaglineEdit->text(), -1 ) );
+  streamlineSettings.setMaxMagFilter( filterValue( mStreamlinesMaxMaglineEdit->text(), -1 ) );
 
   QgsMeshRendererVectorStreamlineSettings::ColorMethod colorMethod;
   if ( mStreamlinesFixedColorRadioButton->isChecked() )
@@ -166,24 +167,26 @@ void QgsMeshRendererVectorSettingsWidget::syncToLayer( )
   if ( mActiveDatasetGroup < 0 )
     return;
 
+  mGroupDataSetModel->syncToLayer( mMeshLayer );
+
   const QgsMeshRendererSettings rendererSettings = mMeshLayer->rendererSettings();
   const QgsMeshRendererVectorSettings settings = rendererSettings.vectorSettings( mActiveDatasetGroup );
 
   mDisplayingVectorMethodcomboBox->setCurrentIndex( settings.displayingMethod() );
 
   // Arrow settings
-  const QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowsSettings();
+  const QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowSettings();
 
   // basic
-  mColorWidget->setColor( settings.arrowsSettings().color() );
+  mColorWidget->setColor( arrowSettings.color() );
   mLineWidthSpinBox->setValue( arrowSettings.lineWidth() );
 
   // filter by magnitude
-  if ( settings.arrowsSettings().filterMin() > 0 )
+  if ( arrowSettings.filterMin() > 0 )
   {
     mMinMagLineEdit->setText( QString::number( arrowSettings.filterMin() ) );
   }
-  if ( settings.arrowsSettings().filterMax() > 0 )
+  if ( arrowSettings.filterMax() > 0 )
   {
     mMaxMagLineEdit->setText( QString::number( arrowSettings.filterMax() ) );
   }
@@ -212,9 +215,14 @@ void QgsMeshRendererVectorSettingsWidget::syncToLayer( )
   mStreamlinesDensitySpinBox->setValue( streamlinesSettings.seedingDensity() * 100 );
   mStreamlinesWidthSpinBox->setValue( streamlinesSettings.lineWidth() );
 
-  const QgsMeshDatasetGroupMetadata datasetGroupMetadata = mMeshLayer->dataProvider()->datasetGroupMetadata( mActiveDatasetGroup );
-  double mVectorDatasetMagMinimum = datasetGroupMetadata.minimum();
-  double mVectorDatasetMagMaximum = datasetGroupMetadata.maximum();
+  mStreamlinesWeightWithScalarCheckBox->setChecked( streamlinesSettings.isWeightWithScalar() );
+  mStreamlinesScalarWeightcomboBox->setCurrentIndex( streamlinesSettings.weightDatasetGroupScalarIndex() );
+
+  if ( streamlinesSettings.minMagFilter() > 0 )
+    mStreamlinesMinMaglineEdit->setText( QString::number( streamlinesSettings.minMagFilter() ) );
+
+  if ( streamlinesSettings.maxMagFilter() > 0 )
+    mStreamlinesMaxMaglineEdit->setText( QString::number( streamlinesSettings.maxMagFilter() ) );
 
   if ( streamlinesSettings.colorMethod() == QgsMeshRendererVectorStreamlineSettings::Fixe )
   {
@@ -231,7 +239,26 @@ void QgsMeshRendererVectorSettingsWidget::syncToLayer( )
 
   mStreamlinesFixeColorButton->setColor( streamlinesSettings.fixedColor() );
   mStreamlinesColorRampShaderWidget->setFromShader( streamlinesSettings.colorRampShader() );
-  mStreamlinesColorRampShaderWidget->setMinimumMaximumAndClassify( mVectorDatasetMagMinimum, mVectorDatasetMagMaximum );
+
+
+
+}
+
+void QgsMeshRendererVectorSettingsWidget::onMinMaxChange()
+{
+  if ( !mMeshLayer )
+    return;
+
+  if ( mActiveDatasetGroup < 0 )
+    return;
+
+  const QgsMeshDatasetGroupMetadata datasetGroupMetadata = mMeshLayer->dataProvider()->datasetGroupMetadata( mActiveDatasetGroup );
+  double magMinimum = datasetGroupMetadata.minimum();
+  double magMaximum = datasetGroupMetadata.maximum();
+
+  mStreamlinesColorRampShaderWidget->setMinimumMaximum( filterValue( mStreamlinesMinMaglineEdit->text(), magMinimum ),
+      filterValue( mStreamlinesMaxMaglineEdit->text(), magMaximum ) );
+
 
 }
 

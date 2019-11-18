@@ -48,26 +48,41 @@ class CORE_EXPORT QgsMeshVectorValueInterpolator
     QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
                                     const QgsMeshDataBlock &datasetVectorValues );
 
-    //! Constructor with scalar active face flag value to not interpolate on inactive face
+    //! Constructor with scalar active face flag values to not interpolate on inactive face
     QgsMeshVectorValueInterpolator( const QgsTriangularMesh &triangularMesh,
                                     const QgsMeshDataBlock &datasetVectorValues,
                                     const QgsMeshDataBlock &scalarActiveFaceFlagValues );
     //! Destructor
     virtual ~QgsMeshVectorValueInterpolator() = default;
 
+    //! Sets scalar dataset values used to weight the vector
+    void setWeightScalarDataset( const QVector<double> &weightDatasetValues, bool dataOnVertices )
+    {
+      mWeightDatasetValues = weightDatasetValues;
+      mIsWeightedWithScalar = true;
+      mIsWeightScalarOnVertices = dataOnVertices;
+    }
+
     //! Returns the interpolated vector
-    virtual QgsVector value( const QgsPointXY &point ) const;
+    //virtual QgsVector vectorValue( const QgsPointXY &point ) const;
+
+    //! Returns the interpolated vector and give the weight associated
+    virtual QgsVector vectorValue( const QgsPointXY &point, double &weight ) const ;
 
   protected:
     void updateCacheFaceIndex( const QgsPointXY &point ) const;
 
     QgsTriangularMesh mTriangularMesh;
     QgsMeshDataBlock mDatasetValues;
+    QVector<double> mWeightDatasetValues;
     QgsMeshDataBlock mActiveFaceFlagValues;
     mutable QgsMeshFace mFaceCache;
     mutable int mCacheFaceIndex = -1;
     mutable QMutex mMutex;
     bool mUseScalarActiveFaceFlagValues = false;
+    bool mIsWeightedWithScalar = false;
+    bool mIsWeightScalarOnVertices = false;
+
 
     bool isVectorValid( const QgsVector &v ) const
     {
@@ -75,15 +90,45 @@ class CORE_EXPORT QgsMeshVectorValueInterpolator
 
     }
 
-    void activeFaceFilter( QgsVector &v, int faceIndex ) const
+    void activeFaceFilter( const QgsPointXY &point, QgsVector &vector, int faceIndex ) const
     {
       if ( mUseScalarActiveFaceFlagValues && ! mActiveFaceFlagValues.active( mTriangularMesh.trianglesToNativeFaces()[faceIndex] ) )
-        v = QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) ;
+        vector = QgsVector( std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN() ) ;
     }
 
-    virtual QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const = 0;
-};
 
+    double weightOnPoint( const QgsPointXY &point,  int faceIndex ) const
+    {
+      if ( mIsWeightedWithScalar )
+      {
+        QgsMeshFace face = mTriangularMesh.triangles().at( faceIndex );
+
+        QgsPoint p1 = mTriangularMesh.vertices().at( face.at( 0 ) );
+        QgsPoint p2 = mTriangularMesh.vertices().at( face.at( 1 ) );
+        QgsPoint p3 = mTriangularMesh.vertices().at( face.at( 2 ) );
+
+        double weight;
+
+        if ( mIsWeightScalarOnVertices )
+        {
+          double v1 = mWeightDatasetValues.at( face.at( 0 ) );
+          double v2 = mWeightDatasetValues.at( face.at( 1 ) );
+          double v3 = mWeightDatasetValues.at( face.at( 2 ) );
+          weight = QgsMeshLayerUtils::interpolateFromVerticesData( p1, p2, p3, v1, v2, v3, point );
+        }
+        else
+        {
+          double v = mWeightDatasetValues.at( mTriangularMesh.trianglesToNativeFaces().at( faceIndex ) );
+          weight = QgsMeshLayerUtils::interpolateFromFacesData( p1, p2, p3, v, point );
+        }
+        return weight;
+      }
+      else
+        return 1;
+    }
+
+    virtual QgsVector interpolatedValuePrivate( int faceIndex, const QgsPointXY point ) const = 0;
+};
 
 /**
  * \ingroup core
@@ -113,8 +158,7 @@ class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromVertex: public QgsMeshVecto
 
     }
 
-    QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const override;
-
+    QgsVector interpolatedValuePrivate( int faceIndex, const QgsPointXY point ) const override;
 };
 
 /**
@@ -146,14 +190,16 @@ class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromFace: public QgsMeshVectorV
     }
 
   protected:
-    QgsVector interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const override
+    QgsVector interpolatedValuePrivate( int faceIndex, const QgsPointXY point ) const override
     {
+      QgsMeshFace face = mTriangularMesh.triangles().at( faceIndex );
+
       QgsPoint p1 = mTriangularMesh.vertices().at( face.at( 0 ) );
       QgsPoint p2 = mTriangularMesh.vertices().at( face.at( 1 ) );
       QgsPoint p3 = mTriangularMesh.vertices().at( face.at( 2 ) );
 
-      QgsVector vect = QgsVector( mDatasetValues.value( face.at( 0 ) ).x(),
-                                  mDatasetValues.value( face.at( 0 ) ).y() );
+      QgsVector vect = QgsVector( mDatasetValues.value( mTriangularMesh.trianglesToNativeFaces().at( faceIndex ) ).x(),
+                                  mDatasetValues.value( mTriangularMesh.trianglesToNativeFaces().at( faceIndex ) ).y() );
 
       return QgsMeshLayerUtils::interpolateVectorFromFacesData(
                p1,
@@ -174,30 +220,40 @@ class  CORE_EXPORT QgsMeshVectorValueInterpolatorFromFace: public QgsMeshVectorV
  */
 class CORE_EXPORT QgsMeshTraceField
 {
-
   public:
     QgsMeshTraceField( const QgsTriangularMesh &triangularMesh,
                        const QgsMeshDataBlock &dataSetVectorValues,
                        const QgsMeshDataBlock &scalarActiveFaceFlagValues,
                        const QgsRectangle &layerExtent,
-                       double magMax,
+                       double magMax, bool dataIsOnVertices,
                        int resolution = 1 ):
       mFieldResolution( resolution ),
       mLayerExtent( layerExtent ),
       mMagMax( magMax )
     {
-      if ( scalarActiveFaceFlagValues.isValid() )
-        mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
-                                        dataSetVectorValues,
-                                        scalarActiveFaceFlagValues ) );
+      if ( dataIsOnVertices )
+      {
+        if ( scalarActiveFaceFlagValues.isValid() )
+          mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                          dataSetVectorValues,
+                                          scalarActiveFaceFlagValues ) );
+        else
+          mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
+                                          dataSetVectorValues ) );
+      }
       else
-        mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromVertex( triangularMesh,
-                                        dataSetVectorValues ) );
-
+      {
+        if ( scalarActiveFaceFlagValues.isValid() )
+          mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromFace( triangularMesh,
+                                          dataSetVectorValues,
+                                          scalarActiveFaceFlagValues ) );
+        else
+          mVectorValueInterpolator.reset( new QgsMeshVectorValueInterpolatorFromFace( triangularMesh,
+                                          dataSetVectorValues ) );
+      }
     }
 
     virtual ~QgsMeshTraceField() {}
-
 
     //! update the size of the fiels and the QgsMapToPixel instance to retrieve map point
     //! from pixel in the field depending on the resolution of the device
@@ -280,6 +336,7 @@ class CORE_EXPORT QgsMeshTraceField
     mutable QMutex mMutex;
     int mPixelFillingCount = 0;
     int mMaxPixelFillingCount = 0;
+    std::unique_ptr<QgsMeshVectorValueInterpolator> mVectorValueInterpolator;
 
 
   private:
@@ -306,8 +363,6 @@ class CORE_EXPORT QgsMeshTraceField
     QgsMapToPixel mMapToFieldPixel;
     QPoint mFieldTopLeftInDeviceCoordinates;
     bool mValid = false;
-
-    std::unique_ptr<QgsMeshVectorValueInterpolator> mVectorValueInterpolator;
     double mMagMax = 0;
     QPoint mLastPixel;
     double mPixelFillingDensity;
@@ -368,10 +423,11 @@ class CORE_EXPORT QgsMeshTraceFieldDynamic : public QgsMeshTraceField
     QgsMeshTraceFieldDynamic( const QgsTriangularMesh &triangularMesh,
                               const QgsMeshDataBlock &dataSetVectorValues,
                               const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                              bool dataIsOnVertices,
                               const QgsRenderContext &renderContext,
                               const QgsRectangle &layerExtent,
                               double magMax ):
-      QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, magMax )
+      QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, magMax, dataIsOnVertices )
     {
     }
 
@@ -564,9 +620,12 @@ class CORE_EXPORT QgsMeshStreamLineField: public QgsMeshTraceField //draw static
     QgsMeshStreamLineField( const QgsTriangularMesh &triangularMesh,
                             const QgsMeshDataBlock &dataSetVectorValues,
                             const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                            const QVector<double> &datasetVectorScalarWeightValues,
+                            bool datasetVectorScalarWeightValuesOnVertices,
                             const QgsRenderContext &renderContext,
                             const QgsRectangle &layerExtent,
-                            double Vmax );
+                            double Vmax,
+                            bool dataIsOnVertices );
 
     //! Destructor
     ~QgsMeshStreamLineField() override;
@@ -620,6 +679,9 @@ class QgsMeshVectorStreamLineRenderer: public QgsMeshVectorRenderer
     QgsMeshVectorStreamLineRenderer( const QgsTriangularMesh &triangularMesh,
                                      const QgsMeshDataBlock &dataSetVectorValues,
                                      const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+                                     const QVector<double> &datasetVectorScalarWeightValues,
+                                     bool datasetVectorScalarWeightValuesOnVertices,
+                                     bool dataIsOnVertices,
                                      const QgsMeshRendererVectorStreamlineSettings &settings,
                                      QgsRenderContext &rendererContext,
                                      const QgsRectangle &layerExtent,
@@ -629,9 +691,11 @@ class QgsMeshVectorStreamLineRenderer: public QgsMeshVectorRenderer
       mStreamLineField.reset( new QgsMeshStreamLineField( triangularMesh,
                               dataSetVectorValues,
                               scalarActiveFaceFlagValues,
+                              datasetVectorScalarWeightValues,
+                              datasetVectorScalarWeightValuesOnVertices,
                               rendererContext,
                               layerExtent,
-                              magMax ) );
+                              magMax, dataIsOnVertices ) );
 
       mStreamLineField->updateSize( rendererContext );
       mStreamLineField->setPixelFillingDensity( settings.seedingDensity() );
@@ -662,7 +726,7 @@ class QgsMeshVectorStreamLineRenderer: public QgsMeshVectorRenderer
           break;
       }
 
-      //mStreamLineField->addTrace( QgsPointXY( 57, 5 ) ); //for debugging
+      //mStreamLineField->addTrace( QgsPointXY( 59, -24 ) ); //for debugging
     }
 
     //!Constructor to used when the steamline already exists (cache)

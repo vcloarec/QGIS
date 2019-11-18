@@ -19,17 +19,17 @@
 
 
 
-QgsVector QgsMeshVectorValueInterpolator::value( const QgsPointXY &point ) const
+QgsVector QgsMeshVectorValueInterpolator::vectorValue( const QgsPointXY &point, double &weight ) const
 {
   QMutexLocker locker( &mMutex );
 
   if ( mCacheFaceIndex != -1 && mCacheFaceIndex < mTriangularMesh.triangles().count() )
   {
-    QgsMeshFace face = mTriangularMesh.triangles().at( mCacheFaceIndex );
-    QgsVector res = interpolatedValuePrivate( face, point );
+    QgsVector res = interpolatedValuePrivate( mCacheFaceIndex, point );
     if ( isVectorValid( res ) )
     {
-      activeFaceFilter( res, mCacheFaceIndex );
+      activeFaceFilter( point, res, mCacheFaceIndex );
+      weight = weightOnPoint( point, mCacheFaceIndex );
       return res;
     }
   }
@@ -39,11 +39,12 @@ QgsVector QgsMeshVectorValueInterpolator::value( const QgsPointXY &point ) const
   mCacheFaceIndex = -1;
   for ( const int faceIndex : potentialFaceIndexes )
   {
-    QgsVector res = interpolatedValuePrivate( mTriangularMesh.triangles().at( faceIndex ), point );
+    QgsVector res = interpolatedValuePrivate( faceIndex, point );
     if ( isVectorValid( res ) )
     {
       mCacheFaceIndex = faceIndex;
-      activeFaceFilter( res, mCacheFaceIndex );
+      activeFaceFilter( point, res, mCacheFaceIndex );
+      weight = weightOnPoint( point, mCacheFaceIndex );
       return res;
     }
   }
@@ -53,8 +54,10 @@ QgsVector QgsMeshVectorValueInterpolator::value( const QgsPointXY &point ) const
 
 }
 
-QgsVector QgsMeshVectorValueInterpolatorFromVertex::interpolatedValuePrivate( const QgsMeshFace &face, const QgsPointXY point ) const
+QgsVector QgsMeshVectorValueInterpolatorFromVertex::interpolatedValuePrivate( int faceIndex, const QgsPointXY point ) const
 {
+  QgsMeshFace face = mTriangularMesh.triangles().at( faceIndex );
+
   QgsPoint p1 = mTriangularMesh.vertices().at( face.at( 0 ) );
   QgsPoint p2 = mTriangularMesh.vertices().at( face.at( 1 ) );
   QgsPoint p3 = mTriangularMesh.vertices().at( face.at( 2 ) );
@@ -286,7 +289,7 @@ void QgsMeshTraceField::addGriddedTraces()
   }
   else
   {
-    fieldSpacing = int( 1 / ( mPixelFillingDensity * mPixelFillingDensity ) );
+    fieldSpacing = int( 1 / ( mPixelFillingDensity ) );
   }
   mMutex.unlock();
 
@@ -380,7 +383,8 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
     if ( mProcessingStop )
       break;
     QgsPointXY mapPosition = positionToMapCoordinates( currentPixel, QgsPointXY( x1, y1 ) );
-    vector = mVectorValueInterpolator->value( mapPosition ) ;
+    double w;
+    vector = mVectorValueInterpolator->vectorValue( mapPosition, w ) ;
 
     if ( std::isnan( vector.x() ) || std::isnan( vector.y() ) )
     {
@@ -448,7 +452,7 @@ void QgsMeshTraceField::addTrace( QPoint startPixel )
         y2 = incY;
       }
       //move the current position, adjust position in pixel and store the direction and dt in the pixel
-      setWayPrivate( currentPixel, dt, float( Vu / 2 ), incX, incY );
+      setWayPrivate( currentPixel, dt, float( w * Vu / 2 ), incX, incY );
       dt = 1;
       currentPixel += QPoint( incX, -incY );
       ++i;
@@ -669,11 +673,15 @@ QgsMeshTraceColorRamp::~QgsMeshTraceColorRamp()
 QgsMeshStreamLineField::QgsMeshStreamLineField( const QgsTriangularMesh &triangularMesh,
     const QgsMeshDataBlock &dataSetVectorValues,
     const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+    const QVector<double> &datasetVectorScalarWeightValues,
+    bool datasetVectorScalarWeightValuesOnVertices,
     const QgsRenderContext &rendererContext,
     const QgsRectangle &layerExtent,
-    double Vmax ):
-  QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, Vmax )
+    double Vmax, bool dataIsOnVertices ):
+  QgsMeshTraceField( triangularMesh, dataSetVectorValues, scalarActiveFaceFlagValues, layerExtent, Vmax, dataIsOnVertices )
 {
+  if ( !datasetVectorScalarWeightValues.empty() )
+    mVectorValueInterpolator->setWeightScalarDataset( datasetVectorScalarWeightValues, datasetVectorScalarWeightValuesOnVertices );
 }
 
 

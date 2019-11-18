@@ -26,6 +26,7 @@
 #include "qgscolorrampshader.h"
 #include "qgsmeshdataprovider.h"
 
+#include "qgssymbollayerutils.h"
 
 /**
  * \ingroup core
@@ -393,16 +394,35 @@ class CORE_EXPORT QgsMeshRendererVectorStreamlineSettings
     //! Sets the color ramp sahder used ti draw streamlines
     void setColorRampShader( const QgsColorRampShader &colorRampShader );
 
+    //! Returns the opacity of the streamlines
+    double opacity() const;
+    //! Sets the opacity of the streamlines
+    void setOpacity( double opacity );
 
-    //! Writes configuration to a new DOM element
-    QDomElement writeXml( QDomDocument &doc ) const
-    {
+    //! Returns true if the streamlines magnitude is weighted with a scalar dataset group
+    bool isWeightWithScalar() const;
+    //! Sets if the streamlines magnitude is weighted with a scalar dataset group
+    void setIsWeightWithScalar( bool isWeightWithScalar );
 
-    }
+    //! Returns the dataset group index used for weighting the streamlines magnitude
+    int weightDatasetGroupScalarIndex() const;
+    //! Sets the dataset group index used for weighting the streamlines magnitude
+    void setWeightDatasetGroupScalarIndex( int weightDatasetGroupScalarIndex );
+
+    //! Returns minimum value used to fileter the strealines magnitude
+    double minMagFilter() const;
+    //! sets minimum value used to fileter the strealines magnitude
+    void setMinMagFilter( double minMagFilter );
+    //! Returns maximum value used to fileter the strealines magnitude
+    double maxMagFilter() const;
+    //! Sets maximum value used to fileter the strealines magnitude
+    void setMaxMagFilter( double maxMagFilter );
+
+
     //! Reads configuration from the given DOM element
-    void readXml( const QDomElement &elem ) {}
-
-
+    void readXml( const QDomElement &elem );
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc ) const;
 
 
   private:
@@ -411,10 +431,17 @@ class CORE_EXPORT QgsMeshRendererVectorStreamlineSettings
     double mSeedingDensity = 0.05;
     double mLineWidth = DEFAULT_LINE_WIDTH; //in millimeters
 
+    bool mIsWeightWithScalar = false;
+    int mWeightDatasetGroupScalarIndex = -1;
+
+    double mMinMagFilter = -1;
+    double mMaxMagFilter = -1;
+
     //color
     QgsMeshRendererVectorStreamlineSettings::ColorMethod mColorMethod = Fixe;
     QColor mFixedColor = Qt::gray;
     QgsColorRampShader mColorRampShader;
+    double mOpacity = 1;
 
 };
 
@@ -438,7 +465,9 @@ class CORE_EXPORT QgsMeshRendererVectorTracesSettings
     QDomElement writeXml( QDomDocument &doc ) const
     {
 
+      QDomElement elem = doc.createElement( QStringLiteral( "vector-trace-settings" ) );
 
+      return elem;
     }
     //! Reads configuration from the given DOM element
     void readXml( const QDomElement &elem ) {}
@@ -473,8 +502,8 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     void setDisplayingMethod( const DisplayingMethod &displayingMethod );
 
     //! Returns settings for vector rendered with arrows
-    QgsMeshRendererVectorArrowSettings arrowsSettings() const;
-    void setArrowsSettings( const QgsMeshRendererVectorArrowSettings &arrowsSettings );
+    QgsMeshRendererVectorArrowSettings arrowSettings() const;
+    void setArrowsSettings( const QgsMeshRendererVectorArrowSettings &arrowSettings );
 
     //! Returns settings for vector rednered with streamlines
     QgsMeshRendererVectorStreamlineSettings streamLinesSettings() const;
@@ -501,6 +530,23 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     void readXml( const QDomElement &elem )
     {
       mArrowsSettings.readXml( elem );
+      //Old version (<3.12). If new version, return empty settings and the real stting wll be read bellow
+
+      mDisplayingMethod = static_cast<QgsMeshRendererVectorSettings::DisplayingMethod>(
+                            elem.attribute( QStringLiteral( "displaying-method" ) ).toInt() );
+
+      QDomElement elemVector = elem.firstChildElement( QStringLiteral( "vector-arrow-settings" ) );
+      if ( ! elemVector.isNull() )
+        mArrowsSettings.readXml( elemVector );
+
+      QDomElement elemStreamLine = elem.firstChildElement( QStringLiteral( "vector-streamline-settings" ) );
+      if ( ! elemStreamLine.isNull() )
+        mStreamLinesSettings.readXml( elemStreamLine );
+
+      QDomElement elemTrace = elem.firstChildElement( "vector-trace-settings" );
+      if ( ! elemTrace.isNull() )
+        mTracesSettings.readXml( elemTrace );
+
     }
 
 

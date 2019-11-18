@@ -150,11 +150,19 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
 {
   const QgsMeshDatasetIndex datasetIndex = mRendererSettings.activeVectorDataset();
 
+  //weigh scalar data values
+  QgsMeshRendererVectorStreamlineSettings streamlinesSettings = mRendererSettings.vectorSettings( datasetIndex.group() ).streamLinesSettings();
+  if ( streamlinesSettings.isWeightWithScalar() )
+    mScalarWeightDatasetIndex = QgsMeshDatasetIndex( streamlinesSettings.weightDatasetGroupScalarIndex(), datasetIndex.dataset() );
+  else
+    mScalarWeightDatasetIndex = QgsMeshDatasetIndex();
+
   // Find out if we can use cache up to date. If yes, use it and return
   const int datasetGroupCount = layer->dataProvider()->datasetGroupCount();
   QgsMeshLayerRendererCache *cache = layer->rendererCache();
   if ( ( cache->mDatasetGroupsCount == datasetGroupCount ) &&
-       ( cache->mActiveVectorDatasetIndex == datasetIndex ) )
+       ( cache->mActiveVectorDatasetIndex == datasetIndex ) &&
+       ( cache->mScalarWeightDatasetIndex == mScalarWeightDatasetIndex ) )
   {
     mVectorDatasetValues = cache->mVectorDatasetValues;
     mVectorDatasetValuesMag = cache->mVectorDatasetValuesMag;
@@ -163,6 +171,8 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
     mVectorDatasetGroupMagMinimum = cache->mVectorDatasetMagMinimum;
     mVectorDatasetGroupMagMaximum = cache->mVectorDatasetMagMaximum;
     mVectorDataOnVertices = cache->mVectorDataOnVertices;
+    mVectorScalarWeightDataSetValues = cache->mVectorScalarWeightDataSetValues;
+    mVectorScalarWeightDataSetValuesOnVertices = cache->mVectorScalarWeightDataSetValuesOnVertices;
     return;
   }
 
@@ -189,7 +199,6 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
       else
         count = mNativeMesh.faces.count();
 
-
       mVectorDatasetValues = layer->dataProvider()->datasetValues(
                                datasetIndex,
                                0,
@@ -200,12 +209,32 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
       const QgsMeshDatasetMetadata datasetMetadata = layer->dataProvider()->datasetMetadata( datasetIndex );
       mVectorDatasetMagMinimum = datasetMetadata.minimum();
       mVectorDatasetMagMaximum = datasetMetadata.maximum();
+
+
+      if ( mScalarWeightDatasetIndex.isValid() )
+      {
+        mScalarWeightDatasetIndex = QgsMeshDatasetIndex( streamlinesSettings.weightDatasetGroupScalarIndex(), datasetIndex.dataset() );
+        const QgsMeshDatasetGroupMetadata scalarMetadata = layer->dataProvider()->datasetGroupMetadata( mScalarWeightDatasetIndex );
+
+        mVectorScalarWeightDataSetValuesOnVertices = scalarMetadata.dataType() == QgsMeshDatasetGroupMetadata::DataOnVertices;
+        int scalarCount;
+        if ( mVectorScalarWeightDataSetValuesOnVertices )
+          scalarCount = mNativeMesh.vertices.count();
+        else
+          scalarCount = mNativeMesh.faces.count();
+
+        mVectorScalarWeightDataSetValues =
+          QgsMeshLayerUtils::calculateMagnitudes( layer->dataProvider()->datasetValues( mScalarWeightDatasetIndex, 0, scalarCount ) );
+      }
+      else
+        mScalarWeightDatasetIndex = QgsMeshDatasetIndex();
     }
   }
 
   // update cache
   cache->mDatasetGroupsCount = datasetGroupCount;
   cache->mActiveVectorDatasetIndex = datasetIndex;
+  cache->mScalarWeightDatasetIndex = mScalarWeightDatasetIndex;
   cache->mVectorDatasetValues = mVectorDatasetValues;
   cache->mVectorDatasetValuesMag = mVectorDatasetValuesMag;
   cache->mVectorDatasetMagMinimum = mVectorDatasetMagMinimum;
@@ -213,6 +242,8 @@ void QgsMeshLayerRenderer::copyVectorDatasetValues( QgsMeshLayer *layer )
   cache->mVectorDatasetGroupMagMinimum = mVectorDatasetMagMinimum;
   cache->mVectorDatasetGroupMagMaximum = mVectorDatasetMagMaximum;
   cache->mVectorDataOnVertices = mVectorDataOnVertices;
+  cache->mVectorScalarWeightDataSetValues = mVectorScalarWeightDataSetValues;
+  cache->mVectorScalarWeightDataSetValuesOnVertices = mVectorScalarWeightDataSetValuesOnVertices;
 }
 
 bool QgsMeshLayerRenderer::render()
@@ -354,6 +385,8 @@ void QgsMeshLayerRenderer::renderVectorDataset()
         mTriangularMesh,
         mVectorDatasetValues,
         mScalarActiveFaceFlagValues,
+        mVectorScalarWeightDataSetValues,
+        mVectorScalarWeightDataSetValuesOnVertices,
         mVectorDatasetValuesMag,
         mVectorDatasetMagMaximum,
         mVectorDatasetMagMinimum,

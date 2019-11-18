@@ -66,6 +66,7 @@ struct CORE_NO_EXPORT QgsMeshLayerRendererCache
 
   // vector dataset
   QgsMeshDatasetIndex mActiveVectorDatasetIndex;
+  QgsMeshDatasetIndex mScalarWeightDatasetIndex;
   QgsMeshDataBlock mVectorDatasetValues;
   QVector<double> mVectorDatasetValuesMag;
   double mVectorDatasetMagMinimum = std::numeric_limits<double>::quiet_NaN();
@@ -73,28 +74,11 @@ struct CORE_NO_EXPORT QgsMeshLayerRendererCache
   double mVectorDatasetGroupMagMinimum = std::numeric_limits<double>::quiet_NaN();
   double mVectorDatasetGroupMagMaximum = std::numeric_limits<double>::quiet_NaN();
   bool mVectorDataOnVertices = true;
-
-  //trace cache
-  QgsRenderContext mTraceRendererContext;
-  std::shared_ptr<QgsMeshStreamLineField> mTraceFieldStatic;
-  std::shared_ptr<QgsMeshTraceFieldDynamic> mTraceFieldDynamic;
-};
-
-
-class QgsMeshLayerRendererCacheImg
-{
-  public:
-
-
-  private:
-    typedef QPair<QgsRectangle, QSize> Key;
-
-    QVector<QPair<Key, int>> indexesImgCache;
-    QVector<QImage> scalarImgCache;
-    QVector<QImage> meshImgCache;
-    QVector<QImage> vectorImgCache;
+  QVector<double> mVectorScalarWeightDataSetValues;
+  bool mVectorScalarWeightDataSetValuesOnVertices = true;
 
 };
+
 
 ///@endcond
 
@@ -145,12 +129,15 @@ class QgsMeshLayerRenderer : public QgsMapLayerRenderer
 
     // copy of the vector dataset
     QgsMeshDataBlock mVectorDatasetValues;
+    QgsMeshDatasetIndex mScalarWeightDatasetIndex;
     QVector<double> mVectorDatasetValuesMag;
     double mVectorDatasetMagMinimum = std::numeric_limits<double>::quiet_NaN();
     double mVectorDatasetMagMaximum = std::numeric_limits<double>::quiet_NaN();
     double mVectorDatasetGroupMagMinimum = std::numeric_limits<double>::quiet_NaN();
     double mVectorDatasetGroupMagMaximum = std::numeric_limits<double>::quiet_NaN();
     bool mVectorDataOnVertices = true;
+    QVector<double> mVectorScalarWeightDataSetValues;
+    bool mVectorScalarWeightDataSetValuesOnVertices = true;
 
     // copy of rendering settings
     QgsMeshRendererSettings mRendererSettings;

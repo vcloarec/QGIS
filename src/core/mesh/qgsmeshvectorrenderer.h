@@ -48,17 +48,20 @@ class CORE_EXPORT QgsMeshVectorRenderer
     virtual void draw() = 0;
 
 
-    static QgsMeshVectorRenderer *makeVectorRenderer( const QgsTriangularMesh &m,
-        const QgsMeshDataBlock &datasetVectorValues,
-        const QgsMeshDataBlock &scalarActiveFaceFlagValues,
-        const QVector<double> &datasetValuesMag,
-        double datasetMagMaximumValue,
-        double datasetMagMinimumValue,
-        bool dataIsOnVertices,
-        const QgsMeshRendererVectorSettings &settings,
-        QgsRenderContext &context,
-        const QgsRectangle &layerExtent,
-        QSize size );
+    static QgsMeshVectorRenderer *makeVectorRenderer(
+      const QgsTriangularMesh &m,
+      const QgsMeshDataBlock &datasetVectorValues,
+      const QgsMeshDataBlock &scalarActiveFaceFlagValues,
+      const QVector<double> &datasetVectorScalarWeightValues,
+      bool datasetVectorScalarWeightValuesOnVertices,
+      const QVector<double> &datasetValuesMag,
+      double datasetMagMaximumValue,
+      double datasetMagMinimumValue,
+      bool dataIsOnVertices,
+      const QgsMeshRendererVectorSettings &settings,
+      QgsRenderContext &context,
+      const QgsRectangle &layerExtent,
+      QSize size );
 
 
 
