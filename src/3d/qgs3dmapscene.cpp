@@ -605,6 +605,7 @@ void Qgs3DMapScene::addLayerEntity( QgsMapLayer *layer )
   if ( layer->type() == QgsMapLayerType::MeshLayer )
   {
     connect( layer, &QgsMapLayer::rendererChanged, this, &Qgs3DMapScene::onLayerRenderer3DChanged );
+    connect( layer, &QgsMapLayer::dataChanged, this, &Qgs3DMapScene::onLayerRenderer3DChanged );
   }
 
 }
@@ -632,6 +633,7 @@ void Qgs3DMapScene::removeLayerEntity( QgsMapLayer *layer )
   if ( layer->type() == QgsMapLayerType::MeshLayer )
   {
     disconnect( layer, &QgsMapLayer::rendererChanged, this, &Qgs3DMapScene::onLayerRenderer3DChanged );
+    disconnect( layer, &QgsMapLayer::dataChanged, this, &Qgs3DMapScene::onLayerRenderer3DChanged );
   }
 }
 
