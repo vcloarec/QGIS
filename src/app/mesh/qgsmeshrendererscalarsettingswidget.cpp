@@ -96,7 +96,8 @@ void QgsMeshRendererScalarSettingsWidget::syncToLayer( )
   whileBlocking( mScalarMinLineEdit )->setText( QString::number( min ) );
   whileBlocking( mScalarMaxLineEdit )->setText( QString::number( max ) );
   whileBlocking( mScalarColorRampShaderWidget )->setFromShader( shader );
-  whileBlocking( mScalarColorRampShaderWidget )->setMinimumMaximum( min, max );
+  whileBlocking( mScalarColorRampShaderWidget )->setMinimumMaximumAndClassify( min, max );
+
   whileBlocking( mOpacityWidget )->setOpacity( settings.opacity() );
   int index = mScalarInterpolationTypeComboBox->findData( settings.dataInterpolationMethod() );
   whileBlocking( mScalarInterpolationTypeComboBox )->setCurrentIndex( index );
