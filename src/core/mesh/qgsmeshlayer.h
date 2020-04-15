@@ -318,7 +318,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       *
       * \since QGIS 3.14
       */
-    void setStaticScalarDatasetIndex( const QgsMeshDatasetIndex &staticScalarDatasetIndex ) SIP_SKIP;
+    void setStaticScalarDatasetIndex( const QgsMeshDatasetIndex &staticScalarDatasetIndex );
 
     /**
       * Sets the static vector dataset index that is rendered if the temporal properties is not active
@@ -327,7 +327,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       *
       * \since QGIS 3.14
       */
-    void setStaticVectorDatasetIndex( const QgsMeshDatasetIndex &staticVectorDatasetIndex ) SIP_SKIP;
+    void setStaticVectorDatasetIndex( const QgsMeshDatasetIndex &staticVectorDatasetIndex );
 
     /**
       * Returns the static scalar dataset index that is rendered if the temporal properties is not active

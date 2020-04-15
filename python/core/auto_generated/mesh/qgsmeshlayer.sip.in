@@ -263,7 +263,23 @@ If the temporal properties is not active, return the static dataset
 .. versionadded:: 3.14
 %End
 
+    void setStaticScalarDatasetIndex( const QgsMeshDatasetIndex &staticScalarDatasetIndex );
+%Docstring
+Sets the static scalar dataset index that is rendered if the temporal properties is not active
 
+:param staticScalarDatasetIndex: the scalar data set index
+
+.. versionadded:: 3.14
+%End
+
+    void setStaticVectorDatasetIndex( const QgsMeshDatasetIndex &staticVectorDatasetIndex );
+%Docstring
+Sets the static vector dataset index that is rendered if the temporal properties is not active
+
+:param staticVectorDatasetIndex: the vector data set index
+
+.. versionadded:: 3.14
+%End
 
     QgsMeshDatasetIndex staticScalarDatasetIndex() const;
 %Docstring
