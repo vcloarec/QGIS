@@ -181,6 +181,34 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
      */
     void setEdgeWidthUnit( const QgsUnitTypes::RenderUnit &edgeWidthUnit );
 
+    /**
+     * Returns minimum width of the edge, used for varying width
+     *
+     * \since QGIS 3.14
+     */
+    double edgeMinimumWidth() const;
+
+    /**
+     * Sets minimum width of the edge, used for varying width
+     *
+     * \since QGIS 3.14
+     */
+    void setEdgeMinimumWidth( double edgeMinimumWidth );
+
+    /**
+     * Returns whether the width is varying
+     *
+     * \since QGIS 3.14
+     */
+    bool isEdgeVaryingWidth() const;
+
+    /**
+     * Sets whether the width is varying
+     *
+     * \since QGIS 3.14
+     */
+    void setIsEdgeVaryingWidth( bool isEdgeVaryingWidth );
+
   private:
     QgsColorRampShader mColorRampShader;
     DataResamplingMethod mDataResamplingMethod = DataResamplingMethod::None;
@@ -189,7 +217,10 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     double mOpacity = 1;
 
     double mEdgeWidth = 2;
+    double mEdgeMinimumWidth = 0; // For varying width
     QgsUnitTypes::RenderUnit mEdgeWidthUnit = QgsUnitTypes::RenderMillimeters;
+    bool mIsEdgeVaryingWidth = false;
+
 };
 
 /**

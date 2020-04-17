@@ -19,4 +19,29 @@ QgsMeshStrokeWidthVaryingWidget::QgsMeshStrokeWidthVaryingWidget( const QgsMeshS
 {
   setupUi( this );
   setPanelTitle( tr( "Varying Stroke Width" ) );
+
+  mValueMinimumSpinBox->setValue( strokeWidthVarying.minimumValue() );
+  mValueMaximumSpinBox->setValue( strokeWidthVarying.maximumValue() );
+  mWidthMinimumSpinBox->setValue( strokeWidthVarying.minimumWidth() );
+  mWidthMaximumSpinBox->setValue( strokeWidthVarying.maximumWidth() );
+  mIgnoreOutOfRangecheckBox->setChecked( strokeWidthVarying.ignoreOutOfRange() );
+
+}
+
+void QgsMeshStrokeWidthVaryingWidget::setDefaultMinMaxValue( double minimum, double maximum )
+{
+  mMinimumDefaultValue = minimum;
+  mMaximumDefaultValue = maximum;
+}
+
+QgsMeshStrokeWidthVarying QgsMeshStrokeWidthVaryingWidget::varyingStrokeWidth() const
+{
+  QgsMeshStrokeWidthVarying strokeWidth;
+  strokeWidth.setMinimumValue( mValueMinimumSpinBox->value() );
+  strokeWidth.setMaximumValue( mValueMaximumSpinBox->value() );
+  strokeWidth.setMinimumWidth( mWidthMinimumSpinBox->value() );
+  strokeWidth.setMaximumWidth( mWidthMaximumSpinBox->value() );
+  strokeWidth.setIgnoreOutOfRange( mIgnoreOutOfRangecheckBox->isChecked() );
+
+  return strokeWidth;
 }

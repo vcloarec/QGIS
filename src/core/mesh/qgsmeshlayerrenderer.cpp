@@ -504,6 +504,12 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
     {
       QColor edgeColor = colorAt( shader.get(),  mScalarDatasetValues[i] );
       pen.setColor( edgeColor );
+
+      if ( scalarSettings.isEdgeVaryingWidth() )
+      {
+        penWidth = scaleEdgeWidth( mScalarDatasetValues[i], scalarSettings );
+      }
+      pen.setWidthF( penWidth );
       painter->setPen( pen );
       painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
     }
@@ -514,6 +520,12 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
       if ( std::isnan( valVertexStart ) || std::isnan( valVertexEnd ) )
         continue;
       double valDiff = ( valVertexEnd - valVertexStart );
+
+      if ( scalarSettings.isEdgeVaryingWidth() )
+      {
+        penWidth = scaleEdgeWidth( ( valVertexStart + valVertexEnd ) / 2, scalarSettings );
+      }
+      pen.setWidthF( penWidth );
 
       if ( qgsDoubleNear( valDiff, 0.0 ) )
       {
@@ -616,6 +628,19 @@ QColor QgsMeshLayerRenderer::colorAt( QgsColorRampShader *shader, double val ) c
   return QColor();
 }
 
+double QgsMeshLayerRenderer::scaleEdgeWidth( double scalarValue, const QgsMeshRendererScalarSettings &scalarSettings )
+{
+  double width = scalarSettings.edgeMinimumWidth() + ( scalarSettings.edgeWidth() - scalarSettings.edgeMinimumWidth() ) *
+                 ( scalarValue - scalarSettings.classificationMinimum() ) /
+                 ( scalarSettings.classificationMaximum() - scalarSettings.classificationMinimum() );
+  if ( width < scalarSettings.edgeMinimumWidth() )
+    width = scalarSettings.edgeMinimumWidth();
+  if ( width > scalarSettings.edgeWidth() )
+    width = scalarSettings.edgeWidth();
+
+  return renderContext()->convertToPainterUnits( width, scalarSettings.edgeWidthUnit() );
+}
+
 QgsPointXY QgsMeshLayerRenderer::fractionPoint( const QgsPointXY &p1, const QgsPointXY &p2, double fraction ) const
 {
   const QgsPointXY pt( p1.x() + fraction * ( p2.x() - p1.x() ),
@@ -675,4 +700,54 @@ void QgsMeshLayerRenderer::renderVectorDataset()
 
   if ( renderer )
     renderer->draw();
+}
+
+double QgsMeshStrokeWidthVarying::minimumValue() const
+{
+  return mMinimumValue;
+}
+
+void QgsMeshStrokeWidthVarying::setMinimumValue( double minimumValue )
+{
+  mMinimumValue = minimumValue;
+}
+
+double QgsMeshStrokeWidthVarying::maximumValue() const
+{
+  return mMaximumValue;
+}
+
+void QgsMeshStrokeWidthVarying::setMaximumValue( double maximumValue )
+{
+  mMaximumValue = maximumValue;
+}
+
+double QgsMeshStrokeWidthVarying::minimumWidth() const
+{
+  return mMinimumWidth;
+}
+
+void QgsMeshStrokeWidthVarying::setMinimumWidth( double minimumWidth )
+{
+  mMinimumWidth = minimumWidth;
+}
+
+double QgsMeshStrokeWidthVarying::maximumWidth() const
+{
+  return mMaximumWidth;
+}
+
+void QgsMeshStrokeWidthVarying::setMaximumWidth( double maximumWidth )
+{
+  mMaximumWidth = maximumWidth;
+}
+
+bool QgsMeshStrokeWidthVarying::ignoreOutOfRange() const
+{
+  return mIgnoreOutOfRange;
+}
+
+void QgsMeshStrokeWidthVarying::setIgnoreOutOfRange( bool ignoreOutOfRange )
+{
+  mIgnoreOutOfRange = ignoreOutOfRange;
 }

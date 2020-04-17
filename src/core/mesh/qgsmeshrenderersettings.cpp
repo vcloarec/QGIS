@@ -120,6 +120,8 @@ QDomElement QgsMeshRendererScalarSettings::writeXml( QDomDocument &doc ) const
   elem.setAttribute( QStringLiteral( "opacity" ), mOpacity );
   elem.setAttribute( QStringLiteral( "edge-width" ), mEdgeWidth );
   elem.setAttribute( QStringLiteral( "edge-width-unit" ), QgsUnitTypes::encodeUnit( mEdgeWidthUnit ) );
+  elem.setAttribute( QStringLiteral( "edge-width-is-varying" ), mIsEdgeVaryingWidth ? 1 : 0 );
+  elem.setAttribute( QStringLiteral( "edge-minimum-width" ), mEdgeMinimumWidth );
 
   QString methodTxt;
   switch ( mDataResamplingMethod )
@@ -144,6 +146,8 @@ void QgsMeshRendererScalarSettings::readXml( const QDomElement &elem )
   mOpacity = elem.attribute( QStringLiteral( "opacity" ) ).toDouble();
   mEdgeWidth = elem.attribute( QStringLiteral( "edge-width" ) ).toDouble();
   mEdgeWidthUnit = QgsUnitTypes::decodeRenderUnit( elem.attribute( QStringLiteral( "edge-width-unit" ) ) );
+  mIsEdgeVaryingWidth = elem.attribute( QStringLiteral( "edge-width-is-varying" ) ).toUInt();
+  mEdgeMinimumWidth = elem.attribute( QStringLiteral( "edge-minimum-width" ) ).toDouble();
 
   QString methodTxt = elem.attribute( QStringLiteral( "interpolation-method" ) );
   if ( QStringLiteral( "neighbour-average" ) == methodTxt )
@@ -176,6 +180,26 @@ QgsUnitTypes::RenderUnit QgsMeshRendererScalarSettings::edgeWidthUnit() const
 void QgsMeshRendererScalarSettings::setEdgeWidthUnit( const QgsUnitTypes::RenderUnit &edgeWidthLengthUnit )
 {
   mEdgeWidthUnit = edgeWidthLengthUnit;
+}
+
+double QgsMeshRendererScalarSettings::edgeMinimumWidth() const
+{
+  return mEdgeMinimumWidth;
+}
+
+void QgsMeshRendererScalarSettings::setEdgeMinimumWidth( double edgeMinimumWidth )
+{
+  mEdgeMinimumWidth = edgeMinimumWidth;
+}
+
+bool QgsMeshRendererScalarSettings::isEdgeVaryingWidth() const
+{
+  return mIsEdgeVaryingWidth;
+}
+
+void QgsMeshRendererScalarSettings::setIsEdgeVaryingWidth( bool edgeVaryingWidth )
+{
+  mIsEdgeVaryingWidth = edgeVaryingWidth;
 }
 
 // ---------------------------------------------------------------------

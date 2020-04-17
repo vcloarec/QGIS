@@ -21,13 +21,32 @@
 #include "qgspanelwidget.h"
 #include "qgsmeshlayerrenderer.h"
 
+class QgsMeshStrokeWidthVaryingButton: public QPushButton
+{
+  public:
+    QgsMeshStrokeWidthVaryingButton( const QgsMeshStrokeWidthVarying &strokeWidthVarying, QWidget *parent = nullptr ): QPushButton( parent )
+    {
+      QString buttonText( "%1 - %2" );
+      //buttonText.arg( QString::number( strokeWidthVarying.minimumValue(), )
 
+    }
+
+  private:
+
+};
 
 class QgsMeshStrokeWidthVaryingWidget: public QgsPanelWidget, public Ui::QgsMeshVaryingStrokeWidthWidget
 {
   public:
     QgsMeshStrokeWidthVaryingWidget( const QgsMeshStrokeWidthVarying &strokeWidthVarying, QWidget *parent = nullptr );
 
+    void setDefaultMinMaxValue( double minimum, double maximum );
+
+    QgsMeshStrokeWidthVarying varyingStrokeWidth() const;
+
+  private:
+    double mMinimumDefaultValue;
+    double mMaximumDefaultValue;
 };
 
 #endif // QGSMESHSTROKEWIDTHVARYINGWIDGET_H
