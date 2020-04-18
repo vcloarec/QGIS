@@ -26,8 +26,8 @@ QgsMeshRendererVectorSettingsWidget::QgsMeshRendererVectorSettingsWidget( QWidge
 
   mShaftLengthComboBox->setCurrentIndex( -1 );
 
-  mColoringMethodComboBox->addItem( tr( "Single Color" ), QgsMeshRendererVectorSettings::SingleColor );
-  mColoringMethodComboBox->addItem( tr( "Color Ramp Shader" ), QgsMeshRendererVectorSettings::ColorRamp );
+  mColoringMethodComboBox->addItem( tr( "Single Color" ), QgsMeshStrokeColoring::SingleColor );
+  mColoringMethodComboBox->addItem( tr( "Color Ramp Shader" ), QgsMeshStrokeColoring::ColorRamp );
 
   connect( mColorWidget, &QgsColorButton::colorChanged, this, &QgsMeshRendererVectorSettingsWidget::widgetChanged );
   connect( mColoringMethodComboBox, qgis::overload<int>::of( &QComboBox::currentIndexChanged ),
@@ -118,7 +118,7 @@ QgsMeshRendererVectorSettings QgsMeshRendererVectorSettingsWidget::settings() co
   // basic
   settings.setColor( mColorWidget->color() );
   settings.setLineWidth( mLineWidthSpinBox->value() );
-  settings.setColoringMethod( static_cast<QgsMeshRendererVectorSettings::ColoringMethod>
+  settings.setColoringMethod( static_cast<QgsMeshStrokeColoring::ColoringMethod>
                               ( mColoringMethodComboBox->currentData().toInt() ) );
   settings.setColorRampShader( mColorRampShaderWidget->shader() );
 
@@ -271,9 +271,9 @@ void QgsMeshRendererVectorSettingsWidget::onStreamLineSeedingMethodChanged( int 
 
 void QgsMeshRendererVectorSettingsWidget::onColoringMethodChanged()
 {
-  mColorRampShaderGroupBox->setVisible( mColoringMethodComboBox->currentData() == QgsMeshRendererVectorSettings::ColorRamp );
-  mColorWidget->setVisible( mColoringMethodComboBox->currentData() == QgsMeshRendererVectorSettings::SingleColor );
-  mSimgleColorLabel->setVisible( mColoringMethodComboBox->currentData() == QgsMeshRendererVectorSettings::SingleColor );
+  mColorRampShaderGroupBox->setVisible( mColoringMethodComboBox->currentData() == QgsMeshStrokeColoring::ColorRamp );
+  mColorWidget->setVisible( mColoringMethodComboBox->currentData() == QgsMeshStrokeColoring::SingleColor );
+  mSimgleColorLabel->setVisible( mColoringMethodComboBox->currentData() == QgsMeshStrokeColoring::SingleColor );
 
   if ( mColorRampShaderWidget->shader().colorRampItemList().isEmpty() )
     loadColorRampShader();

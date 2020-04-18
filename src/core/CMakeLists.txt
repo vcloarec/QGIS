@@ -567,20 +567,23 @@ SET(QGIS_CORE_SRCS
 
   mesh/qgsmesh3daveraging.cpp
   mesh/qgsmeshdataprovider.cpp
+  mesh/qgsmeshdataprovidertemporalcapabilities.cpp
   mesh/qgsmeshdataset.cpp
   mesh/qgsmeshlayer.cpp
   mesh/qgsmeshlayerinterpolator.cpp
   mesh/qgsmeshlayerrenderer.cpp
+  mesh/qgsmeshlayertemporalproperties.cpp
   mesh/qgsmeshlayerutils.cpp
   mesh/qgsmeshrenderersettings.cpp
+  mesh/qgsmeshsimplificationsettings.cpp
   mesh/qgsmeshspatialindex.cpp
-  mesh/qgsmeshvectorrenderer.cpp
-  mesh/qgstriangularmesh.cpp
+  mesh/qgsmeshstrokepen.cpp
   mesh/qgsmeshtimesettings.cpp
   mesh/qgsmeshtracerenderer.cpp
-  mesh/qgsmeshsimplificationsettings.cpp
-  mesh/qgsmeshlayertemporalproperties.cpp
-  mesh/qgsmeshdataprovidertemporalcapabilities.cpp
+  mesh/qgsmeshvectorrenderer.cpp
+  mesh/qgstriangularmesh.cpp
+
+
 
   labeling/qgslabelfeature.cpp
   labeling/qgslabelingengine.cpp
@@ -1195,20 +1198,21 @@ SET(QGIS_CORE_HDRS
 
   mesh/qgsmesh3daveraging.h
   mesh/qgsmeshdataprovider.h
+  mesh/qgsmeshdataprovidertemporalcapabilities.h
   mesh/qgsmeshdataset.h
   mesh/qgsmeshlayer.h
   mesh/qgsmeshlayerinterpolator.h
   mesh/qgsmeshlayerrenderer.h
+  mesh/qgsmeshlayertemporalproperties.h
   mesh/qgsmeshlayerutils.h
   mesh/qgsmeshrenderersettings.h
+  mesh/qgsmeshsimplificationsettings.h
   mesh/qgsmeshspatialindex.h
+  mesh/qgsmeshstrokepen.h
   mesh/qgsmeshtimesettings.h
+  mesh/qgsmeshtracerenderer.h
   mesh/qgsmeshvectorrenderer.h
   mesh/qgstriangularmesh.h
-  mesh/qgsmeshtracerenderer.h
-  mesh/qgsmeshsimplificationsettings.h
-  mesh/qgsmeshlayertemporalproperties.h
-  mesh/qgsmeshdataprovidertemporalcapabilities.h
 
   metadata/qgsabstractmetadatabase.h
   metadata/qgslayermetadata.h

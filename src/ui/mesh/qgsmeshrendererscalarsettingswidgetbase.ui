@@ -56,15 +56,12 @@
        </widget>
       </item>
       <item row="0" column="3" rowspan="3">
-       <widget class="QPushButton" name="mScalarEdgeStrokeWidthVariablePushButton">
+       <widget class="QgsMeshStrokeWidthVaryingButton" name="mScalarEdgeStrokeWidthVariablePushButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
-        </property>
-        <property name="text">
-         <string>1.0 - 5.0</string>
         </property>
        </widget>
       </item>
@@ -182,6 +179,11 @@
    <extends>QWidget</extends>
    <header>raster/qgscolorrampshaderwidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsMeshStrokeWidthVaryingButton</class>
+   <extends>QPushButton</extends>
+   <header>qgsmeshstrokewidthvaryingwidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

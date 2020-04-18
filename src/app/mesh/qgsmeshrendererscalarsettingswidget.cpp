@@ -48,16 +48,18 @@ QgsMeshRendererScalarSettingsWidget::QgsMeshRendererScalarSettingsWidget( QWidge
   connect( mScalarMinLineEdit, &QLineEdit::textEdited, this, &QgsMeshRendererScalarSettingsWidget::minMaxEdited );
   connect( mScalarMaxLineEdit, &QLineEdit::textEdited, this, &QgsMeshRendererScalarSettingsWidget::minMaxEdited );
   connect( mScalarEdgeStrokeWidthVariableRadioButton, &QRadioButton::toggled, this, &QgsMeshRendererScalarSettingsWidget::onEdgeStrokeWidthMethodChanged );
-  connect( mScalarEdgeStrokeWidthVariablePushButton, &QPushButton::clicked, this, &QgsMeshRendererScalarSettingsWidget::launchStrokeWidthVaryingWidget );
 
   connect( mScalarColorRampShaderWidget, &QgsColorRampShaderWidget::widgetChanged, this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
   connect( mOpacityWidget, &QgsOpacityWidget::opacityChanged, this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
   connect( mScalarInterpolationTypeComboBox, qgis::overload<int>::of( &QComboBox::currentIndexChanged ), this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
+
   connect( mScalarEdgeStrokeWidthUnitSelectionWidget, &QgsUnitSelectionWidget::changed,
            this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
   connect( mScalarEdgeStrokeWidthSpinBox, qgis::overload<double>::of( &QgsDoubleSpinBox::valueChanged ),
            this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
   connect( mScalarEdgeStrokeWidthVariableRadioButton, &QCheckBox::toggled, this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
+  connect( mScalarEdgeStrokeWidthFixedRadioButton, &QCheckBox::toggled, this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
+  connect( mScalarEdgeStrokeWidthVariablePushButton, &QgsMeshStrokeWidthVaryingButton::widgetChanged, this, &QgsMeshRendererScalarSettingsWidget::widgetChanged );
 
 }
 
@@ -80,6 +82,25 @@ QgsMeshRendererScalarSettings QgsMeshRendererScalarSettingsWidget::settings() co
   settings.setClassificationMinimumMaximum( lineEditValue( mScalarMinLineEdit ), lineEditValue( mScalarMaxLineEdit ) );
   settings.setOpacity( mOpacityWidget->opacity() );
   settings.setDataResamplingMethod( dataIntepolationMethod() );
+
+  bool hasEdges = ( mMeshLayer->dataProvider() &&
+                    mMeshLayer->dataProvider()->contains( QgsMesh::ElementType::Edge ) );
+  if ( hasEdges )
+  {
+    QgsMeshStrokePen edgeStrokePen = settings.edgeStrokePen();
+
+    QgsMeshStrokeWidth edgeStrokeWidth = mScalarEdgeStrokeWidthVariablePushButton->strokeWidthVarying();
+    edgeStrokeWidth.setIsWidthVarying( mScalarEdgeStrokeWidthVariableRadioButton->isChecked() );
+    edgeStrokeWidth.setFixedStrokeWidth( mScalarEdgeStrokeWidthSpinBox->value() );
+
+    QgsMeshStrokeColoring edgeStrokeColoring( mScalarColorRampShaderWidget->shader() );
+
+    edgeStrokePen.setStrokeWidth( edgeStrokeWidth );
+    edgeStrokePen.setStrokeColoring( edgeStrokeColoring );
+    edgeStrokePen.setStrokeWidthUnit( mScalarEdgeStrokeWidthUnitSelectionWidget->unit() );
+
+    settings.setEdgeStrokePen( edgeStrokePen );
+  }
 
   return settings;
 }
@@ -111,8 +132,20 @@ void QgsMeshRendererScalarSettingsWidget::syncToLayer( )
                     mMeshLayer->dataProvider()->contains( QgsMesh::ElementType::Edge ) );
   bool hasFaces = ( mMeshLayer->dataProvider() &&
                     mMeshLayer->dataProvider()->contains( QgsMesh::ElementType::Face ) );
+
   mScalarResamplingWidget->setVisible( hasFaces );
+
   mEdgeWidthGroupBox->setVisible( hasEdges );
+
+  if ( hasEdges )
+  {
+    QgsMeshStrokePen edgeStrokePen = settings.edgeStrokePen();
+    QgsMeshStrokeWidth edgeStrokeWidth = edgeStrokePen.strokeWidth();
+    whileBlocking( mScalarEdgeStrokeWidthVariablePushButton )->setStrokeWidthVarying( edgeStrokeWidth );
+    whileBlocking( mScalarEdgeStrokeWidthSpinBox )->setValue( edgeStrokeWidth.fixedStrokeWidth() );
+    whileBlocking( mScalarEdgeStrokeWidthVariableRadioButton )->setChecked( edgeStrokeWidth.isWidthVarying() );
+    whileBlocking( mScalarEdgeStrokeWidthUnitSelectionWidget )->setUnit( edgeStrokePen.strokeWidthUnit() );
+  }
 
   onEdgeStrokeWidthMethodChanged();
 }
@@ -156,50 +189,6 @@ void QgsMeshRendererScalarSettingsWidget::onEdgeStrokeWidthMethodChanged()
   bool varyingWidth = mScalarEdgeStrokeWidthVariableRadioButton->isChecked();
   mScalarEdgeStrokeWidthVariablePushButton->setVisible( varyingWidth );
   mScalarEdgeStrokeWidthSpinBox->setVisible( !varyingWidth );
-}
-
-void QgsMeshRendererScalarSettingsWidget::launchStrokeWidthVaryingWidget()
-{
-  QgsMeshStrokeWidthVarying strokeWidth;
-
-  QgsPanelWidget *panel = QgsPanelWidget::findParentPanel( this );
-  QgsMeshStrokeWidthVaryingWidget *widget = new QgsMeshStrokeWidthVaryingWidget( strokeWidth, panel );
-
-  if ( panel && panel->dockMode() )
-  {
-    connect( widget, &QgsMeshStrokeWidthVaryingWidget::widgetChanged, this, [this, widget]
-    {
-      //update strokeWidth
-      this->emit widgetChanged();
-    } );
-
-    // if the source layer is removed, we need to dismiss the assistant immediately
-    connect( mMeshLayer, &QObject::destroyed, widget, &QgsPanelWidget::acceptPanel );
-
-    panel->openPanel( widget );
-    return;
-  }
-  else
-  {
-    // Show the dialog version if not in a panel
-    QDialog *dlg = new QDialog( this );
-    QString key = QStringLiteral( "/UI/paneldialog/%1" ).arg( widget->panelTitle() );
-    QgsSettings settings;
-    dlg->restoreGeometry( settings.value( key ).toByteArray() );
-    dlg->setWindowTitle( widget->panelTitle() );
-    dlg->setLayout( new QVBoxLayout() );
-    dlg->layout()->addWidget( widget );
-    QDialogButtonBox *buttonBox = new QDialogButtonBox( QDialogButtonBox::Cancel | QDialogButtonBox::Ok );
-    connect( buttonBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept );
-    connect( buttonBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject );
-    dlg->layout()->addWidget( buttonBox );
-
-    if ( dlg->exec() == QDialog::Accepted )
-    {
-      emit widgetChanged();
-    }
-    settings.setValue( key, dlg->saveGeometry() );
-  }
 }
 
 QgsMeshRendererScalarSettings::DataResamplingMethod QgsMeshRendererScalarSettingsWidget::dataIntepolationMethod() const

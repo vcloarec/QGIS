@@ -121,7 +121,7 @@ QDomElement QgsMeshRendererScalarSettings::writeXml( QDomDocument &doc ) const
   elem.setAttribute( QStringLiteral( "edge-width" ), mEdgeWidth );
   elem.setAttribute( QStringLiteral( "edge-width-unit" ), QgsUnitTypes::encodeUnit( mEdgeWidthUnit ) );
   elem.setAttribute( QStringLiteral( "edge-width-is-varying" ), mIsEdgeVaryingWidth ? 1 : 0 );
-  elem.setAttribute( QStringLiteral( "edge-minimum-width" ), mEdgeMinimumWidth );
+  elem.setAttribute( QStringLiteral( "edge-minimum-width" ), mEdgeWidth );
 
   QString methodTxt;
   switch ( mDataResamplingMethod )
@@ -147,7 +147,7 @@ void QgsMeshRendererScalarSettings::readXml( const QDomElement &elem )
   mEdgeWidth = elem.attribute( QStringLiteral( "edge-width" ) ).toDouble();
   mEdgeWidthUnit = QgsUnitTypes::decodeRenderUnit( elem.attribute( QStringLiteral( "edge-width-unit" ) ) );
   mIsEdgeVaryingWidth = elem.attribute( QStringLiteral( "edge-width-is-varying" ) ).toUInt();
-  mEdgeMinimumWidth = elem.attribute( QStringLiteral( "edge-minimum-width" ) ).toDouble();
+  mEdgeWidth = elem.attribute( QStringLiteral( "edge-minimum-width" ) ).toDouble();
 
   QString methodTxt = elem.attribute( QStringLiteral( "interpolation-method" ) );
   if ( QStringLiteral( "neighbour-average" ) == methodTxt )
@@ -182,16 +182,6 @@ void QgsMeshRendererScalarSettings::setEdgeWidthUnit( const QgsUnitTypes::Render
   mEdgeWidthUnit = edgeWidthLengthUnit;
 }
 
-double QgsMeshRendererScalarSettings::edgeMinimumWidth() const
-{
-  return mEdgeMinimumWidth;
-}
-
-void QgsMeshRendererScalarSettings::setEdgeMinimumWidth( double edgeMinimumWidth )
-{
-  mEdgeMinimumWidth = edgeMinimumWidth;
-}
-
 bool QgsMeshRendererScalarSettings::isEdgeVaryingWidth() const
 {
   return mIsEdgeVaryingWidth;
@@ -200,6 +190,16 @@ bool QgsMeshRendererScalarSettings::isEdgeVaryingWidth() const
 void QgsMeshRendererScalarSettings::setIsEdgeVaryingWidth( bool edgeVaryingWidth )
 {
   mIsEdgeVaryingWidth = edgeVaryingWidth;
+}
+
+QgsMeshStrokePen QgsMeshRendererScalarSettings::edgeStrokePen() const
+{
+  return mEdgeStrokePen;
+}
+
+void QgsMeshRendererScalarSettings::setEdgeStrokePen( const QgsMeshStrokePen &edgeStrokePen )
+{
+  mEdgeStrokePen = edgeStrokePen;
 }
 
 // ---------------------------------------------------------------------
@@ -638,7 +638,7 @@ void QgsMeshRendererVectorSettings::readXml( const QDomElement &elem )
                         elem.attribute( QStringLiteral( "symbology" ) ).toInt() );
 
   mLineWidth = elem.attribute( QStringLiteral( "line-width" ) ).toDouble();
-  mColoringMethod = static_cast<QgsMeshRendererVectorSettings::ColoringMethod>(
+  mColoringMethod = static_cast<QgsMeshStrokeColoring::ColoringMethod>(
                       elem.attribute( QStringLiteral( "coloring-method" ) ).toInt() );
   mColor = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "color" ) ) );
   mColorRampShader.readXml( elem.firstChildElement( "colorrampshader" ) );
@@ -662,12 +662,12 @@ void QgsMeshRendererVectorSettings::readXml( const QDomElement &elem )
     mTracesSettings.readXml( elemTraces );
 }
 
-QgsMeshRendererVectorSettings::ColoringMethod QgsMeshRendererVectorSettings::coloringMethod() const
+QgsMeshStrokeColoring::ColoringMethod QgsMeshRendererVectorSettings::coloringMethod() const
 {
   return mColoringMethod;
 }
 
-void QgsMeshRendererVectorSettings::setColoringMethod( const QgsMeshRendererVectorSettings::ColoringMethod &coloringMethod )
+void QgsMeshRendererVectorSettings::setColoringMethod( const QgsMeshStrokeColoring::ColoringMethod &coloringMethod )
 {
   mColoringMethod = coloringMethod;
 }
@@ -680,6 +680,22 @@ QgsColorRampShader QgsMeshRendererVectorSettings::colorRampShader() const
 void QgsMeshRendererVectorSettings::setColorRampShader( const QgsColorRampShader &colorRampShader )
 {
   mColorRampShader = colorRampShader;
+}
+
+QgsMeshStrokeColoring QgsMeshRendererVectorSettings::vectorStrokeColoring() const
+{
+  QgsMeshStrokeColoring strokeColoring;
+  switch ( mColoringMethod )
+  {
+    case QgsMeshStrokeColoring::SingleColor:
+      strokeColoring = QgsMeshStrokeColoring( mColor );
+      break;
+    case QgsMeshStrokeColoring::ColorRamp:
+      strokeColoring = QgsMeshStrokeColoring( mColorRampShader );
+      break;
+  }
+
+  return strokeColoring;
 }
 
 QgsMeshRendererVectorTracesSettings QgsMeshRendererVectorSettings::tracesSettings() const

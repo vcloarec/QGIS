@@ -27,6 +27,7 @@
 #include "qgscolorrampshader.h"
 #include "qgsmeshdataprovider.h"
 #include "qgsmesh3daveraging.h"
+#include "qgsmeshstrokepen.h"
 
 /**
  * \ingroup core
@@ -182,20 +183,6 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     void setEdgeWidthUnit( const QgsUnitTypes::RenderUnit &edgeWidthUnit );
 
     /**
-     * Returns minimum width of the edge, used for varying width
-     *
-     * \since QGIS 3.14
-     */
-    double edgeMinimumWidth() const;
-
-    /**
-     * Sets minimum width of the edge, used for varying width
-     *
-     * \since QGIS 3.14
-     */
-    void setEdgeMinimumWidth( double edgeMinimumWidth );
-
-    /**
      * Returns whether the width is varying
      *
      * \since QGIS 3.14
@@ -209,6 +196,11 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
      */
     void setIsEdgeVaryingWidth( bool isEdgeVaryingWidth );
 
+
+
+    QgsMeshStrokePen edgeStrokePen() const;
+    void setEdgeStrokePen( const QgsMeshStrokePen &edgeStrokePen );
+
   private:
     QgsColorRampShader mColorRampShader;
     DataResamplingMethod mDataResamplingMethod = DataResamplingMethod::None;
@@ -216,8 +208,8 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     double mClassificationMaximum = 0;
     double mOpacity = 1;
 
+    QgsMeshStrokePen mEdgeStrokePen;
     double mEdgeWidth = 2;
-    double mEdgeMinimumWidth = 0; // For varying width
     QgsUnitTypes::RenderUnit mEdgeWidthUnit = QgsUnitTypes::RenderMillimeters;
     bool mIsEdgeVaryingWidth = false;
 
@@ -455,19 +447,6 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
       Traces
     };
 
-    /**
-     * Defines the how the color of vector is defined
-     * \since QGIS 3.14
-     */
-    enum ColoringMethod
-    {
-      //! Render the vector with a single color
-      SingleColor = 0,
-      //! Render the vector with a color ramp
-      ColorRamp
-    };
-
-
     //! Returns line width of the arrow (in millimeters)
     double lineWidth() const;
     //! Sets line width of the arrow in pixels (in millimeters)
@@ -535,13 +514,13 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
      * Returns the coloring method used to render vector datasets
      * \since QGIS 3.14
      */
-    ColoringMethod coloringMethod() const;
+    QgsMeshStrokeColoring::ColoringMethod coloringMethod() const;
 
     /**
      * Sets the coloring method used to render vector datasets
      * \since QGIS 3.14
      */
-    void setColoringMethod( const ColoringMethod &coloringMethod );
+    void setColoringMethod( const QgsMeshStrokeColoring::ColoringMethod &coloringMethod );
 
     /**
      * Sets the color ramp shader used to render vector datasets
@@ -554,6 +533,12 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
      * \since QGIS 3.14
      */
     void setColorRampShader( const QgsColorRampShader &colorRampShader );
+
+    /**
+     * Returns the stroke coloring used to render vector datasets
+     * \since QGIS 3.14
+     */
+    QgsMeshStrokeColoring vectorStrokeColoring() const;
 
     /**
     * Returns settings for vector rendered with arrows
@@ -603,7 +588,7 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     double mLineWidth = DEFAULT_LINE_WIDTH; //in millimeters
     QgsColorRampShader mColorRampShader;
     QColor mColor = Qt::black;
-    ColoringMethod mColoringMethod = SingleColor;
+    QgsMeshStrokeColoring::ColoringMethod mColoringMethod = QgsMeshStrokeColoring::SingleColor;
     double mFilterMin = -1; //disabled
     double mFilterMax = -1; //disabled
     int mUserGridCellWidth = 10; // in pixels

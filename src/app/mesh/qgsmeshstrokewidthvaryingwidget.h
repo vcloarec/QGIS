@@ -23,30 +23,33 @@
 
 class QgsMeshStrokeWidthVaryingButton: public QPushButton
 {
+    Q_OBJECT
   public:
-    QgsMeshStrokeWidthVaryingButton( const QgsMeshStrokeWidthVarying &strokeWidthVarying, QWidget *parent = nullptr ): QPushButton( parent )
-    {
-      QString buttonText( "%1 - %2" );
-      //buttonText.arg( QString::number( strokeWidthVarying.minimumValue(), )
+    QgsMeshStrokeWidthVaryingButton( QWidget *parent = nullptr );
 
-    }
+    QgsMeshStrokeWidth strokeWidthVarying() const;
+    void setStrokeWidthVarying( const QgsMeshStrokeWidth &strokeWidthVarying );
+    void setDefaultMinMaxValue( double minimum, double maximum );
+
+  signals:
+    void widgetChanged();
+
+  private slots:
+    void openWidget();
 
   private:
+    void updateText();
 
+    QgsMeshStrokeWidth mStrokeWidthVarying;
+    double mMinimumDefaultValue;
+    double mMaximumDefaultValue;
 };
 
 class QgsMeshStrokeWidthVaryingWidget: public QgsPanelWidget, public Ui::QgsMeshVaryingStrokeWidthWidget
 {
   public:
-    QgsMeshStrokeWidthVaryingWidget( const QgsMeshStrokeWidthVarying &strokeWidthVarying, QWidget *parent = nullptr );
-
-    void setDefaultMinMaxValue( double minimum, double maximum );
-
-    QgsMeshStrokeWidthVarying varyingStrokeWidth() const;
-
-  private:
-    double mMinimumDefaultValue;
-    double mMaximumDefaultValue;
+    QgsMeshStrokeWidthVaryingWidget( const QgsMeshStrokeWidth &strokeWidthVarying, QWidget *parent = nullptr );
+    QgsMeshStrokeWidth varyingStrokeWidth() const;
 };
 
 #endif // QGSMESHSTROKEWIDTHVARYINGWIDGET_H

@@ -78,37 +78,6 @@ struct CORE_NO_EXPORT QgsMeshLayerRendererCache
   std::unique_ptr<QgsMesh3dAveragingMethod> mVectorAveragingMethod;
 };
 
-class QgsMeshStrokeWidthVarying
-{
-  public:
-
-    double minimumValue() const;
-    void setMinimumValue( double minimumValue );
-
-    double maximumValue() const;
-    void setMaximumValue( double maximumValue );
-
-    double minimumWidth() const;
-    void setMinimumWidth( double minimumWidth );
-
-    double maximumWidth() const;
-    void setMaximumWidth( double maximumWidth );
-
-    double strokeWidth( double value ) const
-    {
-
-    }
-
-    bool ignoreOutOfRange() const;
-    void setIgnoreOutOfRange( bool ignoreOutOfRange );
-
-  private:
-    double mMinimumValue = 0;
-    double mMaximumValue = 10;
-    double mMinimumWidth = 0;
-    double mMaximumWidth = 10;
-    bool mIgnoreOutOfRange = false;
-};
 
 ///@endcond
 

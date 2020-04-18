@@ -630,11 +630,11 @@ QColor QgsMeshLayerRenderer::colorAt( QgsColorRampShader *shader, double val ) c
 
 double QgsMeshLayerRenderer::scaleEdgeWidth( double scalarValue, const QgsMeshRendererScalarSettings &scalarSettings )
 {
-  double width = scalarSettings.edgeMinimumWidth() + ( scalarSettings.edgeWidth() - scalarSettings.edgeMinimumWidth() ) *
+  double width = scalarSettings.edgeWidth() + ( scalarSettings.edgeWidth() - scalarSettings.edgeWidth() ) *
                  ( scalarValue - scalarSettings.classificationMinimum() ) /
                  ( scalarSettings.classificationMaximum() - scalarSettings.classificationMinimum() );
-  if ( width < scalarSettings.edgeMinimumWidth() )
-    width = scalarSettings.edgeMinimumWidth();
+  if ( width < scalarSettings.edgeWidth() )
+    width = scalarSettings.edgeWidth();
   if ( width > scalarSettings.edgeWidth() )
     width = scalarSettings.edgeWidth();
 
@@ -702,52 +702,3 @@ void QgsMeshLayerRenderer::renderVectorDataset()
     renderer->draw();
 }
 
-double QgsMeshStrokeWidthVarying::minimumValue() const
-{
-  return mMinimumValue;
-}
-
-void QgsMeshStrokeWidthVarying::setMinimumValue( double minimumValue )
-{
-  mMinimumValue = minimumValue;
-}
-
-double QgsMeshStrokeWidthVarying::maximumValue() const
-{
-  return mMaximumValue;
-}
-
-void QgsMeshStrokeWidthVarying::setMaximumValue( double maximumValue )
-{
-  mMaximumValue = maximumValue;
-}
-
-double QgsMeshStrokeWidthVarying::minimumWidth() const
-{
-  return mMinimumWidth;
-}
-
-void QgsMeshStrokeWidthVarying::setMinimumWidth( double minimumWidth )
-{
-  mMinimumWidth = minimumWidth;
-}
-
-double QgsMeshStrokeWidthVarying::maximumWidth() const
-{
-  return mMaximumWidth;
-}
-
-void QgsMeshStrokeWidthVarying::setMaximumWidth( double maximumWidth )
-{
-  mMaximumWidth = maximumWidth;
-}
-
-bool QgsMeshStrokeWidthVarying::ignoreOutOfRange() const
-{
-  return mIgnoreOutOfRange;
-}
-
-void QgsMeshStrokeWidthVarying::setIgnoreOutOfRange( bool ignoreOutOfRange )
-{
-  mIgnoreOutOfRange = ignoreOutOfRange;
-}
