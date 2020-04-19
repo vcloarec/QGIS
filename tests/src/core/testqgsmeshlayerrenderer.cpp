@@ -375,7 +375,7 @@ void TestQgsMeshRenderer::test_vertex_vector_dataset_colorRamp_rendering()
   QgsMeshRendererVectorSettings settings = rendererSettings.vectorSettings( ds.group() );
   QgsMeshRendererVectorArrowSettings arrowSettings = settings.arrowSettings();
   arrowSettings.setMinShaftLength( 15 );
-  settings.setColoringMethod( QgsMeshStrokeColoring::ColorRamp );
+  settings.setColoringMethod( QgsMeshStrokeColor::ColorRamp );
   settings.setArrowsSettings( arrowSettings );
   rendererSettings.setVectorSettings( ds.group(), settings );
   mMemoryLayer->setRendererSettings( rendererSettings );
@@ -492,7 +492,7 @@ void TestQgsMeshRenderer::test_vertex_vector_on_user_grid()
   settings.setUserGridCellHeight( 40 );
   settings.setLineWidth( 0.9 );
   settings.setSymbology( QgsMeshRendererVectorSettings::Arrows );
-  settings.setColoringMethod( QgsMeshStrokeColoring::SingleColor );
+  settings.setColoringMethod( QgsMeshStrokeColor::SingleColor );
   rendererSettings.setVectorSettings( ds.group(), settings );
   mMemoryLayer->setRendererSettings( rendererSettings );
   mMemoryLayer->setStaticVectorDatasetIndex( ds );
@@ -512,7 +512,7 @@ void TestQgsMeshRenderer::test_vertex_vector_on_user_grid_streamlines()
   settings.setUserGridCellWidth( 60 );
   settings.setUserGridCellHeight( 40 );
   settings.setLineWidth( 0.9 );
-  settings.setColoringMethod( QgsMeshStrokeColoring::SingleColor );
+  settings.setColoringMethod( QgsMeshStrokeColor::SingleColor );
   settings.setSymbology( QgsMeshRendererVectorSettings::Streamlines );
   rendererSettings.setVectorSettings( ds.group(), settings );
   mMemoryLayer->setRendererSettings( rendererSettings );
@@ -533,7 +533,7 @@ void TestQgsMeshRenderer::test_vertex_vector_on_user_grid_streamlines_colorRamp(
   settings.setUserGridCellWidth( 60 );
   settings.setUserGridCellHeight( 40 );
   settings.setLineWidth( 0.9 );
-  settings.setColoringMethod( QgsMeshStrokeColoring::ColorRamp );
+  settings.setColoringMethod( QgsMeshStrokeColor::ColorRamp );
   settings.setSymbology( QgsMeshRendererVectorSettings::Streamlines );
   rendererSettings.setVectorSettings( ds.group(), settings );
   mMemoryLayer->setRendererSettings( rendererSettings );
@@ -554,7 +554,7 @@ void TestQgsMeshRenderer::test_vertex_vector_traces()
   settings.setUserGridCellWidth( 60 );
   settings.setUserGridCellHeight( 40 );
   settings.setLineWidth( 1 );
-  settings.setColoringMethod( QgsMeshStrokeColoring::SingleColor );
+  settings.setColoringMethod( QgsMeshStrokeColor::SingleColor );
 
   settings.setSymbology( QgsMeshRendererVectorSettings::Traces );
   QgsMeshRendererVectorTracesSettings tracesSetting = settings.tracesSettings();
@@ -581,7 +581,7 @@ void TestQgsMeshRenderer::test_vertex_vector_traces_colorRamp()
   settings.setUserGridCellWidth( 60 );
   settings.setUserGridCellHeight( 40 );
   settings.setLineWidth( 1 );
-  settings.setColoringMethod( QgsMeshStrokeColoring::ColorRamp );
+  settings.setColoringMethod( QgsMeshStrokeColor::ColorRamp );
 
   settings.setSymbology( QgsMeshRendererVectorSettings::Traces );
   QgsMeshRendererVectorTracesSettings tracesSetting = settings.tracesSettings();

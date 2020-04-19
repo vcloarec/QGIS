@@ -31,7 +31,7 @@
 #include "qgspointxy.h"
 
 class QgsRenderContext;
-class QgsMeshStrokeColoring;
+class QgsMeshStrokeColor;
 ///@cond PRIVATE
 
 
@@ -135,7 +135,7 @@ class QgsMeshVectorArrowRenderer : public QgsMeshVectorRenderer
     QgsRectangle mBufferedExtent;
     QPen mPen;
 
-    QgsMeshStrokeColoring mVectorColoring;
+    QgsMeshStrokeColor mVectorColoring;
 
 };
 

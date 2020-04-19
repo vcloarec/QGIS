@@ -488,6 +488,14 @@ void QgsMeshLayer::assignDefaultStyleToDatasetGroup( int groupIndex )
   QgsMeshRendererScalarSettings scalarSettings;
   scalarSettings.setClassificationMinimumMaximum( groupMin, groupMax );
   scalarSettings.setColorRampShader( fcn );
+  QgsMeshStrokeWidth edgeStrokeWidth;
+  edgeStrokeWidth.setMinimumValue( groupMin );
+  edgeStrokeWidth.setMaximumValue( groupMax );
+  QgsMeshStrokeColor edgeStrokeColor( fcn );
+  QgsMeshStrokePen edgeStrokePen;
+  edgeStrokePen.setStrokeWidth( edgeStrokeWidth );
+  edgeStrokePen.setStrokeColoring( edgeStrokeColor );
+  scalarSettings.setEdgeStrokePen( edgeStrokePen );
   mRendererSettings.setScalarSettings( groupIndex, scalarSettings );
 
   if ( metadata.isVector() )

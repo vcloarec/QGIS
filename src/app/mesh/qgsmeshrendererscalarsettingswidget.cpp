@@ -93,7 +93,7 @@ QgsMeshRendererScalarSettings QgsMeshRendererScalarSettingsWidget::settings() co
     edgeStrokeWidth.setIsWidthVarying( mScalarEdgeStrokeWidthVariableRadioButton->isChecked() );
     edgeStrokeWidth.setFixedStrokeWidth( mScalarEdgeStrokeWidthSpinBox->value() );
 
-    QgsMeshStrokeColoring edgeStrokeColoring( mScalarColorRampShaderWidget->shader() );
+    QgsMeshStrokeColor edgeStrokeColoring( mScalarColorRampShaderWidget->shader() );
 
     edgeStrokePen.setStrokeWidth( edgeStrokeWidth );
     edgeStrokePen.setStrokeColoring( edgeStrokeColoring );
@@ -145,6 +145,11 @@ void QgsMeshRendererScalarSettingsWidget::syncToLayer( )
     whileBlocking( mScalarEdgeStrokeWidthSpinBox )->setValue( edgeStrokeWidth.fixedStrokeWidth() );
     whileBlocking( mScalarEdgeStrokeWidthVariableRadioButton )->setChecked( edgeStrokeWidth.isWidthVarying() );
     whileBlocking( mScalarEdgeStrokeWidthUnitSelectionWidget )->setUnit( edgeStrokePen.strokeWidthUnit() );
+
+    const QgsMeshDatasetGroupMetadata metadata = mMeshLayer->dataProvider()->datasetGroupMetadata( mActiveDatasetGroup );
+    double min = metadata.minimum();
+    double max = metadata.maximum();
+    mScalarEdgeStrokeWidthVariablePushButton->setDefaultMinMaxValue( min, max );
   }
 
   onEdgeStrokeWidthMethodChanged();

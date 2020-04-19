@@ -1,0 +1,207 @@
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/core/mesh/qgsmeshstrokepen.h                                     *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/
+
+
+
+
+
+
+class QgsMeshStrokeColor
+{
+%Docstring
+
+Class for coloring vector datasets
+
+.. note::
+
+   not available in Python bindings
+
+.. versionadded:: 3.14
+%End
+
+%TypeHeaderCode
+#include "qgsmeshstrokepen.h"
+%End
+  public:
+    enum ColoringMethod
+    {
+      //! Render the vector with a single color
+      SingleColor,
+      //! Render the vector with a color ramp
+      ColorRamp
+    };
+
+    QgsMeshStrokeColor();
+%Docstring
+Default constructor
+%End
+    QgsMeshStrokeColor( const QgsColorRampShader &colorRampShader );
+%Docstring
+Constructor of a stroke with varying color depending on magnitude
+%End
+    QgsMeshStrokeColor( const QColor &color );
+%Docstring
+Constructor of a stroke with fixed color
+%End
+
+    void setColor( const QgsColorRampShader &colorRampShader );
+%Docstring
+Sets the color ramp to define the coloring
+%End
+
+    void setColor( const QColor &color );
+%Docstring
+Sets the single color to define the coloring
+%End
+
+    QColor color( double magnitude ) const;
+%Docstring
+Returns the color corresponding to the magnitude
+%End
+
+    QgsMeshStrokeColor::ColoringMethod coloringMethod() const;
+%Docstring
+Returns the coloring method used
+%End
+
+    QgsColorRampShader colorRampShader() const;
+%Docstring
+Returns the color ramp shader
+%End
+
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+%Docstring
+Writes configuration to a new DOM element
+%End
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
+%Docstring
+Reads configuration from the given DOM element
+%End
+
+};
+
+class QgsMeshStrokeWidth
+{
+
+%TypeHeaderCode
+#include "qgsmeshstrokepen.h"
+%End
+  public:
+    double minimumValue() const;
+%Docstring
+Returns the minimum value used to defined the varying stroke width
+%End
+    void setMinimumValue( double minimumValue );
+%Docstring
+Sets the minimum value used to defined the varying stroke width
+%End
+
+    double maximumValue() const;
+%Docstring
+Returns the maximum value used to defined the varying stroke width
+%End
+    void setMaximumValue( double maximumValue );
+%Docstring
+Sets the maximum value used to defined the varying stroke width
+%End
+
+    double minimumWidth() const;
+%Docstring
+Returns the minimum width used to defined the varying stroke width
+%End
+    void setMinimumWidth( double minimumWidth );
+%Docstring
+Sets the minimum width used to defined the varying stroke width
+%End
+
+    double maximumWidth() const;
+%Docstring
+Returns the maximum width used to defined the varying stroke width
+%End
+    void setMaximumWidth( double maximumWidth );
+%Docstring
+Sets the maximum width used to defined the varying stroke width
+%End
+
+    bool ignoreOutOfRange() const;
+%Docstring
+Returns whether the varying stroke width ignores out of range value
+%End
+    void setIgnoreOutOfRange( bool ignoreOutOfRange );
+%Docstring
+Sets whether the varying stroke width ignores out of range value
+%End
+
+    bool isWidthVarying() const;
+%Docstring
+Returns whether the stroke width is varying
+%End
+    void setIsWidthVarying( bool isWidthVarying );
+%Docstring
+Returns whether the stroke width is varying
+%End
+
+    double fixedStrokeWidth() const;
+%Docstring
+Returns the fixed stroke width
+%End
+    void setFixedStrokeWidth( double fixedWidth );
+%Docstring
+Sets the fixed stroke width
+%End
+
+    double strokeWidth( double value ) const;
+%Docstring
+Returns the varying stroke width depending on value, if not varying returns the fixed stroke width
+%End
+
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+%Docstring
+Writes configuration to a new DOM element
+%End
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
+%Docstring
+Reads configuration from the given DOM element
+%End
+
+};
+
+class QgsMeshStrokePen
+{
+
+%TypeHeaderCode
+#include "qgsmeshstrokepen.h"
+%End
+  public:
+    QgsMeshStrokeWidth strokeWidth() const;
+    void setStrokeWidth( const QgsMeshStrokeWidth &strokeWidth );
+
+    QgsMeshStrokeColor strokeColoring() const;
+    void setStrokeColoring( const QgsMeshStrokeColor &strokeColoring );
+
+    QgsUnitTypes::RenderUnit strokeWidthUnit() const;
+    void setStrokeWidthUnit( const QgsUnitTypes::RenderUnit &strokeWidthUnit );
+
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+%Docstring
+Writes configuration to a new DOM element
+%End
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
+%Docstring
+Reads configuration from the given DOM element
+%End
+
+};
+
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/core/mesh/qgsmeshstrokepen.h                                     *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/

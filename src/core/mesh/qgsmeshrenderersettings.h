@@ -155,50 +155,16 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     void readXml( const QDomElement &elem );
 
     /**
-     * Returns width of the edge
+     * Returns the stroke pen used to render edges scalar dataset
      *
      * \since QGIS 3.14
      */
-    double edgeWidth() const;
-
-    /**
-     * Sets width of the edge
-     *
-     * \since QGIS 3.14
-     */
-    void setEdgeWidth( double edgeWidth );
-
-    /**
-     * Returns length units of the width of the edge
-     *
-     * \since QGIS 3.14
-     */
-    QgsUnitTypes::RenderUnit edgeWidthUnit() const;
-
-    /**
-     * Sets length units of the width of the edge
-     *
-     * \since QGIS 3.14
-     */
-    void setEdgeWidthUnit( const QgsUnitTypes::RenderUnit &edgeWidthUnit );
-
-    /**
-     * Returns whether the width is varying
-     *
-     * \since QGIS 3.14
-     */
-    bool isEdgeVaryingWidth() const;
-
-    /**
-     * Sets whether the width is varying
-     *
-     * \since QGIS 3.14
-     */
-    void setIsEdgeVaryingWidth( bool isEdgeVaryingWidth );
-
-
-
     QgsMeshStrokePen edgeStrokePen() const;
+    /**
+     * Sets the stroke pen used to render edges scalar dataset
+     *
+     * \since QGIS 3.14
+     */
     void setEdgeStrokePen( const QgsMeshStrokePen &edgeStrokePen );
 
   private:
@@ -209,10 +175,6 @@ class CORE_EXPORT QgsMeshRendererScalarSettings
     double mOpacity = 1;
 
     QgsMeshStrokePen mEdgeStrokePen;
-    double mEdgeWidth = 2;
-    QgsUnitTypes::RenderUnit mEdgeWidthUnit = QgsUnitTypes::RenderMillimeters;
-    bool mIsEdgeVaryingWidth = false;
-
 };
 
 /**
@@ -514,13 +476,13 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
      * Returns the coloring method used to render vector datasets
      * \since QGIS 3.14
      */
-    QgsMeshStrokeColoring::ColoringMethod coloringMethod() const;
+    QgsMeshStrokeColor::ColoringMethod coloringMethod() const;
 
     /**
      * Sets the coloring method used to render vector datasets
      * \since QGIS 3.14
      */
-    void setColoringMethod( const QgsMeshStrokeColoring::ColoringMethod &coloringMethod );
+    void setColoringMethod( const QgsMeshStrokeColor::ColoringMethod &coloringMethod );
 
     /**
      * Sets the color ramp shader used to render vector datasets
@@ -538,7 +500,7 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
      * Returns the stroke coloring used to render vector datasets
      * \since QGIS 3.14
      */
-    QgsMeshStrokeColoring vectorStrokeColoring() const;
+    QgsMeshStrokeColor vectorStrokeColoring() const;
 
     /**
     * Returns settings for vector rendered with arrows
@@ -588,7 +550,7 @@ class CORE_EXPORT QgsMeshRendererVectorSettings
     double mLineWidth = DEFAULT_LINE_WIDTH; //in millimeters
     QgsColorRampShader mColorRampShader;
     QColor mColor = Qt::black;
-    QgsMeshStrokeColoring::ColoringMethod mColoringMethod = QgsMeshStrokeColoring::SingleColor;
+    QgsMeshStrokeColor::ColoringMethod mColoringMethod = QgsMeshStrokeColor::SingleColor;
     double mFilterMin = -1; //disabled
     double mFilterMax = -1; //disabled
     int mUserGridCellWidth = 10; // in pixels

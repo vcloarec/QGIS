@@ -47,9 +47,22 @@ class QgsMeshStrokeWidthVaryingButton: public QPushButton
 
 class QgsMeshStrokeWidthVaryingWidget: public QgsPanelWidget, public Ui::QgsMeshVaryingStrokeWidthWidget
 {
+    Q_OBJECT
   public:
-    QgsMeshStrokeWidthVaryingWidget( const QgsMeshStrokeWidth &strokeWidthVarying, QWidget *parent = nullptr );
+    QgsMeshStrokeWidthVaryingWidget(
+      const QgsMeshStrokeWidth &strokeWidthVarying,
+      double defaultMinimumvalue,
+      double defaultMaximumValue,
+      QWidget *parent = nullptr );
+
+    void setVaryingStrokeWidth( const QgsMeshStrokeWidth &strokeWidthVarying );
     QgsMeshStrokeWidth varyingStrokeWidth() const;
+
+  private slots:
+    void defaultMinMax();
+  private:
+    double mDefaultMinimumValue = 0;
+    double mDefaultMaximumValue = 0;
 };
 
 #endif // QGSMESHSTROKEWIDTHVARYINGWIDGET_H

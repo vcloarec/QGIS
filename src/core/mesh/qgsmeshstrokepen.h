@@ -18,10 +18,12 @@
 #ifndef QGSMESHSTROKEPEN_H
 #define QGSMESHSTROKEPEN_H
 
+#include <QDebug>
 
 #include "qgis.h"
 #include "qgscolorrampshader.h"
 #include "qgsunittypes.h"
+#include "qgsreadwritecontext.h"
 
 /**
  * \ingroup core
@@ -32,7 +34,7 @@
  * \since QGIS 3.14
  */
 
-class CORE_EXPORT QgsMeshStrokeColoring
+class CORE_EXPORT QgsMeshStrokeColor
 {
   public:
     /**
@@ -48,11 +50,11 @@ class CORE_EXPORT QgsMeshStrokeColoring
     };
 
     //! Default constructor
-    QgsMeshStrokeColoring() = default;
+    QgsMeshStrokeColor() = default;
     //! Constructor of a stroke with varying color depending on magnitude
-    QgsMeshStrokeColoring( const QgsColorRampShader &colorRampShader );
+    QgsMeshStrokeColor( const QgsColorRampShader &colorRampShader );
     //! Constructor of a stroke with fixed color
-    QgsMeshStrokeColoring( const QColor &color );
+    QgsMeshStrokeColor( const QColor &color );
 
     //! Sets the color ramp to define the coloring
     void setColor( const QgsColorRampShader &colorRampShader );
@@ -64,22 +66,26 @@ class CORE_EXPORT QgsMeshStrokeColoring
     QColor color( double magnitude ) const;
 
     //! Returns the coloring method used
-    QgsMeshStrokeColoring::ColoringMethod coloringMethod() const;
+    QgsMeshStrokeColor::ColoringMethod coloringMethod() const;
 
     //! Returns the color ramp shader
     QgsColorRampShader colorRampShader() const;
+
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
 
   private:
     QgsColorRampShader mColorRampShader;
     QColor mSingleColor = Qt::black;
 
-    QgsMeshStrokeColoring::ColoringMethod mColoringMethod = SingleColor;
+    QgsMeshStrokeColor::ColoringMethod mColoringMethod = SingleColor;
 };
 
 class CORE_EXPORT QgsMeshStrokeWidth
 {
   public:
-
     //! Returns the minimum value used to defined the varying stroke width
     double minimumValue() const;
     //! Sets the minimum value used to defined the varying stroke width
@@ -118,6 +124,11 @@ class CORE_EXPORT QgsMeshStrokeWidth
     //! Returns the varying stroke width depending on value, if not varying returns the fixed stroke width
     double strokeWidth( double value ) const;
 
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
+
   private:
     bool mIsWidthVarying = false;
 
@@ -136,20 +147,23 @@ class CORE_EXPORT QgsMeshStrokeWidth
 class CORE_EXPORT QgsMeshStrokePen
 {
   public:
-    //QgsMeshStrokePen()=default;
-
     QgsMeshStrokeWidth strokeWidth() const;
     void setStrokeWidth( const QgsMeshStrokeWidth &strokeWidth );
 
-    QgsMeshStrokeColoring strokeColoring() const;
-    void setStrokeColoring( const QgsMeshStrokeColoring &strokeColoring );
+    QgsMeshStrokeColor strokeColoring() const;
+    void setStrokeColoring( const QgsMeshStrokeColor &strokeColoring );
 
     QgsUnitTypes::RenderUnit strokeWidthUnit() const;
     void setStrokeWidthUnit( const QgsUnitTypes::RenderUnit &strokeWidthUnit );
 
+    //! Writes configuration to a new DOM element
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+    //! Reads configuration from the given DOM element
+    void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
+
   private:
     QgsMeshStrokeWidth mStrokeWidth;
-    QgsMeshStrokeColoring mStrokeColoring;
+    QgsMeshStrokeColor mStrokeColoring;
     QgsUnitTypes::RenderUnit mStrokeWidthUnit = QgsUnitTypes::RenderMillimeters;
 };
 

@@ -17,9 +17,10 @@
 
 
 #include "qgsmeshstrokepen.h"
+#include "qgssymbollayerutils.h"
 
 
-QgsMeshStrokeColoring QgsMeshStrokePen::strokeColoring() const
+QgsMeshStrokeColor QgsMeshStrokePen::strokeColoring() const
 {
   return mStrokeColoring;
 }
@@ -34,7 +35,7 @@ void QgsMeshStrokePen::setStrokeWidth( const QgsMeshStrokeWidth &strokeWidth )
   mStrokeWidth = strokeWidth;
 }
 
-void QgsMeshStrokePen::setStrokeColoring( const QgsMeshStrokeColoring &strokeColoring )
+void QgsMeshStrokePen::setStrokeColoring( const QgsMeshStrokeColor &strokeColoring )
 {
   mStrokeColoring = strokeColoring;
 }
@@ -47,6 +48,33 @@ QgsUnitTypes::RenderUnit QgsMeshStrokePen::strokeWidthUnit() const
 void QgsMeshStrokePen::setStrokeWidthUnit( const QgsUnitTypes::RenderUnit &strokeWidthUnit )
 {
   mStrokeWidthUnit = strokeWidthUnit;
+}
+
+QDomElement QgsMeshStrokePen::writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const
+{
+  Q_UNUSED( context );
+
+  QDomElement elem = doc.createElement( QStringLiteral( "mesh-stroke-pen" ) );
+
+  QDomElement widthElement = mStrokeWidth.writeXml( doc, context );
+  elem.appendChild( widthElement );
+  QDomElement colorElement = mStrokeColoring.writeXml( doc, context );
+  elem.appendChild( colorElement );
+
+  elem.setAttribute( QStringLiteral( "stroke-width-unit" ), QgsUnitTypes::encodeUnit( mStrokeWidthUnit ) );
+
+  return elem;
+}
+
+void QgsMeshStrokePen::readXml( const QDomElement &elem, const QgsReadWriteContext &context )
+{
+  QDomElement elemWidth = elem.firstChildElement( QStringLiteral( "mesh-stroke-width" ) );
+  mStrokeWidth.readXml( elemWidth, context );
+
+  QDomElement elemColoring = elem.firstChildElement( QStringLiteral( "mesh-stroke-coloring" ) );
+  mStrokeColoring.readXml( elemColoring, context );
+
+  mStrokeWidthUnit = QgsUnitTypes::decodeRenderUnit( elem.attribute( QStringLiteral( "stroke-width-unit" ) ) );
 }
 
 double QgsMeshStrokeWidth::minimumValue() const
@@ -119,6 +147,36 @@ double QgsMeshStrokeWidth::strokeWidth( double value ) const
     return fixedStrokeWidth();
 }
 
+QDomElement QgsMeshStrokeWidth::writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const
+{
+  Q_UNUSED( context );
+
+  QDomElement elem = doc.createElement( QStringLiteral( "mesh-stroke-width" ) );
+
+  elem.setAttribute( QStringLiteral( "width-varying" ), mIsWidthVarying ? 1 : 0 );
+  elem.setAttribute( QStringLiteral( "fixed-width" ), mFixedWidth );
+  elem.setAttribute( QStringLiteral( "minimum-value" ), mMinimumValue );
+  elem.setAttribute( QStringLiteral( "maximum-value" ), mMaximumValue );
+  elem.setAttribute( QStringLiteral( "minimum-width" ), mMinimumWidth );
+  elem.setAttribute( QStringLiteral( "maximum-width" ), mMaximumWidth );
+  elem.setAttribute( QStringLiteral( "ignore-out-of-range" ), mIgnoreOutOfRange ? 1 : 0 );
+
+  return elem;
+}
+
+void QgsMeshStrokeWidth::readXml( const QDomElement &elem, const QgsReadWriteContext &context )
+{
+  Q_UNUSED( context );
+
+  mIsWidthVarying = elem.attribute( QStringLiteral( "width-varying" ) ).toInt();
+  mFixedWidth = elem.attribute( QStringLiteral( "fixed-width" ) ).toDouble();
+  mMinimumValue = elem.attribute( QStringLiteral( "minimum-value" ) ).toDouble();
+  mMaximumValue = elem.attribute( QStringLiteral( "maximum-value" ) ).toDouble();
+  mMinimumWidth = elem.attribute( QStringLiteral( "minimum-width" ) ).toDouble();
+  mMaximumWidth = elem.attribute( QStringLiteral( "maximum-width" ) ).toDouble();
+  mIgnoreOutOfRange = elem.attribute( QStringLiteral( "ignore-out-of-range" ) ).toInt();
+}
+
 double QgsMeshStrokeWidth::fixedStrokeWidth() const
 {
   return mFixedWidth;
@@ -152,23 +210,23 @@ void QgsMeshStrokeWidth::setFixedStrokeWidth( double fixedWidth )
 void QgsMeshStrokeWidth::updateLinearFormula()
 {
   if ( mMaximumWidth - mMinimumWidth != 0 )
-    mLinearCoef = 1 / ( mMaximumValue - mMinimumValue ) * ( mMaximumWidth - mMinimumWidth );
+    mLinearCoef = ( mMaximumWidth - mMinimumWidth ) / ( mMaximumValue - mMinimumValue ) ;
   else
     mLinearCoef = 0;
 }
 
-QgsMeshStrokeColoring::QgsMeshStrokeColoring( const QgsColorRampShader &colorRampShader )
+QgsMeshStrokeColor::QgsMeshStrokeColor( const QgsColorRampShader &colorRampShader )
 {
   setColor( colorRampShader );
 }
 
-QgsMeshStrokeColoring::QgsMeshStrokeColoring( const QColor &color )
+QgsMeshStrokeColor::QgsMeshStrokeColor( const QColor &color )
 {
   setColor( color );
   mColoringMethod = SingleColor;
 }
 
-void QgsMeshStrokeColoring::setColor( const QgsColorRampShader &colorRampShader )
+void QgsMeshStrokeColor::setColor( const QgsColorRampShader &colorRampShader )
 {
   mColorRampShader = colorRampShader;
   if ( ( mColorRampShader.sourceColorRamp() ) )
@@ -177,13 +235,13 @@ void QgsMeshStrokeColoring::setColor( const QgsColorRampShader &colorRampShader 
     mColoringMethod = SingleColor;
 }
 
-void QgsMeshStrokeColoring::setColor( const QColor &color )
+void QgsMeshStrokeColor::setColor( const QColor &color )
 {
   mColorRampShader = QgsColorRampShader();
   mSingleColor = color;
 }
 
-QColor QgsMeshStrokeColoring::color( double magnitude ) const
+QColor QgsMeshStrokeColor::color( double magnitude ) const
 {
   if ( mColorRampShader.sourceColorRamp() )
   {
@@ -202,12 +260,37 @@ QColor QgsMeshStrokeColoring::color( double magnitude ) const
   }
 }
 
-QgsMeshStrokeColoring::ColoringMethod QgsMeshStrokeColoring::coloringMethod() const
+QgsMeshStrokeColor::ColoringMethod QgsMeshStrokeColor::coloringMethod() const
 {
   return mColoringMethod;
 }
 
-QgsColorRampShader QgsMeshStrokeColoring::colorRampShader() const
+QgsColorRampShader QgsMeshStrokeColor::colorRampShader() const
 {
   return mColorRampShader;
+}
+
+QDomElement QgsMeshStrokeColor::writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const
+{
+  Q_UNUSED( context );
+
+  QDomElement elem = doc.createElement( QStringLiteral( "mesh-stroke-color" ) );
+
+  elem.setAttribute( QStringLiteral( "single-color" ), QgsSymbolLayerUtils::encodeColor( mSingleColor ) );
+  elem.setAttribute( QStringLiteral( "coloring-method" ), mColoringMethod );
+  elem.appendChild( mColorRampShader.writeXml( doc ) );
+
+  return elem;
+}
+
+void QgsMeshStrokeColor::readXml( const QDomElement &elem, const QgsReadWriteContext &context )
+{
+  Q_UNUSED( context );
+
+  QDomElement shaderElem = elem.firstChildElement( QStringLiteral( "colorrampshader" ) );
+  mColorRampShader.readXml( shaderElem );
+
+  mSingleColor = QgsSymbolLayerUtils::decodeColor( elem.attribute( QStringLiteral( "single-color" ) ) );
+  mColoringMethod = static_cast<QgsMeshStrokeColor::ColoringMethod>(
+                      elem.attribute( QStringLiteral( "coloring-method" ) ).toInt() );
 }

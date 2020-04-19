@@ -20,17 +20,21 @@
 
 #include "qgssettings.h"
 
-QgsMeshStrokeWidthVaryingWidget::QgsMeshStrokeWidthVaryingWidget( const QgsMeshStrokeWidth &strokeWidthVarying, QWidget *parent ):
-  QgsPanelWidget( parent )
+QgsMeshStrokeWidthVaryingWidget::QgsMeshStrokeWidthVaryingWidget(
+  const QgsMeshStrokeWidth &strokeWidthVarying,
+  double defaultMinimumvalue,
+  double defaultMaximumValue,
+  QWidget *parent ):
+  QgsPanelWidget( parent ),
+  mDefaultMinimumValue( defaultMinimumvalue ),
+  mDefaultMaximumValue( defaultMaximumValue )
 {
   setupUi( this );
   setPanelTitle( tr( "Varying Stroke Width" ) );
 
-  mValueMinimumSpinBox->setValue( strokeWidthVarying.minimumValue() );
-  mValueMaximumSpinBox->setValue( strokeWidthVarying.maximumValue() );
-  mWidthMinimumSpinBox->setValue( strokeWidthVarying.minimumWidth() );
-  mWidthMaximumSpinBox->setValue( strokeWidthVarying.maximumWidth() );
-  mIgnoreOutOfRangecheckBox->setChecked( strokeWidthVarying.ignoreOutOfRange() );
+  setVaryingStrokeWidth( strokeWidthVarying );
+
+  connect( mDefaultMinMaxButton, &QPushButton::clicked, this, &QgsMeshStrokeWidthVaryingWidget::defaultMinMax );
 
   connect( mValueMinimumSpinBox, qgis::overload<double>::of( &QgsDoubleSpinBox::valueChanged ),
            this, &QgsMeshStrokeWidthVaryingWidget::widgetChanged );
@@ -42,6 +46,15 @@ QgsMeshStrokeWidthVaryingWidget::QgsMeshStrokeWidthVaryingWidget( const QgsMeshS
            this, &QgsMeshStrokeWidthVaryingWidget::widgetChanged );
   connect( mIgnoreOutOfRangecheckBox, &QCheckBox::toggled,
            this, &QgsMeshStrokeWidthVaryingWidget::widgetChanged );
+}
+
+void QgsMeshStrokeWidthVaryingWidget::setVaryingStrokeWidth( const QgsMeshStrokeWidth &strokeWidthVarying )
+{
+  whileBlocking( mValueMinimumSpinBox )->setValue( strokeWidthVarying.minimumValue() );
+  whileBlocking( mValueMaximumSpinBox )->setValue( strokeWidthVarying.maximumValue() );
+  whileBlocking( mWidthMinimumSpinBox )->setValue( strokeWidthVarying.minimumWidth() );
+  whileBlocking( mWidthMaximumSpinBox )->setValue( strokeWidthVarying.maximumWidth() );
+  whileBlocking( mIgnoreOutOfRangecheckBox )->setChecked( strokeWidthVarying.ignoreOutOfRange() );
 }
 
 void QgsMeshStrokeWidthVaryingButton::setDefaultMinMaxValue( double minimum, double maximum )
@@ -60,6 +73,13 @@ QgsMeshStrokeWidth QgsMeshStrokeWidthVaryingWidget::varyingStrokeWidth() const
   strokeWidth.setIgnoreOutOfRange( mIgnoreOutOfRangecheckBox->isChecked() );
 
   return strokeWidth;
+}
+
+void QgsMeshStrokeWidthVaryingWidget::defaultMinMax()
+{
+  whileBlocking( mValueMinimumSpinBox )->setValue( mDefaultMinimumValue );
+  whileBlocking( mValueMaximumSpinBox )->setValue( mDefaultMaximumValue );
+  emit widgetChanged();
 }
 
 QgsMeshStrokeWidthVaryingButton::QgsMeshStrokeWidthVaryingButton( QWidget *parent ): QPushButton( parent )
@@ -82,13 +102,17 @@ void QgsMeshStrokeWidthVaryingButton::setStrokeWidthVarying( const QgsMeshStroke
 void QgsMeshStrokeWidthVaryingButton::openWidget()
 {
   QgsPanelWidget *panel = QgsPanelWidget::findParentPanel( this );
-  QgsMeshStrokeWidthVaryingWidget *widget = new QgsMeshStrokeWidthVaryingWidget( mStrokeWidthVarying, panel );
+  QgsMeshStrokeWidthVaryingWidget *widget =
+    new QgsMeshStrokeWidthVaryingWidget( mStrokeWidthVarying,
+                                         mMinimumDefaultValue,
+                                         mMaximumDefaultValue,
+                                         panel );
 
   if ( panel && panel->dockMode() )
   {
     connect( widget, &QgsMeshStrokeWidthVaryingWidget::widgetChanged, this, [this, widget]
     {
-      //update strokeWidth
+      //update strokeWidth toward button
       this->setStrokeWidthVarying( widget->varyingStrokeWidth() );
       this->emit widgetChanged();
     } );
@@ -123,6 +147,6 @@ void QgsMeshStrokeWidthVaryingButton::openWidget()
 void QgsMeshStrokeWidthVaryingButton::updateText()
 {
   setText( QString( "%1 - %2" ).
-           arg( QString::number( mStrokeWidthVarying.minimumWidth(), 'f', 1 ) ).
-           arg( QString::number( mStrokeWidthVarying.maximumWidth(), 'f', 1 ) ) );
+           arg( QString::number( mStrokeWidthVarying.minimumWidth(), 'g', 3 ) ).
+           arg( QString::number( mStrokeWidthVarying.maximumWidth(), 'g', 3 ) ) );
 }

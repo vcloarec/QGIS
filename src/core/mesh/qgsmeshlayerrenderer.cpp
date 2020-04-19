@@ -465,9 +465,9 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
   pen.setCapStyle( Qt::PenCapStyle::RoundCap );
   pen.setJoinStyle( Qt::MiterJoin );
 
-  double lineWidth = scalarSettings.edgeWidth();
+  double lineWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( 5 );
   double penWidth = context.convertToPainterUnits( lineWidth,
-                    scalarSettings.edgeWidthUnit() );
+                    scalarSettings.edgeStrokePen().strokeWidthUnit() );
   pen.setWidthF( penWidth );
   painter->setPen( pen );
 
@@ -504,11 +504,8 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
     {
       QColor edgeColor = colorAt( shader.get(),  mScalarDatasetValues[i] );
       pen.setColor( edgeColor );
+      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( mScalarDatasetValues[i] );
 
-      if ( scalarSettings.isEdgeVaryingWidth() )
-      {
-        penWidth = scaleEdgeWidth( mScalarDatasetValues[i], scalarSettings );
-      }
       pen.setWidthF( penWidth );
       painter->setPen( pen );
       painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
@@ -521,10 +518,8 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
         continue;
       double valDiff = ( valVertexEnd - valVertexStart );
 
-      if ( scalarSettings.isEdgeVaryingWidth() )
-      {
-        penWidth = scaleEdgeWidth( ( valVertexStart + valVertexEnd ) / 2, scalarSettings );
-      }
+      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( ( valVertexStart + valVertexEnd ) / 2 );
+
       pen.setWidthF( penWidth );
 
       if ( qgsDoubleNear( valDiff, 0.0 ) )
@@ -626,19 +621,6 @@ QColor QgsMeshLayerRenderer::colorAt( QgsColorRampShader *shader, double val ) c
     return QColor( r, g, b, a );
   }
   return QColor();
-}
-
-double QgsMeshLayerRenderer::scaleEdgeWidth( double scalarValue, const QgsMeshRendererScalarSettings &scalarSettings )
-{
-  double width = scalarSettings.edgeWidth() + ( scalarSettings.edgeWidth() - scalarSettings.edgeWidth() ) *
-                 ( scalarValue - scalarSettings.classificationMinimum() ) /
-                 ( scalarSettings.classificationMaximum() - scalarSettings.classificationMinimum() );
-  if ( width < scalarSettings.edgeWidth() )
-    width = scalarSettings.edgeWidth();
-  if ( width > scalarSettings.edgeWidth() )
-    width = scalarSettings.edgeWidth();
-
-  return renderContext()->convertToPainterUnits( width, scalarSettings.edgeWidthUnit() );
 }
 
 QgsPointXY QgsMeshLayerRenderer::fractionPoint( const QgsPointXY &p1, const QgsPointXY &p2, double fraction ) const

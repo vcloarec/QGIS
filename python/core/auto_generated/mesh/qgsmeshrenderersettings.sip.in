@@ -161,33 +161,8 @@ Writes configuration to a new DOM element
 Reads configuration from the given DOM element
 %End
 
-    double edgeWidth() const;
-%Docstring
-Returns width of the edge
-
-.. versionadded:: 3.14
-%End
-
-    void setEdgeWidth( double edgeWidth );
-%Docstring
-Sets width of the edge
-
-.. versionadded:: 3.14
-%End
-
-    QgsUnitTypes::RenderUnit edgeWidthUnit() const;
-%Docstring
-Returns length units of the width of the edge
-
-.. versionadded:: 3.14
-%End
-
-    void setEdgeWidthUnit( const QgsUnitTypes::RenderUnit &edgeWidthUnit );
-%Docstring
-Sets length units of the width of the edge
-
-.. versionadded:: 3.14
-%End
+    QgsMeshStrokePen edgeStrokePen() const;
+    void setEdgeStrokePen( const QgsMeshStrokePen &edgeStrokePen );
 
 };
 
@@ -449,15 +424,6 @@ Represents a renderer settings for vector datasets
       Traces
     };
 
-    enum ColoringMethod
-    {
-      //! Render the vector with a single color
-      SingleColor,
-      //! Render the vector with a color ramp
-      ColorRamp
-    };
-
-
     double lineWidth() const;
 %Docstring
 Returns line width of the arrow (in millimeters)
@@ -545,14 +511,14 @@ Sets the displaying method used to render vector datasets
 .. versionadded:: 3.12
 %End
 
-    ColoringMethod coloringMethod() const;
+    QgsMeshStrokeColor::ColoringMethod coloringMethod() const;
 %Docstring
 Returns the coloring method used to render vector datasets
 
 .. versionadded:: 3.14
 %End
 
-    void setColoringMethod( const ColoringMethod &coloringMethod );
+    void setColoringMethod( const QgsMeshStrokeColor::ColoringMethod &coloringMethod );
 %Docstring
 Sets the coloring method used to render vector datasets
 
@@ -569,6 +535,13 @@ Sets the color ramp shader used to render vector datasets
     void setColorRampShader( const QgsColorRampShader &colorRampShader );
 %Docstring
 Returns the color ramp shader used to render vector datasets
+
+.. versionadded:: 3.14
+%End
+
+    QgsMeshStrokeColor vectorStrokeColoring() const;
+%Docstring
+Returns the stroke coloring used to render vector datasets
 
 .. versionadded:: 3.14
 %End

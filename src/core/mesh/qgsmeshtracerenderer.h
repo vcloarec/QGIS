@@ -179,7 +179,7 @@ class QgsMeshStreamField
                         double magnitudeMaximum,
                         bool dataIsOnVertices,
                         const QgsRenderContext &rendererContext,
-                        const QgsMeshStrokeColoring &vectorColoring,
+                        const QgsMeshStrokeColor &vectorColoring,
                         int resolution = 1 );
 
     //! Copy constructor
@@ -288,7 +288,7 @@ class QgsMeshStreamField
     QImage mTraceImage;
 
     QgsMapToPixel mMapToFieldPixel;
-    QgsMeshStrokeColoring mVectorColoring;
+    QgsMeshStrokeColor mVectorColoring;
 
   private:
     int mPixelFillingCount = 0;
@@ -325,7 +325,7 @@ class QgsMeshStreamlinesField: public QgsMeshStreamField
                              double magMax,
                              bool dataIsOnVertices,
                              QgsRenderContext &rendererContext,
-                             const QgsMeshStrokeColoring vectorColoring );
+                             const QgsMeshStrokeColor vectorColoring );
 
     //! Copy constructor
     QgsMeshStreamlinesField( const QgsMeshStreamlinesField &other );
@@ -380,7 +380,7 @@ class QgsMeshParticleTracesField: public QgsMeshStreamField
                                 double magMax,
                                 bool dataIsOnVertices,
                                 const QgsRenderContext &rendererContext,
-                                const QgsMeshStrokeColoring vectorColoring );
+                                const QgsMeshStrokeColor vectorColoring );
 
     //! Copy constructor
     QgsMeshParticleTracesField( const QgsMeshParticleTracesField &other );

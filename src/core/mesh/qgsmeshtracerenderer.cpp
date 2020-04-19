@@ -196,7 +196,7 @@ QgsMeshStreamField::QgsMeshStreamField(
   const QgsRectangle &layerExtent,
   double magnitudeMaximum, bool dataIsOnVertices,
   const QgsRenderContext &rendererContext,
-  const QgsMeshStrokeColoring &vectorColoring,
+  const QgsMeshStrokeColor &vectorColoring,
   int resolution ):
   mFieldResolution( resolution ),
   mVectorColoring( vectorColoring ),
@@ -647,7 +647,7 @@ QgsMeshStreamlinesField::QgsMeshStreamlinesField( const QgsTriangularMesh &trian
     double magMax,
     bool dataIsOnVertices,
     QgsRenderContext &rendererContext,
-    const QgsMeshStrokeColoring vectorColoring ):
+    const QgsMeshStrokeColor vectorColoring ):
   QgsMeshStreamField( triangularMesh,
                       datasetVectorValues,
                       scalarActiveFaceFlagValues,
@@ -939,7 +939,7 @@ QgsMeshParticleTracesField::QgsMeshParticleTracesField( const QgsTriangularMesh 
     double magMax,
     bool dataIsOnVertices,
     const QgsRenderContext &rendererContext,
-    const QgsMeshStrokeColoring vectorColoring ):
+    const QgsMeshStrokeColor vectorColoring ):
   QgsMeshStreamField( triangularMesh,
                       datasetVectorValues,
                       scalarActiveFaceFlagValues,
