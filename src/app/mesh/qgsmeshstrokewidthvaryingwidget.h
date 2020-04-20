@@ -63,6 +63,8 @@ class QgsMeshStrokeWidthVaryingWidget: public QgsPanelWidget, public Ui::QgsMesh
   private:
     double mDefaultMinimumValue = 0;
     double mDefaultMaximumValue = 0;
+
+    double lineEditValue( const QLineEdit *lineEdit ) const;
 };
 
 #endif // QGSMESHSTROKEWIDTHVARYINGWIDGET_H

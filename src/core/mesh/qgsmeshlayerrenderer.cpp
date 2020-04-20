@@ -456,29 +456,32 @@ void QgsMeshLayerRenderer::renderScalarDataset()
 void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScalarSettings &scalarSettings )
 {
   QgsRenderContext &context = *renderContext();
-  QPainter *painter = context.painter();
-  painter->save();
-  if ( context.flags() & QgsRenderContext::Antialiasing )
-    painter->setRenderHint( QPainter::Antialiasing, true );
+  //QPainter *painter = context.painter();
+  //painter->save();
+//  if ( context.flags() & QgsRenderContext::Antialiasing )
+//    painter->setRenderHint( QPainter::Antialiasing, true );
 
-  QPen pen = painter->pen();
-  pen.setCapStyle( Qt::PenCapStyle::RoundCap );
-  pen.setJoinStyle( Qt::MiterJoin );
+//  QPen pen = painter->pen();
+//  pen.setCapStyle( Qt::PenCapStyle::RoundCap );
+//  pen.setJoinStyle( Qt::MiterJoin );
 
-  double lineWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( 5 );
-  double penWidth = context.convertToPainterUnits( lineWidth,
-                    scalarSettings.edgeStrokePen().strokeWidthUnit() );
-  pen.setWidthF( penWidth );
-  painter->setPen( pen );
+//  double lineWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( 5 );
+//  double penWidth = context.convertToPainterUnits( lineWidth,
+//                    scalarSettings.edgeStrokePen().strokeWidthUnit() );
+//  pen.setWidthF( penWidth );
+//  painter->setPen( pen );
 
   const QVector<QgsMeshEdge> edges = mTriangularMesh.edges();
   const QVector<QgsMeshVertex> vertices = mTriangularMesh.vertices();
   const QList<int> egdesInExtent = mTriangularMesh.edgeIndexesForRectangle( context.mapExtent() );
   const QSet<int> nativeEdgesInExtent = QgsMeshUtils::nativeEdgesFromEdges( egdesInExtent,
                                         mTriangularMesh.edgesToNativeEdges() );
-  std::unique_ptr<QgsColorRampShader> shader( new QgsColorRampShader( scalarSettings.colorRampShader() ) );
-  QList<QgsColorRampShader::ColorRampItem> colorRampItemList = shader->colorRampItemList();
-  const QgsColorRampShader::Type classificationType = shader->colorRampType();
+
+//  std::unique_ptr<QgsColorRampShader> shader( new QgsColorRampShader( scalarSettings.colorRampShader() ) );
+//  QList<QgsColorRampShader::ColorRampItem> colorRampItemList = shader->colorRampItemList();
+//  const QgsColorRampShader::Type classificationType = shader->colorRampType();
+
+  const QgsMeshStrokePen &strokePen = scalarSettings.edgeStrokePen();
 
   for ( const int i : egdesInExtent )
   {
@@ -497,120 +500,124 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnEdges( const QgsMeshRendererScal
 
     const QgsMeshVertex &startVertex = vertices[startVertexIndex];
     const QgsMeshVertex &endVertex = vertices[endVertexIndex];
-    const QgsPointXY lineStart = context.mapToPixel().transform( startVertex.x(), startVertex.y() );
-    const QgsPointXY lineEnd = context.mapToPixel().transform( endVertex.x(), endVertex.y() );
+
+
+//    const QgsPointXY lineStart = context.mapToPixel().transform( startVertex.x(), startVertex.y() );
+//    const QgsPointXY lineEnd = context.mapToPixel().transform( endVertex.x(), endVertex.y() );
 
     if ( mScalarDataType == QgsMeshDatasetGroupMetadata::DataType::DataOnEdges )
     {
-      QColor edgeColor = colorAt( shader.get(),  mScalarDatasetValues[i] );
-      pen.setColor( edgeColor );
-      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( mScalarDatasetValues[i] );
+      strokePen.drawLine( mScalarDatasetValues[i], mScalarDatasetValues[i], startVertex, endVertex, context );
+//      QColor edgeColor = colorAt( shader.get(),  mScalarDatasetValues[i] );
+//      pen.setColor( edgeColor );
+//      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( mScalarDatasetValues[i] );
 
-      pen.setWidthF( penWidth );
-      painter->setPen( pen );
-      painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
+//      pen.setWidthF( penWidth );
+//      painter->setPen( pen );
+//      painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
     }
     else
     {
-      double valVertexStart = mScalarDatasetValues[startVertexIndex];
-      double valVertexEnd = mScalarDatasetValues[endVertexIndex];
-      if ( std::isnan( valVertexStart ) || std::isnan( valVertexEnd ) )
-        continue;
-      double valDiff = ( valVertexEnd - valVertexStart );
+      strokePen.drawLine( mScalarDatasetValues[startVertexIndex], mScalarDatasetValues[endVertexIndex], startVertex, endVertex, context );
+//      double valVertexStart = mScalarDatasetValues[startVertexIndex];
+//      double valVertexEnd = mScalarDatasetValues[endVertexIndex];
+//      if ( std::isnan( valVertexStart ) || std::isnan( valVertexEnd ) )
+//        continue;
+//      double valDiff = ( valVertexEnd - valVertexStart );
 
-      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( ( valVertexStart + valVertexEnd ) / 2 );
+//      penWidth = scalarSettings.edgeStrokePen().strokeWidth().strokeWidth( ( valVertexStart + valVertexEnd ) / 2 );
 
-      pen.setWidthF( penWidth );
+//      pen.setWidthF( penWidth );
 
-      if ( qgsDoubleNear( valDiff, 0.0 ) )
-      {
-        QColor edgeColor = colorAt( shader.get(),  valVertexStart );
-        pen.setColor( edgeColor );
-        painter->setPen( pen );
-        painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
-      }
-      else
-      {
-        if ( classificationType == QgsColorRampShader::Type::Exact )
-        {
-          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
-          for ( int i = 0; i < colorRampItemList.size(); ++i )
-          {
-            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
-            if ( !std::isnan( item.value ) )
-            {
-              double fraction = ( item.value - valVertexStart ) / valDiff;
-              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
-              {
-                QgsPointXY point = fractionPoint( lineStart, lineEnd, fraction );
-                pen.setColor( item.color );
-                painter->setPen( pen );
-                painter->drawPoint( point.toQPointF() );
-              }
-            }
-          }
-        }
-        else if ( classificationType == QgsColorRampShader::Type::Discrete )
-        {
-          QgsPointXY startPoint = lineStart;
-          QColor color = colorAt( shader.get(), valVertexStart );
-          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
-          for ( int i = 0; i < colorRampItemList.size() - 1; ++i )
-          {
-            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
-            if ( !std::isnan( item.value ) )
-            {
-              double fraction = ( item.value - valVertexStart ) / valDiff;
-              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
-              {
-                QgsPointXY endPoint = fractionPoint( lineStart, lineEnd, fraction );
-                pen.setColor( color );
-                painter->setPen( pen );
-                painter->drawLine( startPoint.toQPointF(), endPoint.toQPointF() );
-                color = item.color;
-                startPoint = endPoint;
-              }
-            }
-          }
-          pen.setColor( colorAt( shader.get(), valVertexEnd ) );
-          painter->setPen( pen );
-          painter->drawLine( startPoint.toQPointF(), lineEnd.toQPointF() );
-        }
-        else if ( classificationType == QgsColorRampShader::Type::Interpolated )
-        {
-          QLinearGradient gradient( lineStart.toQPointF(), lineEnd.toQPointF() );
-          gradient.setColorAt( 0.0, colorAt( shader.get(), valVertexStart ) );
-          gradient.setColorAt( 1.0, colorAt( shader.get(), valVertexEnd ) );
-          gradient.setSpread( gradient.ReflectSpread );
+//      if ( qgsDoubleNear( valDiff, 0.0 ) )
+//      {
+//        QColor edgeColor = colorAt( shader.get(),  valVertexStart );
+//        pen.setColor( edgeColor );
+//        painter->setPen( pen );
+//        painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
+//      }
+//      else
+//      {
+//        if ( classificationType == QgsColorRampShader::Type::Exact )
+//        {
+//          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
+//          for ( int i = 0; i < colorRampItemList.size(); ++i )
+//          {
+//            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
+//            if ( !std::isnan( item.value ) )
+//            {
+//              double fraction = ( item.value - valVertexStart ) / valDiff;
+//              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
+//              {
+//                QgsPointXY point = fractionPoint( lineStart, lineEnd, fraction );
+//                pen.setColor( item.color );
+//                painter->setPen( pen );
+//                painter->drawPoint( point.toQPointF() );
+//              }
+//            }
+//          }
+//        }
+//        else if ( classificationType == QgsColorRampShader::Type::Discrete )
+//        {
+//          QgsPointXY startPoint = lineStart;
+//          QColor color = colorAt( shader.get(), valVertexStart );
+//          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
+//          for ( int i = 0; i < colorRampItemList.size() - 1; ++i )
+//          {
+//            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
+//            if ( !std::isnan( item.value ) )
+//            {
+//              double fraction = ( item.value - valVertexStart ) / valDiff;
+//              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
+//              {
+//                QgsPointXY endPoint = fractionPoint( lineStart, lineEnd, fraction );
+//                pen.setColor( color );
+//                painter->setPen( pen );
+//                painter->drawLine( startPoint.toQPointF(), endPoint.toQPointF() );
+//                color = item.color;
+//                startPoint = endPoint;
+//              }
+//            }
+//          }
+//          pen.setColor( colorAt( shader.get(), valVertexEnd ) );
+//          painter->setPen( pen );
+//          painter->drawLine( startPoint.toQPointF(), lineEnd.toQPointF() );
+//        }
+//        else if ( classificationType == QgsColorRampShader::Type::Interpolated )
+//        {
+//          QLinearGradient gradient( lineStart.toQPointF(), lineEnd.toQPointF() );
+//          gradient.setColorAt( 0.0, colorAt( shader.get(), valVertexStart ) );
+//          gradient.setColorAt( 1.0, colorAt( shader.get(), valVertexEnd ) );
+//          gradient.setSpread( gradient.ReflectSpread );
 
-          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
+//          Q_ASSERT( ! qgsDoubleNear( valDiff, 0.0 ) );
 
-          for ( int i = 0; i < colorRampItemList.size(); ++i )
-          {
-            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
-            if ( !std::isnan( item.value ) )
-            {
-              double fraction = ( item.value - valVertexStart ) / valDiff;
-              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
-              {
-                gradient.setColorAt( fraction, colorAt( shader.get(), item.value ) );
-              }
-            }
-            QBrush brush( gradient );
-            pen.setBrush( brush );
-            painter->setPen( pen );
-            painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
-          }
-        }
-        else
-        {
-          // no other option possible
-          Q_ASSERT( false );
-        }
-      }
+//          for ( int i = 0; i < colorRampItemList.size(); ++i )
+//          {
+//            const QgsColorRampShader::ColorRampItem &item = colorRampItemList.at( i );
+//            if ( !std::isnan( item.value ) )
+//            {
+//              double fraction = ( item.value - valVertexStart ) / valDiff;
+//              if ( ( fraction > 0.0 ) && ( fraction < 1.0 ) )
+//              {
+//                gradient.setColorAt( fraction, colorAt( shader.get(), item.value ) );
+//              }
+//            }
+//            QBrush brush( gradient );
+//            pen.setBrush( brush );
+//            painter->setPen( pen );
+//            painter->drawLine( lineStart.toQPointF(), lineEnd.toQPointF() );
+//          }
+//        }
+//        else
+//        {
+//          // no other option possible
+//          Q_ASSERT( false );
+//        }
+//      }
     }
   }
-  painter->restore();
+  //painter->restore();
 }
 
 QColor QgsMeshLayerRenderer::colorAt( QgsColorRampShader *shader, double val ) const

@@ -22,8 +22,9 @@
 
 #include "qgis.h"
 #include "qgscolorrampshader.h"
-#include "qgsunittypes.h"
 #include "qgsreadwritecontext.h"
+#include "qgsrendercontext.h"
+#include "qgsunittypes.h"
 
 /**
  * \ingroup core
@@ -76,11 +77,22 @@ class CORE_EXPORT QgsMeshStrokeColor
     //! Reads configuration from the given DOM element
     void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
 
+    /**
+     *  Returns the break values, graduated colors and the associated gradient between two values
+     *  If the color is fixed, returns only one interval (value1, value2) for  \a breakVlaues, \a breakColors (singlecolor,singleColor)
+     * and a gradient with single color (uniform with the single color)
+     *  If the color ramp is classified with 'exact', returns void \a gradrients
+     *  If the color ramp is classified with 'discrete', return \a gradients with uniform colors
+     */
+    void graduatedColors( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients );
+
   private:
     QgsColorRampShader mColorRampShader;
     QColor mSingleColor = Qt::black;
 
     QgsMeshStrokeColor::ColoringMethod mColoringMethod = SingleColor;
+
+    QLinearGradient makeSimpleLinearGradient( const QColor &color1, const QColor &color2, bool invert ) const;
 };
 
 class CORE_EXPORT QgsMeshStrokeWidth
@@ -140,8 +152,9 @@ class CORE_EXPORT QgsMeshStrokeWidth
     double mMaximumWidth = 10;
     bool mIgnoreOutOfRange = false;
 
-    double mLinearCoef = 1;
-    void updateLinearFormula();
+    mutable double mLinearCoef = 1;
+    mutable bool mNeedUpdateFormula = true;
+    void updateLinearFormula() const;
 };
 
 class CORE_EXPORT QgsMeshStrokePen
@@ -161,10 +174,14 @@ class CORE_EXPORT QgsMeshStrokePen
     //! Reads configuration from the given DOM element
     void readXml( const QDomElement &elem, const QgsReadWriteContext &context );
 
+    void drawLine( double value1, double value2, QgsPointXY point1, QgsPointXY point2, QgsRenderContext &context ) const;
+
   private:
     QgsMeshStrokeWidth mStrokeWidth;
     QgsMeshStrokeColor mStrokeColoring;
     QgsUnitTypes::RenderUnit mStrokeWidthUnit = QgsUnitTypes::RenderMillimeters;
+
+    QPolygonF varyingWidthLine( double value1, double value2, QPointF point1, QPointF point2, QgsRenderContext &context ) const;
 };
 
 #endif // QGSMESHSTROKEPEN_H
