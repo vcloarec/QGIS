@@ -647,7 +647,6 @@ void QgsMeshStrokeColor::graduatedColorsDiscret( double value1, double value2, Q
     breakColors.append( color );
     breakColors.append( color );
     gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-
   }
   else // first value in the range
   {
@@ -666,7 +665,7 @@ void QgsMeshStrokeColor::graduatedColorsDiscret( double value1, double value2, Q
       breakValues.append( itemList.at( i + 1 ).value );
       breakColors.append( firstColor );
       breakColors.append( secondColor );
-      gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
+      gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
 
       ++i;
     }
@@ -678,7 +677,7 @@ void QgsMeshStrokeColor::graduatedColorsDiscret( double value1, double value2, Q
     QColor secondColor = itemList.at( i + 1 ).color;
     breakValues.append( itemList.at( i + 1 ).value );
     breakColors.append( secondColor );
-    gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
+    gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
 
     ++i;
   }

@@ -79,10 +79,10 @@ class CORE_EXPORT QgsMeshStrokeColor
 
     /**
      *  Returns the break values, graduated colors and the associated gradient between two values
-     *  If the color is fixed, returns only one interval (value1, value2) for  \a breakVlaues, \a breakColors (singlecolor,singleColor)
-     * and a gradient with single color (uniform with the single color)
-     *  If the color ramp is classified with 'exact', returns void \a gradrients
-     *  If the color ramp is classified with 'discrete', return \a gradients with uniform colors
+     *  - If the color is fixed, returns only one interval (value1, value2) for  \a breakVlaues, \a breakColors (singlecolor,singleColor)
+     *  and a gradient with single color (uniform with the single color)
+     *  - If the color ramp is classified with 'exact', returns void \a gradrients
+     *  - If the color ramp is classified with 'discrete', return \a gradients with uniform colors
      */
     void graduatedColors( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients );
 
@@ -93,6 +93,10 @@ class CORE_EXPORT QgsMeshStrokeColor
     QgsMeshStrokeColor::ColoringMethod mColoringMethod = SingleColor;
 
     QLinearGradient makeSimpleLinearGradient( const QColor &color1, const QColor &color2, bool invert ) const;
+
+    void graduatedColorsExact( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert ) const;
+    void graduatedColorsInterpolated(double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert) const;
+    void graduatedColorsDiscret(double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert) const;
 };
 
 class CORE_EXPORT QgsMeshStrokeWidth
