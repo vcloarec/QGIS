@@ -84,7 +84,6 @@ void QgsMeshStrokePen::drawLine( double value1, double value2, QgsPointXY point1
   if ( context.flags() & QgsRenderContext::Antialiasing )
     painter->setRenderHint( QPainter::Antialiasing, true );
   QPen pen;
-  pen.setStyle( Qt::NoPen );
   painter->setPen( pen );
   QBrush brush;
   brush.setStyle( Qt::SolidPattern );
@@ -94,38 +93,100 @@ void QgsMeshStrokePen::drawLine( double value1, double value2, QgsPointXY point1
   QPointF p1 = mapToPixel.transform( point1 ).toQPointF();
   QPointF p2 = mapToPixel.transform( point2 ).toQPointF();
   QPointF dir = p2 - p1;
-  QPointF diru = dir / sqrt( pow( dir.x(), 2 ) + pow( dir.y(), 2 ) );
+  double lenght = sqrt( pow( dir.x(), 2 ) + pow( dir.y(), 2 ) );
+  QPointF diru = dir / lenght;
   QPointF orthu = QPointF( -diru.y(), diru.x() );
-  double width1 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( value1 ), mStrokeWidthUnit );
-  double width2 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( value2 ), mStrokeWidthUnit ) ;
 
-  //Draw pen cap
+  QList<double> breakValues;
+  QList<QColor> breakColors;
+  QList<QLinearGradient> gradients;
 
-  QRectF capBox1( p1.x() - width1 / 2, p1.y() - width1 / 2, width1, width1 );
-  QRectF capBox2( p2.x() - width2 / 2, p2.y() - width2 / 2, width2, width2 );
-  int startAngle;
-  startAngle = ( acos( -orthu.x() ) / M_PI ) * 180;
-  if ( orthu.y() < 0 )
-    startAngle = 360 - startAngle;
+  mStrokeColoring.graduatedColors( value1, value2, breakValues, breakColors, gradients );
 
-  brush.setColor( mStrokeColoring.color( value1 ) );
-  painter->setBrush( brush );
-  painter->drawPie( capBox1, ( startAngle - 1 ) * 16, 182 * 16 );
-  brush.setColor( mStrokeColoring.color( value2 ) );
-  painter->setBrush( brush );
-  painter->drawPie( capBox2, ( startAngle + 179 ) * 16, 182 * 16 );
+  if ( gradients.isEmpty() && !breakValues.empty() && !breakColors.isEmpty() ) //exact colors to render
+  {
+    Q_ASSERT( breakColors.count() == breakValues.count() );
+    for ( int i = 0; i < breakValues.count(); ++i )
+    {
+      double value = breakValues.at( i );
+      double width = context.convertToPainterUnits( mStrokeWidth.strokeWidth( value ), mStrokeWidthUnit );
+      pen.setWidthF( width );
+      pen.setColor( breakColors.at( i ) );
+      pen.setCapStyle( Qt::PenCapStyle::RoundCap );
+      painter->setPen( pen );
+      QPointF point = p1 + dir * ( value - value1 ) / ( value2 - value1 );
+      painter->drawPoint( point );
+    }
+  }
+  else
+  {
+    if ( gradients.isEmpty() && breakValues.empty() && breakColors.count() == 1 ) //only one color to render
+    {
+      double width1 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( value1 ), mStrokeWidthUnit );
+      double width2 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( value2 ), mStrokeWidthUnit ) ;
+      QPolygonF varLine;
+      double semiWidth1 = width1 / 2;
+      double semiWidth2 = width2 / 2;
 
-  QPolygonF varLine;
+      varLine.append( p1 + orthu * semiWidth1 );
+      varLine.append( p2 + orthu * semiWidth2 );
+      varLine.append( p2 - orthu * semiWidth2 );
+      varLine.append( p1 - orthu * semiWidth1 );
 
-  double semiWidth1 = width1 / 2;
-  double semiWidth2 = width2 / 2;
+      painter->drawPolygon( varLine );
+    }
+    else
+    {
+      Q_ASSERT( breakColors.count() == breakValues.count() );
+      Q_ASSERT( breakColors.count() == gradients.count() + 1 );
+      for ( int i = 0; i < gradients.count(); ++i )
+      {
+        double firstValue = breakValues.at( i );
+        double secondValue = breakValues.at( i + 1 );
+        double width1 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( firstValue ), mStrokeWidthUnit );
+        double width2 = context.convertToPainterUnits( mStrokeWidth.strokeWidth( secondValue ), mStrokeWidthUnit ) ;
 
-  varLine.append( p1 + orthu * semiWidth1 );
-  varLine.append( p2 + orthu * semiWidth2 );
-  varLine.append( p2 - orthu * semiWidth2 );
-  varLine.append( p1 - orthu * semiWidth1 );
+        QPointF pointStart = p1 + dir * ( firstValue - value1 ) / ( value2 - value1 );
+        QPointF pointEnd = p1 + dir * ( secondValue - value1 ) / ( value2 - value1 );
 
-  painter->drawPolygon( varLine );
+        QPolygonF varLine;
+        double semiWidth1 = width1 / 2;
+        double semiWidth2 = width2 / 2;
+
+        QLinearGradient gradient = gradients.at( i );
+        gradient.setStart( pointStart );
+        gradient.setFinalStop( pointEnd );
+        QBrush brush( gradient );
+        painter->setBrush( brush );
+
+        varLine.append( pointStart + orthu * semiWidth1 );
+        varLine.append( pointEnd + orthu * semiWidth2 );
+        varLine.append( pointEnd - orthu * semiWidth2 );
+        varLine.append( pointStart - orthu * semiWidth1 );
+
+        painter->drawPolygon( varLine );
+      }
+
+    }
+//    //Draw pen cap
+//
+//    QRectF capBox1( p1.x() - width1 / 2, p1.y() - width1 / 2, width1, width1 );
+//    QRectF capBox2( p2.x() - width2 / 2, p2.y() - width2 / 2, width2, width2 );
+//    int startAngle;
+//    startAngle = ( acos( -orthu.x() ) / M_PI ) * 180;
+//    if ( orthu.y() < 0 )
+//      startAngle = 360 - startAngle;
+
+//    brush.setColor( mStrokeColoring.color( value1 ) );
+//    painter->setBrush( brush );
+//    painter->drawPie( capBox1, ( startAngle - 1 ) * 16, 182 * 16 );
+//    brush.setColor( mStrokeColoring.color( value2 ) );
+//    painter->setBrush( brush );
+//    painter->drawPie( capBox2, ( startAngle + 179 ) * 16, 182 * 16 );
+
+
+  }
+
 
   painter->restore();
 }
@@ -352,17 +413,16 @@ void QgsMeshStrokeColor::readXml( const QDomElement &elem, const QgsReadWriteCon
                       elem.attribute( QStringLiteral( "coloring-method" ) ).toInt() );
 }
 
-void QgsMeshStrokeColor::graduatedColors( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients )
+void QgsMeshStrokeColor::graduatedColors( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients ) const
 {
   breakValues.clear();
   breakColors.clear();
   gradients.clear();
   if ( mColoringMethod == SingleColor )
   {
-    breakColors.append( mSingleColor );
     breakValues.append( value1 );
-    breakValues.append( value2 );
     breakColors.append( mSingleColor );
+    breakValues.append( value2 );
     breakColors.append( mSingleColor );
     gradients.append( makeSimpleLinearGradient( mSingleColor, mSingleColor, false ) );
     return;
@@ -377,90 +437,10 @@ void QgsMeshStrokeColor::graduatedColors( double value1, double value2, QList<do
     secondValue = value1;
   }
 
-//  const QList<QgsColorRampShader::ColorRampItem> &itemList = mColorRampShader.colorRampItemList();
-//  if ( itemList.isEmpty() )
-//    return;
-
-//  if ( ( firstvalue > itemList.last().value ) //out of range with greater value
-//       && ( ( mColorRampShader.colorRampType() == QgsColorRampShader::Interpolated && !mColorRampShader.clip() ) ||
-//            mColorRampShader.colorRampType() == QgsColorRampShader::Discrete ) )
-//  {
-//    QColor color = itemList.last().color;
-//    breakValues.append( firstvalue );
-//    breakValues.append( secondValue );
-//    breakColors.append( color );
-//    breakColors.append( color );
-//    gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-//  }
-
-//  if ( ( secondValue < itemList.first().value ) //out of range with lesser value
-//       && ( ( mColorRampShader.colorRampType() == QgsColorRampShader::Interpolated && !mColorRampShader.clip() ) ||
-//            mColorRampShader.colorRampType() == QgsColorRampShader::Discrete ) )
-//  {
-//    QColor color = itemList.first().color;
-//    breakValues.append( firstvalue );
-//    breakValues.append( secondValue );
-//    breakColors.append( color );
-//    breakColors.append( color );
-//    gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-//  }
-
-//  int i = 0;
-//  //If the first value is out of range (lesser) and Interpolated(not ignore out of range) or Discrete
-//  if ( firstvalue < itemList.first().value )
-
-//    if ( ( !mColorRampShader.clip() && //if render out of range
-//           mColorRampShader.colorRampType() == QgsColorRampShader::Interpolated ) ||
-//         mColorRampShader.colorRampType() == QgsColorRampShader::Discrete )
-//    {
-//      //add the first value out of range
-//      breakValues.append( firstvalue );
-//      const QColor firstColor = itemList.first().color;
-//      breakColors.append( firstColor );
-//      gradients.append( makeSimpleLinearGradient( firstColor, firstColor, invert ) );
-//    }
-//  {
-//      //search the fist interval
-//      while ( ( i < itemList.count() ) && ( firstvalue < itemList.at( i ).value ) )
-//        i++;
-
-//      //add the first value int the range
-//      if ( mColorRampShader.colorRampType() != QgsColorRampShader::Exact )
-//      {
-//        if ( i < itemList.count() )
-//        {
-//          int r, g, b, a;
-//          QColor firstColor;
-//          if ( mColorRampShader.shade( firstvalue, &r, &g, &b, &a ) )
-//          {
-//            firstColor = QColor( r, g, b, a );
-//          }
-//          else
-//            firstColor = QColor( 0, 0, 0, 0 );
-
-
-//        }
-//      }
-//  }
-
-//  while ( i < ( itemList.count() - 1 ) && secondValue > itemList.at( i ).value )
-//  {
-//    breakValues.append( itemList.at( i ).value );
-//    const QColor &firstColor = itemList.at( i ).color;
-//    const QColor &secondColor = itemList.at( i + 1 ).color;
-//    breakValues.append( itemList.at( i ).value );
-//    breakColors.append( firstColor );
-//    if ( mColorRampShader.colorRampType() == QgsColorRampShader::Interpolated )
-//      gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
-//    if ( mColorRampShader.colorRampType() == QgsColorRampShader::Discrete ) // Gradient with uniform color
-//      gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
-//    i++;
-//  }
-
-//// If the second value is out of range
-
-
-
+  if ( mColorRampShader.colorRampType() == QgsColorRampShader::Exact )
+    graduatedColorsExact( firstvalue, secondValue, breakValues, breakColors, gradients, invert );
+  else
+    graduatedColors( firstvalue, secondValue, breakValues, breakColors, gradients, invert );
 }
 
 QLinearGradient QgsMeshStrokeColor::makeSimpleLinearGradient( const QColor &color1, const QColor &color2, bool invert = false ) const
@@ -472,237 +452,159 @@ QLinearGradient QgsMeshStrokeColor::makeSimpleLinearGradient( const QColor &colo
   return gradient;
 }
 
+int QgsMeshStrokeColor::itemColorIndexInf( double value ) const
+{
+  QList<QgsColorRampShader::ColorRampItem> itemList = mColorRampShader.colorRampItemList();
+
+  if ( itemList.isEmpty() || itemList.first().value > value )
+    return -1;
+
+  if ( mColorRampShader.colorRampType() == QgsColorRampShader::Discrete )
+    itemList.removeLast(); //remove the inf value
+
+  if ( value > itemList.last().value )
+    return itemList.count() - 1;
+
+  int indSup = itemList.count() - 1;
+  int indInf = 0;
+
+  while ( true )
+  {
+    if ( abs( indSup - indInf ) <= 1 ) //always indSup>indInf, but abs to prevent infinity loop
+      return indInf;
+
+    int newInd = ( indInf + indSup ) / 2;
+
+    if ( itemList.at( newInd ).value == std::numeric_limits<double>::quiet_NaN() )
+      return -1;
+
+    if ( itemList.at( newInd ).value <= value )
+      indInf = newInd;
+    else
+      indSup = newInd;
+  }
+}
+
 void QgsMeshStrokeColor::graduatedColorsExact( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert ) const
 {
   Q_ASSERT( mColorRampShader.colorRampType() == QgsColorRampShader::Exact );
+  Q_ASSERT( breakValues.isEmpty() );
+  Q_ASSERT( breakColors.isEmpty() );
+  Q_ASSERT( gradients.isEmpty() );
+
+  Q_UNUSED( invert );
 
   const QList<QgsColorRampShader::ColorRampItem> &itemList = mColorRampShader.colorRampItemList();
   if ( itemList.isEmpty() )
     return;
 
-  if ( value2 < itemList.first().value )
-    return;
+  int index = itemColorIndexInf( value1 );
+  if ( index < 0 || !qgsDoubleNear( value1, itemList.at( index ).value ) )
+    index++;
 
-  if ( value1 > itemList.last().value )
-    return;
-
-  for ( int i = 0; i < itemList.count(); ++i )
+  while ( index < itemList.count() && itemList.at( index ).value < value2 )
   {
-    if ( itemList.at( i ).value >= value1 && itemList.at( i ).value <= value2 )
-    {
-      breakValues.append( itemList.at( i ).value );
-      breakColors.append( itemList.at( i ).color );
-    }
+    breakValues.append( itemList.at( index ).value );
+    breakColors.append( itemList.at( index ).color );
+    index++;
   }
 }
 
-void QgsMeshStrokeColor::graduatedColorsInterpolated( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert ) const
+void QgsMeshStrokeColor::graduatedColors( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert ) const
 {
-  Q_ASSERT( mColorRampShader.colorRampType() == QgsColorRampShader::Interpolated );
+  Q_ASSERT( mColorRampShader.colorRampType() != QgsColorRampShader::Exact );
+  Q_ASSERT( breakValues.isEmpty() );
+  Q_ASSERT( breakColors.isEmpty() );
+  Q_ASSERT( gradients.isEmpty() );
 
-  const QList<QgsColorRampShader::ColorRampItem> &itemList = mColorRampShader.colorRampItemList();
-  if ( itemList.isEmpty() )
-    return;
-
-  if ( value2 < itemList.first().value ) // out of range and lesser
-  {
-    if ( !mColorRampShader.clip() )
-    {
-      QColor color = itemList.first().color;
-      breakValues.append( value1 );
-      breakValues.append( value2 );
-      breakColors.append( color );
-      breakColors.append( color );
-      gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-    }
-    return;
-  }
-
-  if ( value1 > itemList.last().value ) // out of range and lesser
-  {
-    if ( !mColorRampShader.clip() )
-    {
-      QColor color = itemList.last().color;
-      breakValues.append( value1 );
-      breakValues.append( value2 );
-      breakColors.append( color );
-      breakColors.append( color );
-      gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-    }
-    return;
-  }
-
-  int i = 0; //index of the interval in the color ramp shader
-
-  if ( value1 < itemList.first().value ) //only first value out of range
-  {
-    if ( !mColorRampShader.clip() )
-    {
-      QColor color = itemList.first().color;
-      breakValues.append( value1 );
-      breakValues.append( itemList.first().value );
-      breakColors.append( color );
-      breakColors.append( color );
-      gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-    }
-  }
-  else // first value in the range
-  {
-    //search for the fist insterval
-    while ( ( i < itemList.count() - 1 ) && value1 < itemList.at( i ).value )
-      ++i;
-
-    if ( i < itemList.count() - 1 )
-    {
-      int r, g, b, a;
-      QColor firstColor;
-      if ( mColorRampShader.shade( value1, &r, &g, &b, &a ) )
-        firstColor = QColor( r, g, b, a );
-      QColor secondColor = itemList.at( i + 1 ).color;
-      breakValues.append( value1 );
-      breakValues.append( itemList.at( i + 1 ).value );
-      breakColors.append( firstColor );
-      breakColors.append( secondColor );
-      gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
-
-      ++i;
-    }
-  }
-  // go through the item list and fill with intermediate intervals
-  while ( ( i < itemList.count() - 1 ) && itemList.at( i + 1 ).value < value2 )
-  {
-    QColor firstColor = breakColors.last();
-    QColor secondColor = itemList.at( i + 1 ).color;
-    breakValues.append( itemList.at( i + 1 ).value );
-    breakColors.append( secondColor );
-    gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
-
-    ++i;
-  }
-
-  // handle with the last value
-  if ( value2 <= itemList.last().value && itemList.count() > 1 )
-  {
-    QColor firstColor = itemList.at( itemList.count() - 2 ).color;
-    QColor secondColor;
-    int r, g, b, a;
-    if ( mColorRampShader.shade( value1, &r, &g, &b, &a ) )
-      secondColor = QColor( r, g, b, a );
-    breakValues.append( itemList.last().value );
-    breakColors.append( secondColor );
-    gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
-  }
-  else //value2 out of range
-  {
-    if ( !mColorRampShader.clip() )
-    {
-      QColor color = itemList.last().color;
-      breakValues.append( value2 );
-      breakColors.append( color );
-      gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-    }
-  }
-}
-
-void QgsMeshStrokeColor::graduatedColorsDiscret( double value1, double value2, QList<double> &breakValues, QList<QColor> &breakColors, QList<QLinearGradient> &gradients, bool invert ) const
-{
-  Q_ASSERT( mColorRampShader.colorRampType() == QgsColorRampShader::Discrete );
+  bool discrete = mColorRampShader.colorRampType() == QgsColorRampShader::Discrete;
 
   QList<QgsColorRampShader::ColorRampItem> itemList = mColorRampShader.colorRampItemList();
   if ( itemList.isEmpty() )
     return;
 
-  itemList.removeLast(); //remove the last one that is inf
+  if ( discrete )
+    itemList.removeLast(); // remove the last one that is inf
 
-
-  if ( value2 < itemList.first().value ) // out of range and lesser
+  if ( value2 <= itemList.first().value ) // completly out of range and lesser
   {
-    QColor color = itemList.first().color;
-    breakValues.append( value1 );
-    breakValues.append( value2 );
-    breakColors.append( color );
-    breakColors.append( color );
-    gradients.append( makeSimpleLinearGradient( color, color, invert ) );
+    if ( !mColorRampShader.clip() || discrete )
+      breakColors.append( itemList.first().color );
     return;
   }
 
-  if ( value1 > itemList.last().value ) // out of range and lesser
+  if ( value1 >= itemList.last().value ) // completly out of range and greater
   {
-    QColor color = itemList.last().color;
-    breakValues.append( value1 );
-    breakValues.append( value2 );
-    breakColors.append( color );
-    breakColors.append( color );
-    gradients.append( makeSimpleLinearGradient( color, color, invert ) );
+    if ( !mColorRampShader.clip() || discrete )
+      breakColors.append( itemList.last().color );
     return;
   }
 
-  int i = 0; //index of the interval in the color ramp shader
-
-  if ( value1 < itemList.first().value )
+  int index = itemColorIndexInf( value1 ); // index of the inf value of the interval in the color ramp shader
+  QColor firstColor;
+  QColor secondColor;
+  if ( index < 0 ) // value1 out of range
   {
-    QColor color = itemList.first().color;
-    breakValues.append( value1 );
-    breakValues.append( itemList.first().value );
-    breakColors.append( color );
-    breakColors.append( color );
-    gradients.append( makeSimpleLinearGradient( color, color, invert ) );
-  }
-  else // first value in the range
-  {
-    //search for the fist insterval
-    while ( ( i < itemList.count() - 1 ) && value1 < itemList.at( i ).value )
-      ++i;
-
-    if ( i < itemList.count() - 1 )
+    if ( mColorRampShader.clip() )
     {
-      int r, g, b, a;
-      QColor firstColor;
-      if ( mColorRampShader.shade( value1, &r, &g, &b, &a ) )
-        firstColor = QColor( r, g, b, a );
-      QColor secondColor = itemList.at( i + 1 ).color;
-      breakValues.append( value1 );
-      breakValues.append( itemList.at( i + 1 ).value );
-      breakColors.append( firstColor );
-      breakColors.append( secondColor );
-      gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
-
-      ++i;
+      // append only the first values to return
+      breakValues.append( itemList.first().value );
+      breakColors.append( itemList.first().color );
     }
-  }
-  // go through the item list and fill with intermediate intervals
-  while ( ( i < itemList.count() - 1 ) && itemList.at( i + 1 ).value < value2 )
-  {
-    QColor firstColor = breakColors.last();
-    QColor secondColor = itemList.at( i + 1 ).color;
-    breakValues.append( itemList.at( i + 1 ).value );
-    breakColors.append( secondColor );
-    gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
-
-    ++i;
-  }
-
-  // handle with the last value
-  if ( value2 <= itemList.last().value && itemList.count() > 1 )
-  {
-    QColor firstColor = itemList.at( itemList.count() - 2 ).color;
-    QColor secondColor;
-    int r, g, b, a;
-    if ( mColorRampShader.shade( value1, &r, &g, &b, &a ) )
-      secondColor = QColor( r, g, b, a );
-    breakValues.append( itemList.last().value );
-    breakColors.append( secondColor );
-    gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
-  }
-  else //value2 out of range
-  {
-    if ( !mColorRampShader.clip() )
+    else
     {
-      QColor color = itemList.last().color;
-      breakValues.append( value2 );
+      // construct the first interval to return
+      breakValues.append( value1 );
+      breakValues.append( itemList.first().value );
+      QColor color = itemList.first().color;
+      breakColors.append( color );
       breakColors.append( color );
       gradients.append( makeSimpleLinearGradient( color, color, invert ) );
     }
   }
-}
+  else // append the first value with corresponding color
+  {
+    Q_ASSERT( itemList.count() > 1 );
 
+    int r, g, b, a;
+    QColor color;
+    if ( mColorRampShader.shade( value1, &r, &g, &b, &a ) )
+      color = QColor( r, g, b, a );
+    breakValues.append( value1 );
+    breakColors.append( color );
+  }
+
+  index++; //increment the index before go through the intervals
+
+  while ( index < itemList.count() && itemList.at( index ).value < value2 )
+  {
+    QColor firstColor = breakColors.last();
+    QColor secondColor = itemList.at( index ).color;
+    breakValues.append( itemList.at( index ).value );
+    breakColors.append( secondColor );
+    if ( discrete )
+      gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
+    else
+      gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
+    index++;
+  }
+
+  if ( value2 < itemList.last().value || !mColorRampShader.clip() || discrete ) //add value2 to close
+  {
+    QColor firstColor = breakColors.last();
+    QColor secondColor = itemList.last().color;
+    if ( value2 < itemList.last().value || !discrete )
+    {
+      int r, g, b, a;
+      if ( mColorRampShader.shade( value2, &r, &g, &b, &a ) )
+        secondColor = QColor( r, g, b, a );
+    }
+    breakColors.append( secondColor );
+    breakValues.append( value2 );
+    if ( discrete )
+      gradients.append( makeSimpleLinearGradient( secondColor, secondColor, invert ) );
+    else
+      gradients.append( makeSimpleLinearGradient( firstColor, secondColor, invert ) );
+  }
+
+}
