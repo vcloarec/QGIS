@@ -262,7 +262,6 @@ QString QgsMeshLayer::formatTime( double hours )
 QgsMeshDatasetValue QgsMeshLayer::datasetValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point, double searchRadius ) const
 {
   QgsMeshDatasetValue value;
-
   const QgsTriangularMesh *mesh = triangularMesh();
 
   if ( mesh && dataProvider() && dataProvider()->isValid() && index.isValid() )
@@ -270,7 +269,7 @@ QgsMeshDatasetValue QgsMeshLayer::datasetValue( const QgsMeshDatasetIndex &index
     if ( dataProvider()->contains( QgsMesh::ElementType::Edge ) )
     {
       QgsRectangle searchRectangle( point.x() - searchRadius, point.y() - searchRadius, point.x() + searchRadius, point.y() + searchRadius );
-      return dataset1DValue( index, searchRectangle );
+      return dataset1dValue( index, point, searchRadius );
     }
     int faceIndex = mesh->faceIndexForPoint( point ) ;
     if ( faceIndex >= 0 )
@@ -352,10 +351,10 @@ QgsMesh3dDataBlock QgsMeshLayer::dataset3dValue( const QgsMeshDatasetIndex &inde
   return block3d;
 }
 
-QgsMeshDatasetValue QgsMeshLayer::dataset1DValue( const QgsMeshDatasetIndex &index, const QgsRectangle &rectangle ) const
+QgsMeshDatasetValue QgsMeshLayer::dataset1dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point, double searchRadius ) const
 {
   QgsMeshDatasetValue value;
-  QgsPointXY centerPoint = rectangle.center();
+  QgsRectangle searchRectangle( point.x() - searchRadius, point.y() - searchRadius, point.x() + searchRadius, point.y() + searchRadius );
   const QgsTriangularMesh *mesh = triangularMesh();
   if ( mesh &&
        mesh->contains( QgsMesh::Edge ) &&
@@ -363,9 +362,9 @@ QgsMeshDatasetValue QgsMeshLayer::dataset1DValue( const QgsMeshDatasetIndex &ind
        index.isValid() )
   {
     // search for the closest edge in rectangle from point
-    const QList<int> edgeIndexes = mesh->edgeIndexesForRectangle( rectangle );
+    const QList<int> edgeIndexes = mesh->edgeIndexesForRectangle( searchRectangle );
     int selectedIndex = -1;
-    double sqrMaxDistFromPoint = pow( rectangle.width() / 2, 2 );
+    double sqrMaxDistFromPoint = pow( searchRadius, 2 );
     QgsPointXY projectedPoint;
     for ( const int edgeIndex : edgeIndexes )
     {
@@ -373,11 +372,12 @@ QgsMeshDatasetValue QgsMeshLayer::dataset1DValue( const QgsMeshDatasetIndex &ind
       const QgsMeshVertex &vertex1 = mesh->vertices()[edge.first];
       const QgsMeshVertex &vertex2 = mesh->vertices()[edge.second];
       QgsPointXY projPoint;
-      double sqrDist = centerPoint.sqrDistToSegment( vertex1.x(), vertex1.y(), vertex2.x(), vertex2.y(), projPoint );
+      double sqrDist = point.sqrDistToSegment( vertex1.x(), vertex1.y(), vertex2.x(), vertex2.y(), projPoint );
       if ( sqrDist < sqrMaxDistFromPoint )
       {
         selectedIndex = edgeIndex;
         projectedPoint = projPoint;
+        sqrMaxDistFromPoint = sqrDist;
       }
     }
 
@@ -399,14 +399,9 @@ QgsMeshDatasetValue QgsMeshLayer::dataset1DValue( const QgsMeshDatasetIndex &ind
           const QgsPoint p1 = mesh->vertices()[v1], p2 = mesh->vertices()[v2];
           const QgsMeshDatasetValue val1 = dataProvider()->datasetValue( index, v1 );
           const QgsMeshDatasetValue val2 = dataProvider()->datasetValue( index, v2 );
-          double length = p1.distance( p2 );
-          const double x = val1.x() + p1.distance( projectedPoint.x(), projectedPoint.y() ) * ( val2.x() - val1.x() ) / length;
-          double y = std::numeric_limits<double>::quiet_NaN();
-          bool isVector = dataProvider()->datasetGroupMetadata( index ).isVector();
-          if ( isVector )
-            y = val1.y() + p1.distance( projectedPoint.x(), projectedPoint.y() ) * ( val2.y() - val1.y() ) / length;;
-
-          value = QgsMeshDatasetValue( x, y );
+          double edgeLength = p1.distance( p2 );
+          double dist1 = p1.distance( projectedPoint.x(), projectedPoint.y() );
+          value = QgsMeshLayerUtils::interpolateFromVerticesData( dist1 / edgeLength, val1, val2 );
         }
         break;
         default:
