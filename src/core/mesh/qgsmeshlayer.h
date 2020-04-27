@@ -257,6 +257,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
 
     /**
       * Interpolates the value on the given point from given dataset.
+      * For edge, the returned value is on the projected position on the edge
       *
       * \note It uses previously cached and indexed triangular mesh
       * and so if the layer has not been rendered previously
@@ -264,13 +265,14 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       *
       * \param index dataset index specifying group and dataset to extract value from
       * \param point point to query in map coordinates
+      * \param rectangle zone to query for edge element, in map coordinates
       * \returns interpolated value at the point. Returns NaN values for values
       * outside the mesh layer, nodata values and in case triangular mesh was not
       * previously used for rendering
       *
       * \since QGIS 3.4
       */
-    QgsMeshDatasetValue datasetValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const;
+    QgsMeshDatasetValue datasetValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point, double searchRadius = 0 ) const;
 
     /**
       * Returns the 3d values of stacked 3d mesh defined by the given point
@@ -288,6 +290,37 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       * \since QGIS 3.12
       */
     QgsMesh3dDataBlock dataset3dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point ) const;
+
+    /**
+      * Returns the value of 1D mesh dataset defined on edge that are in the rectangle and the closest of the center of this rectangle
+      *
+      * \note It uses previously cached and indexed triangular mesh
+      * and so if the layer has not been rendered previously
+      * (e.g. when used in a script) it returns NaN value
+      *
+      * \param index dataset index specifying group and dataset to extract value from
+      * \param rectangle the area where to search the edge, closest edge from center point will be used
+      * \returns interpolated value at the projected point. Returns NaN values for values
+      * outside the mesh layer and in case triangular mesh was not previously used for rendering
+      *
+      * \since QGIS 3.14
+      */
+    QgsMeshDatasetValue dataset1DValue( const QgsMeshDatasetIndex &index, const  QgsRectangle &rectangle ) const;
+
+    /**
+      * Returns position in map coordinates of the closest vertex of pointCenter and in the radius searchRadius
+      *
+      * \note It uses previously cached and indexed triangular mesh
+      * and so if the layer has not been rendered previously
+      * (e.g. when used in a script) it returns empty point
+      *
+      * \param pointCenter the center point of the search area, in map coordinates
+      * \param searchRadius the radius of the search area in map unit
+      * \returns coordinate point of the vertex in map coordinates
+      *
+      * \since QGIS 3.14
+      */
+    QgsPointXY snapOnVertex( const QgsPointXY &pointCenter, double searchRadius ) const;
 
     /**
       * Returns dataset index from active scalar group depending on the time range.
