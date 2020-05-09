@@ -209,8 +209,11 @@ bool QgsMeshDatasetGroupProvidedTreeModel::setData( const QModelIndex &index, co
   {
     case Qt::EditRole:
     case Name:
-      item->setName( value.toString() );
-      return true;
+      if ( value != QString() )
+      {
+        item->setName( value.toString() );
+        return true;
+      }
     case Qt::CheckStateRole :
       item->setUsed( value.toBool() );
       return true;
@@ -237,7 +240,9 @@ QVariant QgsMeshDatasetGroupUsedFilterModel::data( const QModelIndex &index, int
   if ( role == Qt::CheckStateRole )
     return QVariant();
 
-  return QSortFilterProxyModel::data( index, role );
+  QModelIndex sourceIndex = mapToSource( index );
+
+  return sourceModel()->data( sourceIndex, role );
 }
 
 bool QgsMeshDatasetGroupUsedFilterModel::filterAcceptsRow( int source_row, const QModelIndex &source_parent ) const
@@ -477,6 +482,7 @@ void QgsMeshDatasetGroupTreeItemDelagate::paint( QPainter *painter, const QStyle
     painter->drawPixmap( iconRect( option.rect, true ), isActive ? mVectorSelectedPixmap : mVectorDeselectedPixmap );
   }
   bool isActive = index.data( QgsMeshDatasetGroupProvidedTreeModel::IsActiveScalarDatasetGroup ).toBool();
+  qDebug() << "Delegate " << isActive << "ind: " << index.data( QgsMeshDatasetGroupProvidedTreeModel::DatasetGroupIndex );
   painter->drawPixmap( iconRect( option.rect, false ), isActive ? mScalarSelectedPixmap : mScalarDeselectedPixmap );
 }
 
@@ -563,10 +569,10 @@ void QgsMeshDatasetGroupUsedTreeView::mousePressEvent( QMouseEvent *event )
     return;
 
   bool processed = false;
-  const QModelIndex idx = indexAt( event->pos() );
+  const QModelIndex idx = indexAt( event->pos() ) ;
   if ( idx.isValid() )
   {
-    const QRect vr = visualRect( idx );
+    const QRect vr = visualRect( mUsedModel->mapFromSource( idx ) );
     if ( mDelegate.iconRect( vr, true ).contains( event->pos() ) )
     {
       bool isVector = idx.data( QgsMeshDatasetGroupProvidedTreeModel::IsVector ).toBool();

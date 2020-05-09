@@ -169,6 +169,7 @@ QSqlDatabase QgsAuthManager::authDatabaseConnection() const
 
 bool QgsAuthManager::init( const QString &pluginPath, const QString &authDatabasePath )
 {
+  return true;
   if ( mAuthInit )
     return true;
   mAuthInit = true;
