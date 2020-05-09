@@ -400,6 +400,28 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       */
     QgsPointXY snapOnElement( QgsMesh::ElementType elementType, const QgsPointXY &point, double searchRadius );
 
+    QMap<int, QgsMeshDatasetGroupState> datasetGroupsState() const;
+
+    void updateDatasetGroupsState( const QMap<int, QgsMeshDatasetGroupState> &datasetGroupStates )
+    {
+      if ( !mDataProvider )
+        return;
+      int groupCount = mDataProvider->datasetGroupCount();
+      //update with the dataset group states in parameter
+      for ( int i = 0; i < groupCount; ++i )
+      {
+        QgsMeshDatasetGroupMetadata meta = mDataProvider->datasetGroupMetadata( i );
+        if ( datasetGroupStates.contains( i ) )
+        {
+          QgsMeshDatasetGroupState sourceState = datasetGroupStates[i];
+          if ( sourceState.renaming == meta.name() )
+            sourceState.renaming = QString();
+          sourceState.originalName = meta.name();
+          mDatasetGroupsState[i] = sourceState;
+        }
+      }
+    }
+
   public slots:
 
     /**
@@ -491,6 +513,8 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
     QgsMeshDatasetIndex mStaticScalarDatasetIndex;
     QgsMeshDatasetIndex mStaticVectorDatasetIndex;
 
+    QMap<int, QgsMeshDatasetGroupState> mDatasetGroupsState;
+
     int closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const;
 
     //! Returns the exact position in map coordinates of the closest vertex in the search area
@@ -501,6 +525,9 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
 
     //!Returns the position of the centroid point on the closest face in the search area
     QgsPointXY snapOnFace( const QgsPointXY &point, double searchRadius );
+
+    void updateDatasetGroupsState();
+
 };
 
 #endif //QGSMESHLAYER_H

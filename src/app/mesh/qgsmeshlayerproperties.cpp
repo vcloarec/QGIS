@@ -174,6 +174,9 @@ void QgsMeshLayerProperties::syncToLayer()
     mUriLabel->setText( tr( "Not assigned" ) );
   }
 
+  if ( mMeshLayer )
+    mDatasetGroupProvidedTreeView->syncToLayer( mMeshLayer );
+
   QgsDebugMsgLevel( QStringLiteral( "populate styling tab" ), 4 );
   /*
    * Styling Tab
@@ -369,6 +372,14 @@ void QgsMeshLayerProperties::apply()
    * General Tab
    */
   mMeshLayer->setName( mLayerOrigNameLineEd->text() );
+
+  QgsDebugMsgLevel( QStringLiteral( "processing source tab" ), 4 );
+  /*
+   * Source Tab
+   */
+  mMeshLayer->updateDatasetGroupsState( mDatasetGroupProvidedTreeView->groupStates() );
+  mRendererMeshPropertiesWidget->updateDatasetGroup();
+
 
   QgsDebugMsgLevel( QStringLiteral( "processing style tab" ), 4 );
   /*

@@ -29,12 +29,13 @@ QgsMeshDatasetGroupTreeItem::QgsMeshDatasetGroupTreeItem( QgsMeshDatasetGroupTre
 
 QgsMeshDatasetGroupTreeItem::QgsMeshDatasetGroupTreeItem( const QString &name,
     bool isVector,
-    int index,
+    int index, bool isUsed,
     QgsMeshDatasetGroupTreeItem *parent )
   : mParent( parent )
   , mName( name )
   , mIsVector( isVector )
   , mDatasetGroupIndex( index )
+  , mUsed( isUsed )
 {
 }
 
@@ -89,27 +90,42 @@ int QgsMeshDatasetGroupTreeItem::datasetGroupIndex() const
   return mDatasetGroupIndex;
 }
 
+bool QgsMeshDatasetGroupTreeItem::used() const
+{
+  return mUsed;
+}
+
+void QgsMeshDatasetGroupTreeItem::setUsed( bool used )
+{
+  mUsed = used;
+}
+
+void QgsMeshDatasetGroupTreeItem::setName( const QString &name )
+{
+  mName = name;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-QgsMeshDatasetGroupTreeModel::QgsMeshDatasetGroupTreeModel( QObject *parent )
+QgsMeshDatasetGroupProvidedTreeModel::QgsMeshDatasetGroupProvidedTreeModel( QObject *parent )
   : QAbstractItemModel( parent )
   ,  mRootItem( new QgsMeshDatasetGroupTreeItem() )
 {
 }
 
-int QgsMeshDatasetGroupTreeModel::columnCount( const QModelIndex &parent ) const
+int QgsMeshDatasetGroupProvidedTreeModel::columnCount( const QModelIndex &parent ) const
 {
   Q_UNUSED( parent )
   return 1;
 }
 
-int QgsMeshDatasetGroupTreeModel::activeScalarGroup() const
+int QgsMeshDatasetGroupProvidedTreeModel::activeScalarGroup() const
 {
   return mActiveScalarGroupIndex;
 }
 
-void QgsMeshDatasetGroupTreeModel::setActiveScalarGroup( int group )
+void QgsMeshDatasetGroupProvidedTreeModel::setActiveScalarGroup( int group )
 {
   if ( mActiveScalarGroupIndex == group )
     return;
@@ -130,12 +146,12 @@ void QgsMeshDatasetGroupTreeModel::setActiveScalarGroup( int group )
   }
 }
 
-int QgsMeshDatasetGroupTreeModel::activeVectorGroup() const
+int QgsMeshDatasetGroupProvidedTreeModel::activeVectorGroup() const
 {
   return mActiveVectorGroupIndex;
 }
 
-void QgsMeshDatasetGroupTreeModel::setActiveVectorGroup( int group )
+void QgsMeshDatasetGroupProvidedTreeModel::setActiveVectorGroup( int group )
 {
   if ( mActiveVectorGroupIndex == group )
     return;
@@ -156,7 +172,7 @@ void QgsMeshDatasetGroupTreeModel::setActiveVectorGroup( int group )
   }
 }
 
-QVariant QgsMeshDatasetGroupTreeModel::data( const QModelIndex &index, int role ) const
+QVariant QgsMeshDatasetGroupProvidedTreeModel::data( const QModelIndex &index, int role ) const
 {
   if ( !index.isValid() )
     return QVariant();
@@ -176,12 +192,39 @@ QVariant QgsMeshDatasetGroupTreeModel::data( const QModelIndex &index, int role 
       return item->datasetGroupIndex() == mActiveVectorGroupIndex;
     case DatasetGroupIndex:
       return item->datasetGroupIndex();
+    case Qt::CheckStateRole :
+      return static_cast< int >( item->used() ? Qt::Checked : Qt::Unchecked );
   }
 
   return QVariant();
 }
 
-Qt::ItemFlags QgsMeshDatasetGroupTreeModel::flags( const QModelIndex &index ) const
+bool QgsMeshDatasetGroupProvidedTreeModel::setData( const QModelIndex &index, const QVariant &value, int role )
+{
+  if ( !index.isValid() )
+    return false;
+  QgsMeshDatasetGroupTreeItem *item = static_cast<QgsMeshDatasetGroupTreeItem *>( index.internalPointer() );
+
+  switch ( role )
+  {
+    case Qt::EditRole:
+    case Name:
+      item->setName( value.toString() );
+      return true;
+    case Qt::CheckStateRole :
+      item->setUsed( value.toBool() );
+      return true;
+  }
+  return false;
+}
+
+QgsMeshDatasetGroupUsedFilterModel::QgsMeshDatasetGroupUsedFilterModel( QAbstractItemModel *sourceModel ):
+  QSortFilterProxyModel( sourceModel )
+{
+  setSourceModel( sourceModel );
+}
+
+Qt::ItemFlags QgsMeshDatasetGroupUsedFilterModel::flags( const QModelIndex &index ) const
 {
   if ( !index.isValid() )
     return Qt::NoItemFlags;
@@ -189,7 +232,43 @@ Qt::ItemFlags QgsMeshDatasetGroupTreeModel::flags( const QModelIndex &index ) co
   return Qt::ItemIsEnabled;
 }
 
-QVariant QgsMeshDatasetGroupTreeModel::headerData( int section,
+QVariant QgsMeshDatasetGroupUsedFilterModel::data( const QModelIndex &index, int role ) const
+{
+  if ( role == Qt::CheckStateRole )
+    return QVariant();
+
+  return QSortFilterProxyModel::data( index, role );
+}
+
+bool QgsMeshDatasetGroupUsedFilterModel::filterAcceptsRow( int source_row, const QModelIndex &source_parent ) const
+{
+  QgsMeshDatasetGroupTreeItem *parentItem;
+
+  if ( !source_parent.isValid() )
+    parentItem = static_cast<QgsMeshDatasetGroupProvidedTreeModel *>( sourceModel() )->rootItem();
+  else
+    parentItem = static_cast<QgsMeshDatasetGroupTreeItem *>( source_parent.internalPointer() );
+
+  if ( parentItem->childCount() < source_row )
+    return false;
+
+  QgsMeshDatasetGroupTreeItem *item = parentItem->child( source_row );
+
+  if ( item )
+    return item->used();
+
+  return false;
+}
+
+Qt::ItemFlags QgsMeshDatasetGroupProvidedTreeModel::flags( const QModelIndex &index ) const
+{
+  if ( !index.isValid() )
+    return Qt::NoItemFlags;
+
+  return Qt::ItemIsEnabled | Qt::ItemIsUserCheckable | Qt::ItemIsEditable;
+}
+
+QVariant QgsMeshDatasetGroupProvidedTreeModel::headerData( int section,
     Qt::Orientation orientation,
     int role ) const
 {
@@ -201,7 +280,7 @@ QVariant QgsMeshDatasetGroupTreeModel::headerData( int section,
   return QVariant();
 }
 
-QModelIndex QgsMeshDatasetGroupTreeModel::index( int row, int column, const QModelIndex &parent )
+QModelIndex QgsMeshDatasetGroupProvidedTreeModel::index( int row, int column, const QModelIndex &parent )
 const
 {
   if ( !hasIndex( row, column, parent ) )
@@ -221,7 +300,7 @@ const
     return QModelIndex();
 }
 
-QModelIndex QgsMeshDatasetGroupTreeModel::parent( const QModelIndex &index ) const
+QModelIndex QgsMeshDatasetGroupProvidedTreeModel::parent( const QModelIndex &index ) const
 {
   if ( !index.isValid() )
     return QModelIndex();
@@ -235,7 +314,7 @@ QModelIndex QgsMeshDatasetGroupTreeModel::parent( const QModelIndex &index ) con
   return createIndex( parentItem->row(), 0, parentItem );
 }
 
-int QgsMeshDatasetGroupTreeModel::rowCount( const QModelIndex &parent ) const
+int QgsMeshDatasetGroupProvidedTreeModel::rowCount( const QModelIndex &parent ) const
 {
   QgsMeshDatasetGroupTreeItem *parentItem;
   if ( parent.column() > 0 )
@@ -249,7 +328,7 @@ int QgsMeshDatasetGroupTreeModel::rowCount( const QModelIndex &parent ) const
   return parentItem->childCount();
 }
 
-void QgsMeshDatasetGroupTreeModel::syncToLayer( QgsMeshLayer *layer )
+void QgsMeshDatasetGroupProvidedTreeModel::syncToLayer( QgsMeshLayer *layer )
 {
   beginResetModel();
 
@@ -262,44 +341,85 @@ void QgsMeshDatasetGroupTreeModel::syncToLayer( QgsMeshLayer *layer )
     const QgsMeshDataProvider *dp = layer->dataProvider();
     for ( int groupIndex = 0; groupIndex < dp->datasetGroupCount(); ++groupIndex )
     {
+      const QgsMeshDatasetGroupState &state = layer->datasetGroupsState().value( groupIndex, QgsMeshDatasetGroupState() );
       const QgsMeshDatasetGroupMetadata meta = dp->datasetGroupMetadata( groupIndex );
-      const QString name = meta.name();
-      const bool isVector = meta.isVector();
-      const QStringList subdatasets = name.split( '/' );
+      const QString metaName = meta.name();
 
+      QString name = state.renaming;
+      if ( name.isEmpty() )
+        name = state.originalName;
+
+      const bool isVector = meta.isVector();
+      const QStringList subdatasets = metaName.split( '/' );
 
       if ( subdatasets.size() == 1 )
       {
-        addTreeItem( name, name, isVector, groupIndex, mRootItem.get() );
+        if ( name.isEmpty() )
+          name = metaName;
+        addTreeItem( metaName, name, isVector, groupIndex, state.used, mRootItem.get() );
       }
       else if ( subdatasets.size() == 2 )
       {
         auto i = mNameToItem.find( subdatasets[0] );
         if ( i == mNameToItem.end() )
         {
-          QgsDebugMsg( QStringLiteral( "Unable to find parent group for %1." ).arg( name ) );
-          addTreeItem( name, name, isVector, groupIndex, mRootItem.get() );
+          QgsDebugMsg( QStringLiteral( "Unable to find parent group for %1." ).arg( metaName ) );
+          addTreeItem( metaName, name, isVector, groupIndex, state.used, mRootItem.get() );
         }
         else
         {
-          addTreeItem( name, subdatasets[1], isVector, groupIndex, i.value() );
+          if ( name.isEmpty() )
+            name = subdatasets[1];
+          addTreeItem( metaName, name, isVector, groupIndex, state.used, i.value() );
         }
       }
       else
       {
         QgsDebugMsg( QStringLiteral( "Ignoring too deep child group name %1." ).arg( name ) );
-        addTreeItem( name, name, isVector, groupIndex, mRootItem.get() );
+        addTreeItem( metaName, name, isVector, groupIndex, state.used, mRootItem.get() );
       }
     }
   }
-
   endResetModel();
+  updateActiveGroup();
 }
 
-void QgsMeshDatasetGroupTreeModel::addTreeItem( const QString &groupName, const QString &displayName, bool isVector, int groupIndex, QgsMeshDatasetGroupTreeItem *parent )
+QMap<int, QgsMeshDatasetGroupState> QgsMeshDatasetGroupProvidedTreeModel::groupStates() const
+{
+  QMap<int, QgsMeshDatasetGroupState> ret;
+
+  for ( const QgsMeshDatasetGroupTreeItem *item : mDatasetGroupIndexToItem )
+  {
+    QgsMeshDatasetGroupState state;
+    state.used = item->used();
+    state.renaming = item->name();
+
+    ret[item->datasetGroupIndex()] = state;
+  }
+  return ret;
+}
+
+void QgsMeshDatasetGroupProvidedTreeModel::updateActiveGroup()
+{
+  while ( mActiveScalarGroupIndex != -1 &&
+          !groupStates()[mActiveScalarGroupIndex].used )
+    mActiveScalarGroupIndex--;
+
+  while ( mActiveVectorGroupIndex != -1 &&
+          ( !groupStates()[mActiveVectorGroupIndex].used ||
+            !mDatasetGroupIndexToItem[mActiveVectorGroupIndex]->isVector() ) )
+    mActiveVectorGroupIndex--;
+}
+
+void QgsMeshDatasetGroupProvidedTreeModel::addTreeItem( const QString &groupName,
+    const QString &displayName,
+    bool isVector,
+    int groupIndex,
+    bool isUsed,
+    QgsMeshDatasetGroupTreeItem *parent )
 {
   Q_ASSERT( parent );
-  QgsMeshDatasetGroupTreeItem *item = new QgsMeshDatasetGroupTreeItem( displayName, isVector, groupIndex, parent );
+  QgsMeshDatasetGroupTreeItem *item = new QgsMeshDatasetGroupTreeItem( displayName, isVector, groupIndex, isUsed, parent );
   parent->appendChild( item );
 
   if ( mNameToItem.contains( groupName ) )
@@ -315,7 +435,7 @@ void QgsMeshDatasetGroupTreeModel::addTreeItem( const QString &groupName, const 
   mDatasetGroupIndexToItem[groupIndex] = item;
 }
 
-QModelIndex QgsMeshDatasetGroupTreeModel::groupIndexToModelIndex( int groupIndex )
+QModelIndex QgsMeshDatasetGroupProvidedTreeModel::groupIndexToModelIndex( int groupIndex ) const
 {
   if ( groupIndex < 0 || !mDatasetGroupIndexToItem.contains( groupIndex ) )
     return QModelIndex();
@@ -350,13 +470,13 @@ void QgsMeshDatasetGroupTreeItemDelagate::paint( QPainter *painter, const QStyle
     return;
 
   QStyledItemDelegate::paint( painter, option, index );
-  bool isVector = index.data( QgsMeshDatasetGroupTreeModel::IsVector ).toBool();
+  bool isVector = index.data( QgsMeshDatasetGroupProvidedTreeModel::IsVector ).toBool();
   if ( isVector )
   {
-    bool isActive = index.data( QgsMeshDatasetGroupTreeModel::IsActiveVectorDatasetGroup ).toBool();
+    bool isActive = index.data( QgsMeshDatasetGroupProvidedTreeModel::IsActiveVectorDatasetGroup ).toBool();
     painter->drawPixmap( iconRect( option.rect, true ), isActive ? mVectorSelectedPixmap : mVectorDeselectedPixmap );
   }
-  bool isActive = index.data( QgsMeshDatasetGroupTreeModel::IsActiveScalarDatasetGroup ).toBool();
+  bool isActive = index.data( QgsMeshDatasetGroupProvidedTreeModel::IsActiveScalarDatasetGroup ).toBool();
   painter->drawPixmap( iconRect( option.rect, false ), isActive ? mScalarSelectedPixmap : mScalarDeselectedPixmap );
 }
 
@@ -379,15 +499,17 @@ QSize QgsMeshDatasetGroupTreeItemDelagate::sizeHint( const QStyleOptionViewItem 
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-QgsMeshDatasetGroupTreeView::QgsMeshDatasetGroupTreeView( QWidget *parent )
-  : QTreeView( parent )
+QgsMeshDatasetGroupUsedTreeView::QgsMeshDatasetGroupUsedTreeView( QWidget *parent )
+  : QTreeView( parent ),
+    mModel( new QgsMeshDatasetGroupProvidedTreeModel( this ) ),
+    mUsedModel( new QgsMeshDatasetGroupUsedFilterModel( mModel ) )
 {
-  setModel( &mModel );
+  setModel( mUsedModel );
   setItemDelegate( &mDelegate );
   setSelectionMode( QAbstractItemView::SingleSelection );
 }
 
-void QgsMeshDatasetGroupTreeView::setLayer( QgsMeshLayer *layer )
+void QgsMeshDatasetGroupUsedTreeView::setLayer( QgsMeshLayer *layer )
 {
   if ( layer != mMeshLayer )
   {
@@ -396,41 +518,46 @@ void QgsMeshDatasetGroupTreeView::setLayer( QgsMeshLayer *layer )
   }
 }
 
-int QgsMeshDatasetGroupTreeView::activeScalarGroup() const
+int QgsMeshDatasetGroupUsedTreeView::activeScalarGroup() const
 {
-  return mModel.activeScalarGroup();
+  return mModel->activeScalarGroup();
 }
 
-void QgsMeshDatasetGroupTreeView::setActiveScalarGroup( int group )
+void QgsMeshDatasetGroupUsedTreeView::setActiveScalarGroup( int group )
 {
-  if ( mModel.activeScalarGroup() != group )
+  if ( mModel->activeScalarGroup() != group )
   {
-    mModel.setActiveScalarGroup( group );
+    mModel->setActiveScalarGroup( group );
     emit activeScalarGroupChanged( group );
   }
 }
 
-int QgsMeshDatasetGroupTreeView::activeVectorGroup() const
+int QgsMeshDatasetGroupUsedTreeView::activeVectorGroup() const
 {
-  return mModel.activeVectorGroup();
+  return mModel->activeVectorGroup();
 }
 
-void QgsMeshDatasetGroupTreeView::setActiveVectorGroup( int group )
+void QgsMeshDatasetGroupUsedTreeView::setActiveVectorGroup( int group )
 {
-  if ( mModel.activeVectorGroup() != group )
+  if ( mModel->activeVectorGroup() != group )
   {
-    mModel.setActiveVectorGroup( group );
+    mModel->setActiveVectorGroup( group );
     emit activeVectorGroupChanged( group );
   }
 }
 
-void QgsMeshDatasetGroupTreeView::syncToLayer()
+void QgsMeshDatasetGroupUsedTreeView::syncToLayer()
 {
-  mModel.syncToLayer( mMeshLayer );
+  mModel->syncToLayer( mMeshLayer );
   setActiveGroupFromActiveDataset();
 }
 
-void QgsMeshDatasetGroupTreeView::mousePressEvent( QMouseEvent *event )
+void QgsMeshDatasetGroupUsedTreeView::updateGroupFromLayer()
+{
+  mModel->syncToLayer( mMeshLayer );
+}
+
+void QgsMeshDatasetGroupUsedTreeView::mousePressEvent( QMouseEvent *event )
 {
   if ( !event )
     return;
@@ -442,16 +569,16 @@ void QgsMeshDatasetGroupTreeView::mousePressEvent( QMouseEvent *event )
     const QRect vr = visualRect( idx );
     if ( mDelegate.iconRect( vr, true ).contains( event->pos() ) )
     {
-      bool isVector = idx.data( QgsMeshDatasetGroupTreeModel::IsVector ).toBool();
+      bool isVector = idx.data( QgsMeshDatasetGroupProvidedTreeModel::IsVector ).toBool();
       if ( isVector )
       {
-        setActiveVectorGroup( idx.data( QgsMeshDatasetGroupTreeModel::DatasetGroupIndex ).toInt() );
+        setActiveVectorGroup( idx.data( QgsMeshDatasetGroupProvidedTreeModel::DatasetGroupIndex ).toInt() );
         processed = true;
       }
     }
     else if ( mDelegate.iconRect( vr, false ).contains( event->pos() ) )
     {
-      setActiveScalarGroup( idx.data( QgsMeshDatasetGroupTreeModel::DatasetGroupIndex ).toInt() );
+      setActiveScalarGroup( idx.data( QgsMeshDatasetGroupProvidedTreeModel::DatasetGroupIndex ).toInt() );
       processed = true;
     }
   }
@@ -461,7 +588,7 @@ void QgsMeshDatasetGroupTreeView::mousePressEvent( QMouseEvent *event )
     QTreeView::mousePressEvent( event );
 }
 
-void QgsMeshDatasetGroupTreeView::setActiveGroupFromActiveDataset()
+void QgsMeshDatasetGroupUsedTreeView::setActiveGroupFromActiveDataset()
 {
   int scalarGroup = -1;
   int vectorGroup = -1;
@@ -478,12 +605,12 @@ void QgsMeshDatasetGroupTreeView::setActiveGroupFromActiveDataset()
   setActiveVectorGroup( vectorGroup );
 }
 
-void QgsMeshDatasetGroupListModel::syncToLayer( QgsMeshLayer *layer )
+void QgsMeshDatasetGroupProvidedListModel::syncToLayer( QgsMeshLayer *layer )
 {
   mLayer = layer;
 }
 
-int QgsMeshDatasetGroupListModel::rowCount( const QModelIndex &parent ) const
+int QgsMeshDatasetGroupProvidedListModel::rowCount( const QModelIndex &parent ) const
 {
   Q_UNUSED( parent );
   if ( mLayer )
@@ -492,7 +619,7 @@ int QgsMeshDatasetGroupListModel::rowCount( const QModelIndex &parent ) const
     return 0;
 }
 
-QVariant QgsMeshDatasetGroupListModel::data( const QModelIndex &index, int role ) const
+QVariant QgsMeshDatasetGroupProvidedListModel::data( const QModelIndex &index, int role ) const
 {
   if ( !mLayer || ! index.isValid() )
     return QVariant();
@@ -510,4 +637,11 @@ QVariant QgsMeshDatasetGroupListModel::data( const QModelIndex &index, int role 
   }
 
   return QVariant();
+}
+
+QgsMeshDatasetGroupProvidedTreeView::QgsMeshDatasetGroupProvidedTreeView( QWidget *parent ):
+  QTreeView( parent )
+  , mModel( new QgsMeshDatasetGroupProvidedTreeModel( this ) )
+{
+  setModel( mModel );
 }

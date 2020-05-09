@@ -246,7 +246,7 @@
                 <x>0</x>
                 <y>0</y>
                 <width>661</width>
-                <height>508</height>
+                <height>507</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -336,6 +336,9 @@ border-radius: 2px;</string>
                 </layout>
                </item>
                <item>
+                <widget class="QgsMeshDatasetGroupProvidedTreeView" name="mDatasetGroupProvidedTreeView"/>
+               </item>
+               <item>
                 <widget class="QPushButton" name="mAddDatasetButton">
                  <property name="text">
                   <string>Assign Extra Dataset to Mesh</string>
@@ -406,7 +409,7 @@ border-radius: 2px;</string>
                 <x>0</x>
                 <y>0</y>
                 <width>661</width>
-                <height>728</height>
+                <height>507</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_10">
@@ -771,6 +774,11 @@ border-radius: 2px;</string>
    <extends>QWidget</extends>
    <header>qgsmeshstaticdatasetwidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsMeshDatasetGroupProvidedTreeView</class>
+   <extends>QTreeView</extends>
+   <header>qgsmeshdatasetgrouptreeview.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

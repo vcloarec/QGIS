@@ -521,4 +521,12 @@ class CORE_EXPORT QgsMeshDatasetMetadata
     int mMaximumVerticalLevelsCount = 0; // for 3d stacked meshes
 };
 
+
+struct QgsMeshDatasetGroupState
+{
+  bool used;
+  QString originalName;
+  QString renaming;
+};
+
 #endif // QGSMESHDATASET_H

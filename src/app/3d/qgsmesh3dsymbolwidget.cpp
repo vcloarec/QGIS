@@ -28,8 +28,9 @@ QgsMesh3dSymbolWidget::QgsMesh3dSymbolWidget( QgsMeshLayer *meshLayer, QWidget *
 
   mComboBoxTextureType->addItem( tr( "Single Color" ), QgsMesh3DSymbol::SingleColor );
 
-  mDatasetGroupListModel = new QgsMeshDatasetGroupListModel( this );
-  mComboBoxDatasetVertical->setModel( mDatasetGroupListModel );
+  mDatasetGroupListModel = new QgsMeshDatasetGroupProvidedListModel( this );
+  QgsMeshDatasetGroupUsedFilterModel *datasetGroupListUsedFilter = new QgsMeshDatasetGroupUsedFilterModel( mDatasetGroupListModel );
+  mComboBoxDatasetVertical->setModel( datasetGroupListUsedFilter );
   setLayer( meshLayer );
 
   connect( mChkSmoothTriangles, &QCheckBox::clicked, this, &QgsMesh3dSymbolWidget::changed );

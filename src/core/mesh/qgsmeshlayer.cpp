@@ -437,6 +437,7 @@ void QgsMeshLayer::fillNativeMesh()
 
 void QgsMeshLayer::onDatasetGroupsAdded( int count )
 {
+  updateDatasetGroupsState();
   // assign default style to new dataset groups
   int newDatasetGroupCount = mDataProvider->datasetGroupCount();
   for ( int i = newDatasetGroupCount - count; i < newDatasetGroupCount; ++i )
@@ -444,7 +445,11 @@ void QgsMeshLayer::onDatasetGroupsAdded( int count )
 
   if ( mDataProvider )
     temporalProperties()->setIsActive( mDataProvider->temporalCapabilities()->hasTemporalCapabilities() );
+}
 
+QMap<int, QgsMeshDatasetGroupState> QgsMeshLayer::datasetGroupsState() const
+{
+  return mDatasetGroupsState;
 }
 
 int QgsMeshLayer::closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const
@@ -573,6 +578,39 @@ QgsPointXY QgsMeshLayer::snapOnFace( const QgsPointXY &point, double searchRadiu
   }
 
   return centroidPosition;
+}
+
+void QgsMeshLayer::updateDatasetGroupsState()
+{
+  if ( !mDataProvider )
+    return;
+
+  int groupCount = mDataProvider->datasetGroupCount();
+
+  for ( int i = 0; i < groupCount; ++i )
+  {
+    QgsMeshDatasetGroupMetadata meta = mDataProvider->datasetGroupMetadata( i );
+    if ( !mDatasetGroupsState.contains( i ) )
+    {
+      // If not present, add a new state
+      QgsMeshDatasetGroupState state;
+      state.used = true;
+      state.originalName = meta.name();
+
+      mDatasetGroupsState[i] = state;
+    }
+    else
+    {
+      // If present, check if the original name is the same, if not, replace by default value of the group
+      QgsMeshDatasetGroupState &state = mDatasetGroupsState[i];
+      if ( !( state.originalName == meta.name() ) )
+      {
+        state.used = true;
+        state.originalName = meta.name();
+        state.renaming = QString();
+      }
+    }
+  }
 }
 
 QgsPointXY QgsMeshLayer::snapOnElement( QgsMesh::ElementType elementType, const QgsPointXY &point, double searchRadius )
@@ -828,6 +866,19 @@ bool QgsMeshLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &con
   if ( !temporalProperties()->timeExtent().begin().isValid() )
     temporalProperties()->setDefaultsFromDataProviderTemporalCapabilities( dataProvider()->temporalCapabilities() );
 
+  //read group states
+  QDomElement elemStates = layer_node.firstChildElement( QStringLiteral( "group-states" ) );
+  QDomElement elemState = elemStates.firstChildElement( QStringLiteral( "group-state" ) );
+  while ( !elemState.isNull() )
+  {
+    int groupIndex = elemState.attribute( QStringLiteral( "group" ) ).toInt();
+    QgsMeshDatasetGroupState state;
+    state.used = elemState.attribute( QStringLiteral( "is-used" ) ).toInt();
+    state.originalName = elemState.attribute( QStringLiteral( "original-name" ) );
+    state.renaming = elemState.attribute( QStringLiteral( "renaming" ) );
+    mDatasetGroupsState[groupIndex] = state;
+    elemState = elemState.nextSiblingElement( QStringLiteral( "group-state" ) );
+  }
 
   // read static dataset
   QDomElement elemStaticDataset = layer_node.firstChildElement( QStringLiteral( "static-active-dataset" ) );
@@ -889,6 +940,19 @@ bool QgsMeshLayer::writeXml( QDomNode &layer_node, QDomDocument &document, const
   if ( mStaticVectorDatasetIndex.isValid() )
     elemStaticDataset.setAttribute( QStringLiteral( "vector" ), QStringLiteral( "%1,%2" ).arg( mStaticVectorDatasetIndex.group() ).arg( mStaticVectorDatasetIndex.dataset() ) );
   layer_node.appendChild( elemStaticDataset );
+
+  //write group states
+  QDomElement elemStates = document.createElement( QStringLiteral( "group-states" ) );
+  for ( int i : mDatasetGroupsState.keys() )
+  {
+    QDomElement elemState = document.createElement( QStringLiteral( "group-state" ) );
+    elemState.setAttribute( QStringLiteral( "group" ), i );
+    elemState.setAttribute( QStringLiteral( "is-used" ), mDatasetGroupsState[i].used ? 1 : 0 );
+    elemState.setAttribute( QStringLiteral( "original-name" ), mDatasetGroupsState[i].originalName );
+    elemState.setAttribute( QStringLiteral( "renaming" ), mDatasetGroupsState[i].renaming );
+    elemStates.appendChild( elemState );
+  }
+  mapLayerNode.appendChild( elemStates );
 
   // renderer specific settings
   QString errorMsg;

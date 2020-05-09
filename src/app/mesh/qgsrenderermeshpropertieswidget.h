@@ -45,6 +45,8 @@ class APP_EXPORT QgsRendererMeshPropertiesWidget : public QgsMapLayerConfigWidge
      */
     QgsRendererMeshPropertiesWidget( QgsMeshLayer *layer, QgsMapCanvas *canvas, QWidget *parent = nullptr );
 
+    void updateDatasetGroup();
+
   public slots:
     //! Applies the settings made in the dialog
     void apply() override;
