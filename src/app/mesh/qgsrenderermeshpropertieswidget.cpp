@@ -163,6 +163,11 @@ void QgsRendererMeshPropertiesWidget::syncToLayer()
     mStyleOptionsTab->setCurrentIndex( settings.value( QStringLiteral( "/Windows/RendererMeshProperties/tab" ) ).toInt() );
 }
 
+void QgsRendererMeshPropertiesWidget::onDatasetGroupChanged()
+{
+  mMeshRendererActiveDatasetWidget->updateDatasetGroup();
+}
+
 void QgsRendererMeshPropertiesWidget::onActiveScalarGroupChanged( int groupIndex )
 {
   mMeshRendererScalarSettingsWidget->setActiveDatasetGroup( groupIndex );

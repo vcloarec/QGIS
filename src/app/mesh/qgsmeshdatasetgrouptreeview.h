@@ -67,8 +67,8 @@ class APP_NO_EXPORT QgsMeshDatasetGroupTreeItem
     bool isVector() const;
     int datasetGroupIndex() const;
 
-    bool used() const;
-    void setUsed( bool used );
+    bool isUsed() const;
+    void setIsUsed( bool isUsed );
 
   private:
     QgsMeshDatasetGroupTreeItem *mParent = nullptr;
@@ -78,7 +78,7 @@ class APP_NO_EXPORT QgsMeshDatasetGroupTreeItem
     QString mName;
     bool mIsVector = false;
     int mDatasetGroupIndex = -1;
-    bool mUsed = true;
+    bool mIsUsed = true;
 };
 
 /**
@@ -139,7 +139,7 @@ class APP_NO_EXPORT QgsMeshDatasetGroupProvidedTreeModel : public QAbstractItemM
 
     QModelIndex groupIndexToModelIndex( int groupIndex ) const;
 
-    void updateActiveGroup();
+    void accordActiveGroupToUsedGroup();
 
     std::unique_ptr<QgsMeshDatasetGroupTreeItem> mRootItem;
     QMap<QString, QgsMeshDatasetGroupTreeItem *> mNameToItem;
@@ -193,19 +193,17 @@ class APP_EXPORT QgsMeshDatasetGroupProvidedTreeView: public QTreeView
   public:
     QgsMeshDatasetGroupProvidedTreeView( QWidget *parent = nullptr );
 
-    void syncToLayer( QgsMeshLayer *layer )
-    {
-      if ( mModel )
-        mModel->syncToLayer( layer );
-    }
+    void syncToLayer( QgsMeshLayer *layer );
+    QMap<int, QgsMeshDatasetGroupState> groupStates() const;
+    void resetDefault( QgsMeshLayer *meshLayer );
 
-    QMap<int, QgsMeshDatasetGroupState> groupStates() const
-    {
-      return mModel->groupStates();
-    }
+  public slots:
+    void checkAll();
+    void uncheckAll();
 
   private:
     QgsMeshDatasetGroupProvidedTreeModel *mModel;
+    void checkAllItem( bool isChecked );
 };
 
 /**
@@ -213,12 +211,12 @@ class APP_EXPORT QgsMeshDatasetGroupProvidedTreeView: public QTreeView
  *
  * One dataset group is selected (active)
  */
-class APP_EXPORT QgsMeshDatasetGroupUsedTreeView : public QTreeView
+class APP_EXPORT QgsMeshDatasetGroupTreeView : public QTreeView
 {
     Q_OBJECT
 
   public:
-    QgsMeshDatasetGroupUsedTreeView( QWidget *parent = nullptr );
+    QgsMeshDatasetGroupTreeView( QWidget *parent = nullptr );
 
     //! Associates mesh layer with the widget
     void setLayer( QgsMeshLayer *layer );

@@ -29,9 +29,9 @@ QgsMeshRendererActiveDatasetWidget::QgsMeshRendererActiveDatasetWidget( QWidget 
 {
   setupUi( this );
 
-  connect( mDatasetGroupTreeView, &QgsMeshDatasetGroupUsedTreeView::activeScalarGroupChanged,
+  connect( mDatasetGroupTreeView, &QgsMeshDatasetGroupTreeView::activeScalarGroupChanged,
            this, &QgsMeshRendererActiveDatasetWidget::onActiveScalarGroupChanged );
-  connect( mDatasetGroupTreeView, &QgsMeshDatasetGroupUsedTreeView::activeVectorGroupChanged,
+  connect( mDatasetGroupTreeView, &QgsMeshDatasetGroupTreeView::activeVectorGroupChanged,
            this, &QgsMeshRendererActiveDatasetWidget::onActiveVectorGroupChanged );
 }
 
@@ -208,7 +208,4 @@ void QgsMeshRendererActiveDatasetWidget::syncToLayer()
 void QgsMeshRendererActiveDatasetWidget::updateDatasetGroup()
 {
   mDatasetGroupTreeView->updateGroupFromLayer();
-  mActiveScalarDatasetGroup = mDatasetGroupTreeView->activeScalarGroup();
-  mActiveVectorDatasetGroup = mDatasetGroupTreeView->activeVectorGroup();
-  emit widgetChanged();
 }

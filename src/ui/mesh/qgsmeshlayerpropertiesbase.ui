@@ -336,14 +336,7 @@ border-radius: 2px;</string>
                 </layout>
                </item>
                <item>
-                <widget class="QgsMeshDatasetGroupProvidedTreeView" name="mDatasetGroupProvidedTreeView"/>
-               </item>
-               <item>
-                <widget class="QPushButton" name="mAddDatasetButton">
-                 <property name="text">
-                  <string>Assign Extra Dataset to Mesh</string>
-                 </property>
-                </widget>
+                <widget class="QgsMeshDatasetGroupProvidedWidget" name="mDatasetGroupProvidedWidget" native="true"/>
                </item>
                <item>
                 <widget class="QCheckBox" name="mTemporalStaticDatasetCheckBox">
@@ -408,8 +401,8 @@ border-radius: 2px;</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>661</width>
-                <height>507</height>
+                <width>100</width>
+                <height>30</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_10">
@@ -776,9 +769,10 @@ border-radius: 2px;</string>
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QgsMeshDatasetGroupProvidedTreeView</class>
-   <extends>QTreeView</extends>
-   <header>qgsmeshdatasetgrouptreeview.h</header>
+   <class>QgsMeshDatasetGroupProvidedWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsmeshdatasetgroupprovidedwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>
