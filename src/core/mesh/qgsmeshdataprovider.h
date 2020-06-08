@@ -107,6 +107,7 @@ struct CORE_EXPORT QgsMesh
   QVector<QgsMeshFace> faces SIP_SKIP;
 };
 
+
 /**
  * \ingroup core
  *
@@ -334,6 +335,7 @@ class CORE_EXPORT QgsMeshDatasetSourceInterface SIP_ABSTRACT
                                       const QVector<QgsMeshDataBlock> &datasetActive,
                                       const QVector<double> &times
                                     ) = 0;
+
 };
 
 
@@ -373,6 +375,289 @@ class CORE_EXPORT QgsMeshDataProvider: public QgsDataProvider, public QgsMeshDat
 
   private:
     std::unique_ptr<QgsMeshDataProviderTemporalCapabilities> mTemporalCapabilities;
+};
+
+class QgsMeshTemporaryDataset
+{
+  public:
+
+  private:
+    //double mTime;
+    QgsMeshDataBlock mValues;
+    QgsMeshDataBlock mActive;
+};
+
+class QgsMeshTemporaryDatasetGroup
+{
+  public:
+    int datasetsCount() const
+    {
+      return mDatasets.count();
+    }
+
+    QgsMeshDatasetGroupMetadata metadata() const
+    {
+      return QgsMeshDatasetGroupMetadata();
+    }
+
+    QgsMeshDatasetMetadata datasetMetadata( int index ) const
+    {
+      Q_UNUSED( index );
+      return QgsMeshDatasetMetadata();
+    }
+
+  private:
+    QVector<QgsMeshTemporaryDataset> mDatasets;
+};
+
+
+class QgsMeshDatasetProxy
+{
+  public:
+    int memoryDatasetCount( int groupIndex ) const
+    {
+      Q_UNUSED( groupIndex );
+      return 0;
+    }
+};
+
+template <class OriginalProvider>
+class QgsMeshDynamicDataProvider : public OriginalProvider
+{
+    enum DatasetGroupType
+    {
+      Invalid,
+      PoviderType,
+      TemporaryType
+    };
+
+    typedef QPair<DatasetGroupType, int> DatasetGroup;
+
+  public:
+    QgsMeshDynamicDataProvider( const QString &uri, const QgsDataProvider::ProviderOptions &providerOptions ):
+      OriginalProvider( uri, providerOptions )
+    {
+      //populate native dataset groups
+      for ( int i = 0; i < OriginalProvider::datasetGroupCount(); ++i )
+      {
+        mDatasetGroupMap[i] = DatasetGroup{PoviderType, i};
+      }
+    }
+
+    bool addDataset( const QString &uri )
+    {
+      int initialCount = OriginalProvider::datasetGroupCount();
+      bool ok = OriginalProvider::addDataset( uri );
+      if ( !ok )
+        return false;
+
+      int finalCount = OriginalProvider::datasetGroupCount();
+
+
+    }
+
+    virtual int datasetGroupCount( ) const
+    {
+      return OriginalProvider::datasetGroupCount() + mTemporaryDatasetGroups.count();
+    }
+
+    virtual int datasetCount( int groupIndex ) const
+    {
+      const DatasetGroup group = datasetGroup( groupIndex );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return 0;
+          break;
+        case PoviderType:
+          return OriginalProvider::datasetCount( group.second );
+          break;
+        case TemporaryType:
+          if ( group.second < mTemporaryDatasetGroups.count() )
+            return mTemporaryDatasetGroups.at( group.second ).datasetsCount();
+          break;
+      }
+
+      return 0;
+    }
+
+    QgsMeshDatasetGroupMetadata datasetGroupMetadata( int groupIndex ) const
+    {
+      const DatasetGroup group = datasetGroup( groupIndex );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return QgsMeshDatasetGroupMetadata();
+          break;
+        case PoviderType:
+          return OriginalProvider::datasetGroupMetadata( group.second );
+          break;
+        case TemporaryType:
+          if ( group.second < mTemporaryDatasetGroups.count() )
+            return mTemporaryDatasetGroups.at( group.second ).metadata();
+          break;
+      }
+
+      return QgsMeshDatasetGroupMetadata();
+    }
+
+    QgsMeshDatasetMetadata datasetMetadata( QgsMeshDatasetIndex index ) const
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return QgsMeshDatasetMetadata();
+          break;
+        case PoviderType:
+          return OriginalProvider::datasetMetadata( QgsMeshDatasetIndex( group.second, index.dataset() ) );
+          break;
+        case TemporaryType:
+          if ( group.second < mTemporaryDatasetGroups.count() )
+            return mTemporaryDatasetGroups.at( group.second ).datasetMetadata( index.dataset() );
+          break;
+      }
+
+      return QgsMeshDatasetMetadata();
+    }
+
+    QgsMeshDatasetValue datasetValue( QgsMeshDatasetIndex index, int valueIndex )
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return 0;
+          break;
+        case PoviderType:
+          return OriginalProvider::datasetValue( QgsMeshDatasetIndex( group.second, index.dataset() ), valueIndex );
+          break;
+        case TemporaryType:
+          return temporaryDatasetValue( group.second, valueIndex );
+          break;
+      }
+    }
+
+    QgsMeshDataBlock datasetValues( QgsMeshDatasetIndex index, int valueIndex, int count ) const
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return QgsMeshDataBlock();
+          break;
+        case PoviderType:
+          return OriginalProvider::datasetValues( QgsMeshDatasetIndex( group.second, index.dataset() ), valueIndex, count );
+          break;
+        case TemporaryType:
+          return temporaryDatasetValues( group.second, valueIndex, count );
+          break;
+      }
+
+      return QgsMeshDataBlock();
+    }
+
+    QgsMesh3dDataBlock dataset3dValues( QgsMeshDatasetIndex index, int faceIndex, int count )
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return QgsMesh3dDataBlock();
+          break;
+        case PoviderType:
+          return OriginalProvider::dataset3dValues( QgsMeshDatasetIndex( group.second, index.dataset() ), faceIndex, count );
+          break;
+        case TemporaryType:
+          return temporaryDatasetValues( group.second, faceIndex, count );
+          break;
+      }
+
+      return QgsMesh3dDataBlock();
+    }
+
+    bool isFaceActive( QgsMeshDatasetIndex index, int faceIndex ) const
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return false;
+          break;
+        case PoviderType:
+          return OriginalProvider::isFaceActive( QgsMeshDatasetIndex( group.second, index.dataset() ), faceIndex ) ;
+          break;
+        case TemporaryType:
+          return isTemporaryfaceActive( group.second, faceIndex );
+          break;
+      }
+
+      return false;
+
+    }
+
+    QgsMeshDataBlock areFacesActive( QgsMeshDatasetIndex index, int faceIndex, int count ) const
+    {
+      const DatasetGroup group = datasetGroup( index.group() );
+
+      switch ( group.first )
+      {
+        case Invalid:
+          return QgsMeshDataBlock();
+          break;
+        case PoviderType:
+          return OriginalProvider::areFacesActive( QgsMeshDatasetIndex( group.second, index.dataset() ), faceIndex, count );
+          break;
+        case TemporaryType:
+          return areTemporaryfacesActive( group.second, faceIndex, count );
+          break;
+      }
+
+      return QgsMeshDataBlock();
+    }
+
+  private:
+
+    QHash<int, DatasetGroup> mDatasetGroupMap;
+
+    DatasetGroup datasetGroup( int groupIndex ) const
+    {
+      if ( !mDatasetGroupMap.contains( groupIndex ) )
+        return DatasetGroup{Invalid, -1};
+
+      return mDatasetGroupMap[groupIndex];
+    }
+
+    QVector<QgsMeshTemporaryDatasetGroup> mTemporaryDatasetGroups;
+    QgsMeshDatasetValue temporaryDatasetValue( int index, int valueIndex ) const
+    {
+      return QgsMeshDatasetValue();
+    }
+    QgsMeshDataBlock temporaryDatasetValues( int index, int valueIndex, int count ) const
+    {
+      return QgsMeshDataBlock();
+    }
+
+    QgsMesh3dDataBlock temporaryDataset3DValues( int index, int faceIndex, int count ) const
+    {
+      return QgsMesh3dDataBlock();
+    }
+    bool isTemporaryfaceActive( int index, int faceIndex ) const
+    {
+      return false;
+    }
+
+    QgsMeshDataBlock areTemporaryfacesActive( int index, int faceIndex, int count ) const
+    {
+      return QgsMeshDataBlock();
+    }
 };
 
 #endif // QGSMESHDATAPROVIDER_H

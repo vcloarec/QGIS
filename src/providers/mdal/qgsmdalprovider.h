@@ -131,7 +131,7 @@ class QgsMdalProviderMetadata: public QgsProviderMetadata
     QgsMdalProviderMetadata();
     QString filters( FilterType type ) override;
     QList<QgsMeshDriverMetadata> meshDriversMetadata() override;
-    QgsMdalProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options ) override;
+    QgsMeshDataProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options ) override;
     QList<QgsDataItemProvider *> dataItemProviders() const override;
 };
 

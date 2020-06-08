@@ -35,6 +35,9 @@ std::shared_ptr<QgsMeshMemoryDatasetGroup> QgsMeshCalcUtils::create( const QStri
 {
   const auto dp = mMeshLayer->dataProvider();
   std::shared_ptr<QgsMeshMemoryDatasetGroup> grp;
+
+  // Replace thatt logic by a method that return a QgsMeshMemoryDatasetGroup from dataprovider from a name ?
+
   for ( int groupIndex = 0; groupIndex < dp->datasetGroupCount(); ++groupIndex )
   {
     const auto meta = dp->datasetGroupMetadata( groupIndex );
