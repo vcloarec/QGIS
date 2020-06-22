@@ -654,6 +654,8 @@ void QgsMeshLayer::setDatasetGroupTreeRootItem( QgsMeshDatasetGroupTreeItem *roo
 {
   mDatasetGroupStore->setDatasetGroupTreeItem( rootItem );
   updateActiveDatasetGroups();
+  emit rendererChanged();
+  emit dataChanged();
 }
 
 int QgsMeshLayer::closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const

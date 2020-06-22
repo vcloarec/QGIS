@@ -20,6 +20,7 @@
 #include "qgsmeshdataprovidertemporalcapabilities.h"
 #include "qgsmeshlayerutils.h"
 #include "qgstriangularmesh.h"
+#include "qgsmeshmemorydataprovider.h"
 #include <cstring>
 
 #define TEXT_PROVIDER_KEY QStringLiteral( "mesh_memory" )

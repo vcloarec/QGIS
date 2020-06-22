@@ -288,7 +288,6 @@ QgsMeshCalculator::Result QgsMeshCalculator::processCalculation( QgsFeedback *fe
           );
   }
 
-
   if ( err )
   {
     return CreateOutputError;

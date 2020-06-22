@@ -11,6 +11,7 @@
 
 
 
+
 class QgsMeshLayer : QgsMapLayer
 {
 %Docstring
@@ -173,14 +174,6 @@ Saves datasets group on file with the specified ``driver``
 :param datasetGroupIndex: the index of the dataset group
 :param driver: the driver to used for saving
 
-:return: false if succeeds
-
-.. versionadded:: 3.16
-%End
-
-
-
-
     void updateTriangularMesh( const QgsCoordinateTransform &transform = QgsCoordinateTransform() );
 %Docstring
 Gets native mesh and updates (creates if it doesn't exist) the base triangular mesh
@@ -225,166 +218,6 @@ Returns (date) time in hours formatted to human readable form
 :return: formatted time string
 
 .. versionadded:: 3.8
-%End
-
-    int datasetGroupCount() const;
-%Docstring
-Returns the dataset groups count handle by the layer
-
-.. versionadded:: 3.16
-%End
-
-    int extraDatasetGroupCount() const;
-%Docstring
-Returns the extra dataset groups count handle by the layer
-
-.. versionadded:: 3.16
-%End
-
-    QList<int> datasetGroupsIndexes() const;
-%Docstring
-Returns the list of indexes of dataset groups count handled by the layer
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-.. versionadded:: 3.16
-%End
-
-    QgsMeshDatasetGroupMetadata datasetGroupMetadata( const QgsMeshDatasetIndex &index ) const;
-%Docstring
-Returns the dataset groups metadata
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-.. versionadded:: 3.16
-%End
-
-    int datasetCount( const QgsMeshDatasetIndex &index ) const;
-%Docstring
-Returns the dataset count in the dataset groups
-
-:param index: index of the dataset in the group
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-
-.. versionadded:: 3.16
-%End
-
-    QgsMeshDatasetMetadata datasetMetadata( const QgsMeshDatasetIndex &index ) const;
-%Docstring
-Returns the dataset metadata
-
-:param index: index of the dataset
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-
-.. versionadded:: 3.16
-%End
-
-    QgsMeshDatasetValue datasetValue( const QgsMeshDatasetIndex &index, int valueIndex ) const;
-%Docstring
-Returns  vector/scalar value associated with the index from the dataset
-To read multiple continuous values, use :py:func:`~QgsMeshLayer.datasetValues`
-
-See :py:func:`QgsMeshDatasetMetadata.isVector()` or :py:func:`QgsMeshDataBlock.type()`
-to check if the returned value is vector or scalar
-
-Returns invalid value for DataOnVolumes
-
-:param index: index of the dataset
-:param valueIndex: index of the value
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-
-.. versionadded:: 3.16
-%End
-
-    QgsMeshDataBlock datasetValues( const QgsMeshDatasetIndex &index, int valueIndex, int count ) const;
-%Docstring
-Returns N vector/scalar values from the index from the dataset
-
-See :py:func:`QgsMeshDatasetMetadata.isVector()` or :py:func:`QgsMeshDataBlock.type()`
-to check if the returned value is vector or scalar
-
-Returns invalid block for DataOnVolumes. Use :py:func:`QgsMeshLayerUtils.datasetValues()` if you
-need block for any type of data type
-
-:param index: index of the dataset
-:param valueIndex: index of the value
-:param count: number of values to return
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-
-.. versionadded:: 3.16
-%End
-
-    QgsMesh3dDataBlock dataset3dValues( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const;
-%Docstring
-Returns N vector/scalar values from the face index from the dataset for 3d stacked meshes
-
-See :py:func:`QgsMeshDatasetMetadata.isVector()` to check if the returned value is vector or scalar
-
-returns invalid block for DataOnFaces and DataOnVertices.
-
-:param index: index of the dataset
-:param valueIndex: index of the value
-:param count: number of values to return
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes can be different from the data provider indexes.
-
-
-.. versionadded:: 3.16
-%End
-
-    bool isFaceActive( const QgsMeshDatasetIndex &index, int faceIndex ) const;
-%Docstring
-Returns N vector/scalar values from the face index from the dataset for 3d stacked meshes
-
-See :py:func:`QgsMeshDatasetMetadata.isVector()` to check if the returned value is vector or scalar
-
-returns invalid block for DataOnFaces and DataOnVertices.
-%End
-
-    QgsMeshDataBlock areFacesActive( const QgsMeshDatasetIndex &index, int faceIndex, int count ) const;
-%Docstring
-Returns whether the faces are active for particular dataset
-
-:param index: index of the dataset
-:param valueIndex: index of the value
-:param count: number of values to return
-
-.. note::
-
-   indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
-   In the layer scope, those indexes are different from the data provider indexes.
-
-
-.. versionadded:: 3.16
 %End
 
     QgsMeshDatasetValue datasetValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point, double searchRadius = 0 ) const;

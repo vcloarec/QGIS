@@ -38,6 +38,8 @@ class QgsMesh3dAveragingMethod;
 class QgsMeshLayerTemporalProperties;
 class QgsMeshDatasetGroupStore;
 
+struct QgsMeshMemoryDatasetGroup;
+
 /**
  * \ingroup core
  *
