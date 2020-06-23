@@ -821,6 +821,11 @@ QgsInterval QgsMeshLayer::datasetRelativeTime( const QgsMeshDatasetIndex &index 
     return QgsInterval( time, QgsUnitTypes::TemporalMilliseconds );
 }
 
+qint64 QgsMeshLayer::datasetRelativeTimeInMilliseconds( const QgsMeshDatasetIndex &index )
+{
+  return mDatasetGroupStore->datasetRelativeTime( index );
+}
+
 void QgsMeshLayer::updateActiveDatasetGroups()
 {
   QgsMeshDatasetGroupTreeItem *treeItem = mDatasetGroupStore->datasetGroupTreeItem();

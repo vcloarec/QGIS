@@ -38,8 +38,6 @@ class QgsMesh3dAveragingMethod;
 class QgsMeshLayerTemporalProperties;
 class QgsMeshDatasetGroupStore;
 
-struct QgsMeshMemoryDatasetGroup;
-
 /**
  * \ingroup core
  *
@@ -318,6 +316,20 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
      * \since QGIS 3.16
      */
     QList<int> datasetGroupsIndexes() const;
+
+    int datasetGroupIndex( QString datasetGroupName )
+    {
+      const QList<int> &indexes = datasetGroupsIndexes();
+
+      for ( int index : indexes )
+      {
+        QString metaName = datasetGroupMetadata( index ).name();
+        if ( metaName == datasetGroupName )
+          return index;
+      }
+
+      return -1;
+    }
 
     /**
      * Returns the dataset groups metadata
@@ -659,6 +671,8 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
      * \since QGIS 3.16
      */
     QgsInterval datasetRelativeTime( const QgsMeshDatasetIndex &index );
+
+    qint64 datasetRelativeTimeInMilliseconds( const QgsMeshDatasetIndex &index );
 
   public slots:
 

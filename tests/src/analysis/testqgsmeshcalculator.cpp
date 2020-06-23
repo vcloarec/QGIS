@@ -18,6 +18,7 @@ Email                : zilolv at gmail dot com
 
 #include "qgsmeshcalculator.h"
 #include "qgsmeshcalcnode.h"
+#include "qgsmeshontheflydatasetgroup.h"
 #include "qgsmeshdataprovider.h"
 #include "qgsmeshlayer.h"
 #include "qgsapplication.h"
@@ -50,6 +51,8 @@ class TestQgsMeshCalculator : public QObject
     void calcWithMixedLayers();
 
     void calcAndSave();
+
+    void onTheFlyDatasetGroup();
 
   private:
 
@@ -314,6 +317,18 @@ void TestQgsMeshCalculator::calcAndSave()
 
   QFileInfo fileInfo( tempFilePath );
   QVERIFY( fileInfo.exists() );
+}
+
+void TestQgsMeshCalculator::onTheFlyDatasetGroup()
+{
+  QString formula = QStringLiteral( "\"VertexScalarDataset\" + 2" );
+  QgsMeshOnTheFlyDatasetGroup OTFDatasetGroup( "OTF Dataset group", formula, mpMeshLayer, 0, 10000000 );
+  QCOMPARE( OTFDatasetGroup.datasetCount(), 2 );
+
+  const QgsMeshDataset *dataset1=OTFDatasetGroup.dataset(0);
+
+  QCOMPARE(dataset1->valuesCount(),5);
+
 }
 
 QGSTEST_MAIN( TestQgsMeshCalculator )

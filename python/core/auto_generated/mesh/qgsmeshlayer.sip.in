@@ -11,7 +11,6 @@
 
 
 
-
 class QgsMeshLayer : QgsMapLayer
 {
 %Docstring
@@ -474,6 +473,8 @@ Returns the relative time (in milliseconds) of the dataset from the reference ti
 
 .. versionadded:: 3.16
 %End
+
+    qint64 datasetRelativeTimeInMilliseconds( const QgsMeshDatasetIndex &index );
 
   public slots:
 
