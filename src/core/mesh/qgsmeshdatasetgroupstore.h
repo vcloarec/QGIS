@@ -88,6 +88,7 @@ class QgsMeshExtraDatasetStore: public QgsMeshDatasetSourceInterface
     //! Writes the store's information in a DOM document
     QDomElement writeXml( int groupIndex, QDomDocument &doc, const QgsReadWriteContext &context );
 
+    //! Updates the temporal capabilities
     void updateTemporalCapabilities();
 
   private:

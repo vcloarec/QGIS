@@ -2374,7 +2374,7 @@ QgsApplication::ApplicationMembers::ApplicationMembers()
     profiler->end();
   }
   {
-    profiler->start( tr( "Setup mesh calculator registry" ) );
+    profiler->start( tr( "Setup mesh data generator registry" ) );
     mMeshDataGeneratorRegistry = new QgsMeshDataGeneratorRegistry();
     profiler->end();
   }
