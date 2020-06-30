@@ -802,7 +802,7 @@ class CORE_EXPORT QgsMeshDatasetGroupTreeItem
 
     QgsMeshDatasetGroupTreeItem *searchItemBySourceName( const QString &sourceName ) const;
     QgsMeshDatasetGroupTreeItem *rootItem() const;
-    void freeAsDependencie();
+    void freeAsDependency();
     void freeFromDependencies();
 };
 

@@ -508,8 +508,8 @@ QgsMeshDatasetGroupTreeItem::~QgsMeshDatasetGroupTreeItem()
 {
   // Remove from where this item is linked
 
-  freeAsDependencie();
-  freeAsDependencie();
+  freeAsDependency();
+  freeAsDependency();
   qDeleteAll( mChildren );
   if ( mParent )
   {
@@ -646,7 +646,7 @@ void QgsMeshDatasetGroupTreeItem::setDatasetGroupType( QgsMeshDatasetGroupTreeIt
   mDatasetGroupType = datasetGroupType;
 
   if ( mDatasetGroupType != Expression )
-    freeAsDependencie();
+    freeAsDependency();
 }
 
 void QgsMeshDatasetGroupTreeItem::setDependencies( const QStringList &datasetGroupNames )
@@ -775,7 +775,7 @@ QgsMeshDatasetGroupTreeItem *QgsMeshDatasetGroupTreeItem::rootItem() const
   return const_cast<QgsMeshDatasetGroupTreeItem *>( baseItem );
 }
 
-void QgsMeshDatasetGroupTreeItem::freeAsDependencie()
+void QgsMeshDatasetGroupTreeItem::freeAsDependency()
 {
   QgsMeshDatasetGroupTreeItem *root = rootItem();
   for ( int index : mDatasetGroupDependentOn )

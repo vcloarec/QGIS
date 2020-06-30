@@ -53,6 +53,7 @@ class TestQgsMeshCalculator : public QObject
     void calcAndSave();
 
     void onTheFlyDatasetGroup();
+    void test_dataset_group_dependency();
 
   private:
 
@@ -361,6 +362,74 @@ void TestQgsMeshCalculator::onTheFlyDatasetGroup()
   QCOMPARE( dataset->datasetValue( 2 ).scalar(), 7 );
   QCOMPARE( dataset->datasetValue( 3 ).scalar(), 5.5 );
   QCOMPARE( dataset->datasetValue( 4 ).scalar(), 4 );
+}
+
+
+void TestQgsMeshCalculator::test_dataset_group_dependency()
+{
+  int vertexCount = mpMeshLayer->dataProvider()->vertexCount();
+  std::vector<std::unique_ptr<QgsMeshMemoryDatasetGroup>> memoryDatasetGroups( 4 );
+  for ( int dsg = 0; dsg < 4; ++dsg )
+  {
+    memoryDatasetGroups[dsg].reset( new QgsMeshMemoryDatasetGroup );
+    memoryDatasetGroups[dsg]->setDataType( QgsMeshDatasetGroupMetadata::DataOnVertices );
+    memoryDatasetGroups[dsg]->setName( QString( "dataset_group_%1" ).arg( dsg ) );
+    for ( int i = 0; i < 10; i++ )
+    {
+      std::shared_ptr<QgsMeshMemoryDataset> ds = std::make_shared<QgsMeshMemoryDataset>();
+      ds->time = i / 3600.0;
+      for ( int v = 0; v < vertexCount; ++v )
+        ds->values.append( QgsMeshDatasetValue( v / 2.0 + dsg ) );
+
+      memoryDatasetGroups[dsg]->addDataset( ds );
+    }
+    mpMeshLayer->addDatasets( memoryDatasetGroups[dsg].release() );
+  }
+
+  QStringList formulas;
+
+  formulas.append( QStringLiteral( "\"dataset_group_0\" + 2" ) );
+  formulas.append( QStringLiteral( "\"dataset_group_3\" + \"on_the_fly_0\"" ) );
+  formulas.append( QStringLiteral( "\"VertexScalarDataset\" + \"FaceScalarDataset\"" ) );
+  QVector<int> sizes{10, 10, 2};
+
+  std::vector<std::unique_ptr<QgsMeshOnTheFlyDatasetGroup>> onTheFlyDatasetGroups( 3 );
+
+  for ( int i = 0; i < 3; ++i )
+  {
+    onTheFlyDatasetGroups[i].reset( new QgsMeshOnTheFlyDatasetGroup( QString( "on_the_fly_%1" ).arg( i ), formulas[i], mpMeshLayer, 0, 100000 ) );
+    onTheFlyDatasetGroups[i]->initialize();
+    QCOMPARE( sizes[i], onTheFlyDatasetGroups[i]->datasetCount() );
+    mpMeshLayer->addDatasets( onTheFlyDatasetGroups[i].release() );
+  }
+
+
+  QCOMPARE( 20, mpMeshLayer->datasetGroupCount() );
+
+  QgsMeshDatasetGroupTreeItem *rootItem = mpMeshLayer->datasetGroupTreeRootItem();
+
+  for ( int dsg = 0; dsg < 4; ++dsg )
+  {
+    QgsMeshDatasetGroupTreeItem *item = rootItem->childFromDatasetGroupIndex( 13 + dsg );
+    QCOMPARE( QString( "dataset_group_%1" ).arg( dsg ), item->name() );
+    QVERIFY( item->isTemporary() );
+  }
+
+  for ( int dsg = 0; dsg < 3; ++dsg )
+    QCOMPARE( QString( "on_the_fly_%1" ).arg( dsg ), rootItem->childFromDatasetGroupIndex( 17 + dsg )->name() );
+
+  QVERIFY( rootItem->childFromDatasetGroupIndex( 17 )->isTemporary() );
+  QVERIFY( rootItem->childFromDatasetGroupIndex( 18 )->isTemporary() );
+  QVERIFY( ! rootItem->childFromDatasetGroupIndex( 19 )->isTemporary() );
+
+
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 13 )->groupIndexDependencies().count(), 2 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 14 )->groupIndexDependencies().count(), 0 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 15 )->groupIndexDependencies().count(), 0 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 16 )->groupIndexDependencies().count(), 1 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 17 )->groupIndexDependencies().count(), 1 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 18 )->groupIndexDependencies().count(), 0 );
+  QCOMPARE( rootItem->childFromDatasetGroupIndex( 19 )->groupIndexDependencies().count(), 0 );
 }
 
 QGSTEST_MAIN( TestQgsMeshCalculator )
