@@ -43,6 +43,14 @@ Resulting dataset is always scalar
       MemoryError,
     };
 
+    enum Destination
+    {
+      OnFile,
+      OnMemory,
+      OnTheFly,
+
+    };
+
  QgsMeshCalculator( const QString &formulaString,
                                          const QString &outputFile,
                                          const QgsRectangle &outputExtent,
@@ -131,12 +139,13 @@ Creates calculator with geometry mask
 
     QgsMeshCalculator( const QString &formulaString,
                        const QString &outputGroupName,
-                       double startTime,
-                       double endTime,
                        const QgsRectangle &outputExtent,
-                       QgsMeshLayer *layer );
+                       const QgsMeshCalculator::Destination &destination,
+                       QgsMeshLayer *layer,
+                       double startTime,
+                       double endTime );
 %Docstring
-Creates calculator with bounding box (rectangular) mask, store the result in the memory
+Creates calculator with bounding box (rectangular) mask, store the result in ``destination`` (must be on memory or on the fly), see QgsMeshCalculator.Destination
 
 :param formulaString: formula/expression to evaluate. Consists of dataset group names, operators and numbers
 :param outputGroupName: output group name
@@ -150,12 +159,13 @@ Creates calculator with bounding box (rectangular) mask, store the result in the
 
     QgsMeshCalculator( const QString &formulaString,
                        const QString &outputGroupName,
-                       double startTime,
-                       double endTime,
                        const QgsGeometry &outputMask,
-                       QgsMeshLayer *layer );
+                       const QgsMeshCalculator::Destination &destination,
+                       QgsMeshLayer *layer,
+                       double startTime,
+                       double endTime );
 %Docstring
-Creates calculator with with geometry mask, store the result in the memory
+Creates calculator with with geometry mask, store the result in ``destination`` (must be on memory or on the fly), see QgsMeshCalculator.Destination
 
 :param formulaString: formula/expression to evaluate. Consists of dataset group names, operators and numbers
 :param outputGroupName: output group name

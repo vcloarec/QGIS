@@ -2087,6 +2087,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void createMapTips();
     void createDecorations();
     void init3D();
+    void initMeshCalculator();
     void initNativeProcessing();
     void initLayouts();
 

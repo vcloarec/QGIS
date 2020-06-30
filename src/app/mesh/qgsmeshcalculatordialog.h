@@ -79,6 +79,8 @@ class APP_EXPORT QgsMeshCalculatorDialog: public QDialog, private Ui::QgsMeshCal
     void mNoDataButton_clicked();
 
   private:
+    void init();
+
     QString formulaString() const;
     QgsMeshLayer *meshLayer() const;
 
@@ -128,6 +130,7 @@ class APP_EXPORT QgsMeshCalculatorDialog: public QDialog, private Ui::QgsMeshCal
 
     QgsMeshLayer *mLayer;
     QHash<QString, QgsMeshDriverMetadata> mMeshDrivers;
+    QStringList mVariableNames;
 
     friend class TestQgsMeshCalculatorDialog;
 };

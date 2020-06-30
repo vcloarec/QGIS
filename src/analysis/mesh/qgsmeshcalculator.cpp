@@ -23,6 +23,7 @@
 #include "qgsmeshcalculator.h"
 #include "qgsmeshcalcutils.h"
 #include "qgsmeshmemorydataprovider.h"
+#include "qgsmeshontheflydatasetgroup.h"
 #include "qgis.h"
 
 QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
@@ -78,6 +79,7 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
   , mOutputFile( outputFile )
   , mOutputExtent( outputExtent )
   , mUseMask( false )
+  , mDestination( QgsMeshCalculator::OnFile )
   , mStartTime( startTime )
   , mEndTime( endTime )
   , mMeshLayer( layer )
@@ -98,6 +100,7 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
   , mOutputFile( outputFile )
   , mOutputMask( outputMask )
   , mUseMask( true )
+  , mDestination( QgsMeshCalculator::OnFile )
   , mStartTime( startTime )
   , mEndTime( endTime )
   , mMeshLayer( layer )
@@ -106,14 +109,16 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
 
 QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
                                       const QString &outputGroupName,
-                                      double startTime,
-                                      double endTime,
                                       const QgsRectangle &outputExtent,
-                                      QgsMeshLayer *layer )
+                                      const QgsMeshCalculator::Destination &destination,
+                                      QgsMeshLayer *layer,
+                                      double startTime,
+                                      double endTime )
   : mFormulaString( formulaString )
   , mOutputGroupName( outputGroupName )
   , mOutputExtent( outputExtent )
   , mUseMask( false )
+  , mDestination( destination )
   , mStartTime( startTime )
   , mEndTime( endTime )
   , mResultInMemory( true )
@@ -123,14 +128,16 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
 
 QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
                                       const QString &outputGroupName,
-                                      double startTime,
-                                      double endTime,
                                       const QgsGeometry &outputMask,
-                                      QgsMeshLayer *layer )
+                                      const Destination &destination,
+                                      QgsMeshLayer *layer,
+                                      double startTime,
+                                      double endTime )
   : mFormulaString( formulaString )
   , mOutputGroupName( outputGroupName )
   , mOutputMask( outputMask )
   , mUseMask( true )
+  , mDestination( destination )
   , mStartTime( startTime )
   , mEndTime( endTime )
   , mResultInMemory( true )
@@ -191,13 +198,33 @@ QgsMeshCalculator::Result QgsMeshCalculator::processCalculation( QgsFeedback *fe
     return ParserError;
   }
 
+  // proceed eventually on the fly
+  bool err;
+  if ( mDestination == QgsMeshCalculator::OnTheFly )
+  {
+    std::unique_ptr<QgsMeshDatasetGroup> datasetGroupOnTheFly = qgis::make_unique<QgsMeshOnTheFlyDatasetGroup> ( mOutputGroupName, mFormulaString, mMeshLayer, mStartTime * 3600 * 1000, mEndTime * 3600 * 1000 );
+    datasetGroupOnTheFly->initialize();
+
+    err = !mMeshLayer->addDatasets( datasetGroupOnTheFly.release() );
+    if ( err )
+    {
+      return CreateOutputError;
+    }
+
+    if ( feedback )
+    {
+      feedback->setProgress( 100.0 );
+    }
+    return Success;
+  }
+
+  //open output dataset
   QgsMeshCalcUtils dsu( mMeshLayer, calcNode->usedDatasetGroupNames(), mStartTime, mEndTime );
   if ( !dsu.isValid() )
   {
     return InvalidDatasets;
   }
 
-  //open output dataset
   std::unique_ptr<QgsMeshMemoryDatasetGroup> outputGroup = qgis::make_unique<QgsMeshMemoryDatasetGroup> ( mOutputGroupName, dsu.outputType() );
 
   // calculate
@@ -267,10 +294,9 @@ QgsMeshCalculator::Result QgsMeshCalculator::processCalculation( QgsFeedback *fe
   }
 
   // calculate statistics
-  outputGroup->calculateStatistic();
+  outputGroup->initialize();
 
   const QgsMeshDatasetGroupMetadata meta = outputGroup->groupMetadata();
-  bool err;
 
   if ( mResultInMemory )
   {
