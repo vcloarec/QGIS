@@ -28,9 +28,9 @@ QgsMeshDataGeneratorRegistry::~QgsMeshDataGeneratorRegistry()
   qDeleteAll( mMeshDataGenerators );
 }
 
-void QgsMeshDataGeneratorRegistry::addMeshDataGenerator( QgsMeshDataGeneratorInterface *calculator )
+void QgsMeshDataGeneratorRegistry::addMeshDataGenerator( QgsMeshDataGeneratorInterface *generator )
 {
-  mMeshDataGenerators[calculator->key()] = calculator;
+  mMeshDataGenerators[generator->key()] = generator;
 }
 
 QgsMeshDataGeneratorInterface *QgsMeshDataGeneratorRegistry::meshDataGenerator( const QString &key ) const

@@ -71,7 +71,7 @@ class CORE_EXPORT QgsMeshDataGeneratorRegistry
     ~QgsMeshDataGeneratorRegistry();
 
     //! Add a mesh calculator factory in the registry
-    void addMeshDataGenerator( QgsMeshDataGeneratorInterface *calculator );
+    void addMeshDataGenerator( QgsMeshDataGeneratorInterface *generator );
 
     //! Returns the mesh calculator corresonding to the \a key
     QgsMeshDataGeneratorInterface *meshDataGenerator( const QString &key ) const;

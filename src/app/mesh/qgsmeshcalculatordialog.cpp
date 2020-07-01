@@ -116,11 +116,6 @@ QgsMeshCalculatorDialog::QgsMeshCalculatorDialog( QgsMeshLayer *meshLayer, QWidg
   onOutputRadioButtonChange();
 }
 
-void QgsMeshCalculatorDialog::init()
-{
-
-}
-
 QgsMeshCalculatorDialog::~QgsMeshCalculatorDialog() = default;
 
 

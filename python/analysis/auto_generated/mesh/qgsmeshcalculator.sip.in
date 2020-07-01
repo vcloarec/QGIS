@@ -48,7 +48,6 @@ Resulting dataset is always scalar
       OnFile,
       OnMemory,
       OnTheFly,
-
     };
 
  QgsMeshCalculator( const QString &formulaString,

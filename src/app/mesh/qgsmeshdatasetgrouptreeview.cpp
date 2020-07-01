@@ -547,8 +547,7 @@ QVariant QgsMeshDatasetGroupListModel::data( const QModelIndex &index, int role 
         return item->name();
       break;
     case Qt::DecorationRole:
-      if ( item->storageType() == QgsMeshDatasetGroupTreeItem::Memory )
-        return QgsApplication::getThemeIcon( QStringLiteral( "mIndicatorMemory.svg" ) );
+      return QVariant();
       break;
   }
 

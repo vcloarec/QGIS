@@ -236,7 +236,7 @@ class ANALYSIS_EXPORT QgsMeshCalcUtils
     std::shared_ptr<QgsMeshMemoryDataset> create( const QgsMeshMemoryDatasetGroup &grp ) const;
 
     /**
-     *  Creates dataset based on group. Fill with value of corresponding dataset
+     *  Creates dataset based on group. Fill with values of corresponding dataset
      */
     std::shared_ptr<QgsMeshMemoryDataset> create( const QgsMeshDatasetIndex &datasetIndex ) const;
 

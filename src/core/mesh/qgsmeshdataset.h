@@ -1024,8 +1024,6 @@ class CORE_EXPORT QgsMeshMemoryDatasetGroup: public QgsMeshDatasetGroup
     QVector<std::shared_ptr<QgsMeshMemoryDataset>> memoryDatasets;
 };
 
-
-
 #endif //SIP_RUN
 
 #endif // QGSMESHDATASET_H

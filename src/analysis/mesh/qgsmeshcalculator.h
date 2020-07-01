@@ -72,7 +72,6 @@ class ANALYSIS_EXPORT QgsMeshCalculator
       OnFile = 0, //!< On file
       OnMemory, //!< On memory dataset group, see QgsMeshMemoryDatasetGroup
       OnTheFly, //!< On the fly dataset group, see QgsMeshOnTheFlyDatasetGroup
-
     };
 
     /**
@@ -238,7 +237,6 @@ class ANALYSIS_EXPORT QgsMeshCalculator
     QgsMeshCalculator::Destination mDestination;
     double mStartTime = 0.0;
     double mEndTime = 0.0;
-    bool mResultInMemory = false;
     QgsMeshLayer *mMeshLayer = nullptr;
 };
 

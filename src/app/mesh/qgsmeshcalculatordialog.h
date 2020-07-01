@@ -79,8 +79,6 @@ class APP_EXPORT QgsMeshCalculatorDialog: public QDialog, private Ui::QgsMeshCal
     void mNoDataButton_clicked();
 
   private:
-    void init();
-
     QString formulaString() const;
     QgsMeshLayer *meshLayer() const;
 

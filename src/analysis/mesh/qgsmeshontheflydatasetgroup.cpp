@@ -75,7 +75,7 @@ void QgsMeshOnTheFlyDatasetGroup::initialize()
 
   mDatasetMetaData = QVector<QgsMeshDatasetMetadata>( mDatasetTimes.count() );
 
-  //to fill metadata, calculate all the dataset one time
+  //to fill metadata, calculate all the datasets one time
   for ( int i = 0; i < mDatasetTimes.count(); ++i )
   {
     mCurrentDatasetIndex = i;

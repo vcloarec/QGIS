@@ -194,7 +194,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
      *
      * \since QGIS 3.16
      */
-    bool addDatasets( QgsMeshDatasetGroup *datasetGroup )SIP_SKIP;
+    bool addDatasets( QgsMeshDatasetGroup *datasetGroup ) SIP_SKIP;
 
     /**
      * Saves datasets group on file with the specified \a driver
@@ -316,20 +316,6 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
      * \since QGIS 3.16
      */
     QList<int> datasetGroupsIndexes() const;
-
-    int datasetGroupIndex( QString datasetGroupName )
-    {
-      const QList<int> &indexes = datasetGroupsIndexes();
-
-      for ( int index : indexes )
-      {
-        QString metaName = datasetGroupMetadata( index ).name();
-        if ( metaName == datasetGroupName )
-          return index;
-      }
-
-      return -1;
-    }
 
     /**
      * Returns the dataset groups metadata
@@ -510,7 +496,6 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       * \since QGIS 3.14
       */
     QgsMeshDatasetValue dataset1dValue( const QgsMeshDatasetIndex &index, const QgsPointXY &point, double searchRadius ) const;
-
 
     /**
       * Returns dataset index from datasets group depending on the time range.

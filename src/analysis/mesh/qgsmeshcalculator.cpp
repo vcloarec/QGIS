@@ -121,7 +121,6 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
   , mDestination( destination )
   , mStartTime( startTime )
   , mEndTime( endTime )
-  , mResultInMemory( true )
   , mMeshLayer( layer )
 {
 }
@@ -140,7 +139,6 @@ QgsMeshCalculator::QgsMeshCalculator( const QString &formulaString,
   , mDestination( destination )
   , mStartTime( startTime )
   , mEndTime( endTime )
-  , mResultInMemory( true )
   , mMeshLayer( layer )
 {
 }
@@ -177,7 +175,7 @@ QgsMeshCalculator::Result QgsMeshCalculator::expressionIsValid(
 QgsMeshCalculator::Result QgsMeshCalculator::processCalculation( QgsFeedback *feedback )
 {
   // check input
-  if ( mOutputFile.isEmpty() && !mResultInMemory )
+  if ( mOutputFile.isEmpty() && !( mDestination != OnFile ) )
   {
     return CreateOutputError;
   }
@@ -298,7 +296,7 @@ QgsMeshCalculator::Result QgsMeshCalculator::processCalculation( QgsFeedback *fe
 
   const QgsMeshDatasetGroupMetadata meta = outputGroup->groupMetadata();
 
-  if ( mResultInMemory )
+  if ( mDestination == OnMemory )
   {
     err = !mMeshLayer->addDatasets( outputGroup.release() );
   }

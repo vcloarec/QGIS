@@ -253,8 +253,6 @@ Returns the list of indexes of dataset groups count handled by the layer
 .. versionadded:: 3.16
 %End
 
-    int datasetGroupIndex( QString datasetGroupName );
-
     QgsMeshDatasetGroupMetadata datasetGroupMetadata( const QgsMeshDatasetIndex &index ) const;
 %Docstring
 Returns the dataset groups metadata
@@ -478,7 +476,6 @@ Returns the value of 1D mesh dataset defined on edge that are in the search area
 
 .. versionadded:: 3.14
 %End
-
 
     QgsMeshDatasetIndex datasetIndexAtTime( const QgsDateTimeRange &timeRange, int datasetGroupIndex ) const;
 %Docstring
