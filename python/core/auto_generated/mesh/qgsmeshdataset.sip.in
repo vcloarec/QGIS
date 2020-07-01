@@ -12,7 +12,6 @@
 
 
 
-
 class QgsMeshDatasetIndex
 {
 %Docstring
@@ -578,6 +577,8 @@ Wind speed
 Minimum
 Maximum
 
+Tree items handle also the dependencies between dataset groups represented by these items
+
 .. versionadded:: 3.14
 %End
 
@@ -586,12 +587,12 @@ Maximum
 %End
   public:
 
-    enum StorageType
+    enum DatasetGroupType
     {
       None,
       File,
       Memory,
-      OnTheFly
+      Expression
     };
 
     QgsMeshDatasetGroupTreeItem();
@@ -600,13 +601,14 @@ Constructor for an empty dataset group tree item
 %End
 
     QgsMeshDatasetGroupTreeItem( const QString &defaultName,
-                                 const QString &providerName,
+                                 const QString &sourceName,
                                  bool isVector,
                                  int index );
 %Docstring
 Constructor
 
 :param defaultName: the name that will be used to display the item if iot not overrides (:py:func:`setName`)
+:param sourceName: the name used by the source (provider, dataset group store,...)
 :param isVector: whether the dataset group is a vector dataset group
 :param index: index of the dataset group
 %End
@@ -756,7 +758,7 @@ Sets whether the item is enabled, that is if it is displayed in view
 :return: the default name
 %End
 
-    QgsMeshDatasetGroupTreeItem::StorageType storageType() const;
+    QgsMeshDatasetGroupTreeItem::DatasetGroupType datasetGroupType() const;
 %Docstring
 
 :return: where the dataset group is stored
@@ -764,7 +766,7 @@ Sets whether the item is enabled, that is if it is displayed in view
 .. versionadded:: 3.16
 %End
 
-    void setStorageType( QgsMeshDatasetGroupTreeItem::StorageType storageType );
+    void setDatasetGroupType( QgsMeshDatasetGroupTreeItem::DatasetGroupType datasetGroupType );
 %Docstring
 Sets where the dataset is stored
 
@@ -775,13 +777,254 @@ Sets where the dataset is stored
 
     QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context );
 %Docstring
-Write the item and its children in a DOM document
+Writes the item and its children in a DOM document
 
 :param doc: the DOM document
 :param context: writing context (e.g. for conversion between relative and absolute paths)
 
 :return: the dom element where the item is written
 %End
+
+    QList<int> groupIndexDependencies() const;
+%Docstring
+Returns a list of group index corresponding to dataset group that depends on the dataset group represented by this item
+
+:return: list of group index
+%End
+
+    bool isTemporary() const;
+%Docstring
+Returns whether the the dataset group represented by this item is temporary (for example, memory dataset group).
+
+.. versionadded:: 3.16
+%End
+
+    void setDependencies( const QStringList &datasetGroupNames );
+%Docstring
+Sets other dataset group source names that the dataset reprensented by this item is dependent on.
+The depencies links between item is constructed for this item and updated for others.
+
+:param datasetGroupNames: other dataset group source names (see QgsMeshDatasetGroupTreeItem()
+%End
+
+    QString information() const;
+%Docstring
+Returns information about the dataset group (URI, formula,...)
+
+.. versionadded:: 3.16
+%End
+
+    void setInformation( const QString &information );
+%Docstring
+Sets information about the dataset group (URI, formula,...)
+
+:param information: string information
+
+.. versionadded:: 3.16
+%End
+
+};
+
+class QgsMeshDataset
+{
+%Docstring
+
+Abstract class that represents a dataset
+
+.. versionadded:: 3.16
+%End
+
+%TypeHeaderCode
+#include "qgsmeshdataset.h"
+%End
+  public:
+    QgsMeshDataset();
+%Docstring
+Constructor
+%End
+
+    virtual ~QgsMeshDataset();
+
+    virtual QgsMeshDatasetValue datasetValue( int valueIndex ) const = 0;
+%Docstring
+Returns the value with index ``valueIndex``
+%End
+
+    virtual QgsMeshDataBlock datasetValues( bool isScalar, int valueIndex, int count ) const = 0;
+%Docstring
+Returns ``count`` values from ``valueIndex``
+%End
+
+    virtual QgsMeshDataBlock areFacesActive( int faceIndex, int count ) const = 0;
+%Docstring
+Returns whether faces are active
+%End
+
+    virtual bool isActive( int faceIndex ) const = 0;
+%Docstring
+Returns whether the face is active
+%End
+
+    virtual QgsMeshDatasetMetadata metadata() const = 0;
+%Docstring
+Returns the metadata of the dataset
+%End
+
+    virtual int valuesCount() const = 0;
+%Docstring
+Returns the values count
+%End
+};
+
+class QgsMeshDatasetGroup
+{
+%Docstring
+
+Abstract class that represents a dataset group
+
+.. versionadded:: 3.16
+%End
+
+%TypeHeaderCode
+#include "qgsmeshdataset.h"
+%End
+  public:
+
+    enum Type
+    {
+      None,
+      File,
+      Memory,
+      Expression
+    };
+
+    QgsMeshDatasetGroup();
+%Docstring
+Default constructor
+%End
+    virtual ~QgsMeshDatasetGroup();
+
+    QgsMeshDatasetGroup( const QString &name );
+%Docstring
+Constructor with the ``name`` of the dataset group
+%End
+
+    QgsMeshDatasetGroup( const QString &name, QgsMeshDatasetGroupMetadata::DataType dataType );
+%Docstring
+Constructor with the ``name`` of the dataset group and the ``dataTYpe``
+%End
+
+    virtual void initialize() = 0;
+%Docstring
+Initialize the dataset group
+%End
+
+    QgsMeshDatasetGroupMetadata groupMetadata() const;
+%Docstring
+Returns the metadata of the dataset group
+%End
+
+    virtual QgsMeshDatasetMetadata datasetMetadata( int datasetIndex ) const = 0;
+%Docstring
+Returns the metadata of the dataset with index ``datasetIndex``
+%End
+
+    virtual int datasetCount() const = 0;
+%Docstring
+Returns the count of datasets in the group
+%End
+
+    virtual QgsMeshDataset *dataset( int index ) const = 0;
+%Docstring
+Returns the dataset with ``index``
+%End
+
+    virtual QgsMeshDatasetGroup::Type type() const = 0;
+%Docstring
+Returns the type of dataset group
+%End
+
+    double minimum() const;
+%Docstring
+Returns the minimum value of the whole dataset group
+%End
+
+    double maximum() const;
+%Docstring
+Returns the maximum value of the whole dataset group
+%End
+
+    void setMinimumMaximum( double min, double max );
+%Docstring
+Overrides the minimum and the maximum value of the whole dataset group
+%End
+
+    QString name() const;
+%Docstring
+Returns the name of the dataset group
+%End
+
+    void setName( const QString &name );
+%Docstring
+Sets the name of the dataset group
+%End
+
+    QgsMeshDatasetGroupMetadata::DataType dataType() const;
+%Docstring
+Returns the data type of the dataset group
+%End
+
+    void setDataType( const QgsMeshDatasetGroupMetadata::DataType &dataType );
+%Docstring
+Sets the data type of the dataset group
+%End
+
+    void addExtraMetadata( QString key, QString value );
+%Docstring
+Adds extra metadata to the group
+%End
+    QMap<QString, QString> extraMetadata() const;
+%Docstring
+Returns all the extra metadata of the group
+%End
+
+    bool isScalar() const;
+%Docstring
+Returns whether the group contain scalar values
+%End
+
+    void setIsScalar( bool isScalar );
+%Docstring
+Sets whether the group contain scalar values
+%End
+
+    bool checkValueCountPerDataset( int count ) const;
+%Docstring
+Returns whether all the datasets contain ``count`` values
+%End
+
+    void calculateStatistic();
+%Docstring
+Calculates the statictics (minimum and maximum)
+%End
+
+    virtual QStringList datasetGroupNamesDependentOn() const;
+%Docstring
+Returns the dataset group variable name which this dataset group depends on
+%End
+
+    virtual QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const = 0;
+%Docstring
+Write dataset group information in a DOM element
+%End
+
+    virtual QString information() const;
+%Docstring
+Returns some information about the dataset group
+%End
+
+  protected:
+
 
 };
 

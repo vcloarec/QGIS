@@ -317,6 +317,20 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
      */
     QList<int> datasetGroupsIndexes() const;
 
+    int datasetGroupIndex( QString datasetGroupName )
+    {
+      const QList<int> &indexes = datasetGroupsIndexes();
+
+      for ( int index : indexes )
+      {
+        QString metaName = datasetGroupMetadata( index ).name();
+        if ( metaName == datasetGroupName )
+          return index;
+      }
+
+      return -1;
+    }
+
     /**
      * Returns the dataset groups metadata
      *
@@ -500,7 +514,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
 
     /**
       * Returns dataset index from datasets group depending on the time range.
-      * If the temporal properties is not active, returns invalid dataset index
+      * If the temporal properties is not active, returns invalid dataset index. This method is used for rendering mesh layer.
       *
       * \param timeRange the time range
       * \returns dataset index
@@ -513,6 +527,22 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
       * \since QGIS 3.14
       */
     QgsMeshDatasetIndex datasetIndexAtTime( const QgsDateTimeRange &timeRange, int datasetGroupIndex ) const;
+
+    /**
+      * Returns dataset index from datasets group depending on the relative time from the layer reference time.
+      * Return dataset index even the temporal properties is inactive. This method is used for calculation on mesh layer.
+      *
+      * \param relativeTime the relative from the mesh layer reference time
+      * \returns dataset index
+      *
+      * \note the returned dataset index depends on the matching method, see setTemporalMatchingMethod()
+      *
+      * \note indexes are used to distinguish all the dataset groups handled by the layer (from dataprovider, extra dataset group,...)
+      * In the layer scope, those indexes are different from the data provider indexes.
+      *
+      * \since QGIS 3.16
+      */
+    QgsMeshDatasetIndex datasetIndexAtRelativeTime( const QgsInterval &relativeTime, int datasetGroupIndex ) const;
 
     /**
       * Returns dataset index from active scalar group depending on the time range.
@@ -652,11 +682,18 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
     QgsInterval firstValidTimeStep() const;
 
     /**
-     * Returns the relative time (in milliseconds) of the dataset from the reference time of its group
+     * Returns the relative time of the dataset from the reference time of its group
      *
      * \since QGIS 3.16
      */
     QgsInterval datasetRelativeTime( const QgsMeshDatasetIndex &index );
+
+    /**
+     * Returns the relative time (in milliseconds) of the dataset from the reference time of its group
+     *
+     * \since QGIS 3.16
+     */
+    qint64 datasetRelativeTimeInMilliseconds( const QgsMeshDatasetIndex &index );
 
   public slots:
 

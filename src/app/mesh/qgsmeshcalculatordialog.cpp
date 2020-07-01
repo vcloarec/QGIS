@@ -50,6 +50,7 @@ QgsMeshCalculatorDialog::QgsMeshCalculatorDialog( QgsMeshLayer *meshLayer, QWidg
   model->syncToLayer( meshLayer );
   model->setDisplayProviderName( true );
   mDatasetsListWidget->setModel( model );
+  mVariableNames = model->variableNames();
 
   getMeshDrivers();
   populateDriversComboBox( );
@@ -111,7 +112,13 @@ QgsMeshCalculatorDialog::QgsMeshCalculatorDialog( QgsMeshLayer *meshLayer, QWidg
   connect( mOutputDatasetFileWidget, &QgsFileWidget::fileChanged, this, &QgsMeshCalculatorDialog::updateInfoMessage );
 
   connect( mOutputOnFileRadioButton, &QRadioButton::toggled, this, &QgsMeshCalculatorDialog::onOutputRadioButtonChange );
+  connect( mOutputOnMemoryRadioButton, &QRadioButton::toggled, this, &QgsMeshCalculatorDialog::onOutputRadioButtonChange );
   onOutputRadioButtonChange();
+}
+
+void QgsMeshCalculatorDialog::init()
+{
+
 }
 
 QgsMeshCalculatorDialog::~QgsMeshCalculatorDialog() = default;
@@ -196,62 +203,80 @@ double QgsMeshCalculatorDialog::endTime() const
 std::unique_ptr<QgsMeshCalculator> QgsMeshCalculatorDialog::calculator() const
 {
   std::unique_ptr<QgsMeshCalculator> calc;
-  if ( useExtentCb->isChecked() && mOutputOnFileRadioButton->isChecked() )
+  QgsMeshCalculator::Destination destination = QgsMeshCalculator::OnFile;
+
+  if ( mOutputOnMemoryRadioButton->isChecked() )
+    destination = QgsMeshCalculator::OnMemory;
+  else if ( mOutputOnTheFlyRadioButton->isChecked() )
+    destination = QgsMeshCalculator::OnTheFly;
+
+  switch ( destination )
   {
-    calc.reset(
-      new QgsMeshCalculator(
-        formulaString(),
-        driver(),
-        groupName(),
-        outputFile(),
-        outputExtent(),
-        startTime(),
-        endTime(),
-        meshLayer()
-      )
-    );
+    case QgsMeshCalculator::OnFile:
+      if ( useExtentCb->isChecked() )
+      {
+        calc.reset(
+          new QgsMeshCalculator(
+            formulaString(),
+            driver(),
+            groupName(),
+            outputFile(),
+            outputExtent(),
+            startTime(),
+            endTime(),
+            meshLayer()
+          )
+        );
+      }
+      else
+      {
+        calc.reset(
+          new QgsMeshCalculator(
+            formulaString(),
+            driver(),
+            groupName(),
+            outputFile(),
+            maskGeometry(),
+            startTime(),
+            endTime(),
+            meshLayer()
+          )
+        );
+      }
+      break;
+    case QgsMeshCalculator::OnMemory:
+    case QgsMeshCalculator::OnTheFly:
+      if ( useExtentCb->isChecked() )
+      {
+        calc.reset(
+          new QgsMeshCalculator(
+            formulaString(),
+            groupName(),
+            outputExtent(),
+            destination,
+            meshLayer(),
+            startTime(),
+            endTime()
+          )
+        );
+      }
+      else
+      {
+        calc.reset(
+          new QgsMeshCalculator(
+            formulaString(),
+            groupName(),
+            maskGeometry(),
+            destination,
+            meshLayer(),
+            startTime(),
+            endTime()
+          )
+        );
+      }
+      break;
   }
-  else if ( mOutputOnFileRadioButton->isChecked() )
-  {
-    calc.reset(
-      new QgsMeshCalculator(
-        formulaString(),
-        driver(),
-        groupName(),
-        outputFile(),
-        maskGeometry(),
-        startTime(),
-        endTime(),
-        meshLayer()
-      )
-    );
-  }
-  else if ( useExtentCb->isChecked() )
-  {
-    calc.reset(
-      new QgsMeshCalculator(
-        formulaString(),
-        groupName(),
-        startTime(),
-        endTime(),
-        outputExtent(),
-        meshLayer()
-      )
-    );
-  }
-  else
-  {
-    calc.reset(
-      new QgsMeshCalculator(
-        formulaString(),
-        groupName(),
-        startTime(),
-        endTime(),
-        maskGeometry(),
-        meshLayer()
-      )
-    );
-  }
+
   return calc;
 }
 
@@ -289,7 +314,7 @@ void QgsMeshCalculatorDialog::updateInfoMessage()
   bool expressionValid = result == QgsMeshCalculator::Success;
 
   // selected driver is appropriate
-  bool useInMemory = mOutputOnMemoryRadioButton->isChecked();
+  bool notInFile = !mOutputOnFileRadioButton->isChecked();
   bool driverValid = false;
   if ( expressionValid )
   {
@@ -316,10 +341,10 @@ void QgsMeshCalculatorDialog::updateInfoMessage()
   }
 
   // group name
-  bool groupNameValid = !groupName().isEmpty();
+  bool groupNameValid = !groupName().isEmpty() && !mVariableNames.contains( groupName() );
 
   if ( expressionValid &&
-       ( useInMemory || ( driverValid && filePathValid ) )  &&
+       ( notInFile || ( driverValid && filePathValid ) )  &&
        groupNameValid )
   {
     mButtonBox->button( QDialogButtonBox::Ok )->setEnabled( true );
@@ -330,9 +355,9 @@ void QgsMeshCalculatorDialog::updateInfoMessage()
     mButtonBox->button( QDialogButtonBox::Ok )->setEnabled( false );
     if ( !expressionValid )
       mExpressionValidLabel->setText( tr( "Expression invalid" ) );
-    else if ( !filePathValid && !useInMemory )
+    else if ( !filePathValid && !notInFile )
       mExpressionValidLabel->setText( tr( "Invalid file path" ) );
-    else if ( !driverValid && !useInMemory )
+    else if ( !driverValid && !notInFile )
       mExpressionValidLabel->setText( tr( "Selected driver cannot store data defined on %1" ).arg( requiredCapability == QgsMeshDriverMetadata::CanWriteFaceDatasets ? tr( " faces " ) : tr( " vertices " ) ) );
     else if ( !groupNameValid )
       mExpressionValidLabel->setText( tr( "Invalid group name" ) );
@@ -343,6 +368,7 @@ void QgsMeshCalculatorDialog::onOutputRadioButtonChange()
 {
   mOutputDatasetFileWidget->setEnabled( mOutputOnFileRadioButton->isChecked() );
   mOutputFormatComboBox->setEnabled( mOutputOnFileRadioButton->isChecked() );
+  updateInfoMessage();
 }
 
 void QgsMeshCalculatorDialog::onOutputFormatChange()

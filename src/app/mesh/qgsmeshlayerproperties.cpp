@@ -221,6 +221,7 @@ void QgsMeshLayerProperties::syncToLayer()
   mStaticDatasetWidget->syncToLayer();
   mTemporalStaticDatasetCheckBox->setChecked( !mMeshLayer->temporalProperties()->isActive() );
   mStaticDatasetGroupBox->setCollapsed( mIsMapSettingsTemporal &&  mMeshLayer->temporalProperties()->isActive() );
+
 }
 
 void QgsMeshLayerProperties::loadDefaultStyle()

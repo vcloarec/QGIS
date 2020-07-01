@@ -47,28 +47,12 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="2">
-           <widget class="QRadioButton" name="mOutputOnMemoryRadioButton">
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_4">
             <property name="text">
-             <string>On Memory</string>
+             <string>Output File</string>
             </property>
            </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="mOutputFormatLabel_2">
-            <property name="text">
-             <string>Group Name</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1" colspan="2">
-           <widget class="QComboBox" name="mOutputFormatComboBox"/>
-          </item>
-          <item row="3" column="1" colspan="2">
-           <widget class="QLineEdit" name="mOutputGroupNameLineEdit"/>
-          </item>
-          <item row="1" column="1" colspan="2">
-           <widget class="QgsFileWidget" name="mOutputDatasetFileWidget" native="true"/>
           </item>
           <item row="0" column="1">
            <widget class="QRadioButton" name="mOutputOnFileRadioButton">
@@ -87,12 +71,35 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_4">
+          <item row="3" column="0">
+           <widget class="QLabel" name="mOutputFormatLabel_2">
             <property name="text">
-             <string>Output File</string>
+             <string>Group Name</string>
             </property>
            </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QRadioButton" name="mOutputOnMemoryRadioButton">
+            <property name="text">
+             <string>On Memory</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QRadioButton" name="mOutputOnTheFlyRadioButton">
+            <property name="text">
+             <string>On The Fly</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="3">
+           <widget class="QgsFileWidget" name="mOutputDatasetFileWidget" native="true"/>
+          </item>
+          <item row="2" column="1" colspan="3">
+           <widget class="QComboBox" name="mOutputFormatComboBox"/>
+          </item>
+          <item row="3" column="1" colspan="3">
+           <widget class="QLineEdit" name="mOutputGroupNameLineEdit"/>
           </item>
          </layout>
         </item>

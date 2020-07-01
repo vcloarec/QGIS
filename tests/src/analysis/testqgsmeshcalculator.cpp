@@ -18,6 +18,7 @@ Email                : zilolv at gmail dot com
 
 #include "qgsmeshcalculator.h"
 #include "qgsmeshcalcnode.h"
+#include "qgsmeshontheflydatasetgroup.h"
 #include "qgsmeshdataprovider.h"
 #include "qgsmeshlayer.h"
 #include "qgsapplication.h"
@@ -50,6 +51,8 @@ class TestQgsMeshCalculator : public QObject
     void calcWithMixedLayers();
 
     void calcAndSave();
+
+    void onTheFlyDatasetGroup();
 
   private:
 
@@ -314,6 +317,50 @@ void TestQgsMeshCalculator::calcAndSave()
 
   QFileInfo fileInfo( tempFilePath );
   QVERIFY( fileInfo.exists() );
+}
+
+void TestQgsMeshCalculator::onTheFlyDatasetGroup()
+{
+  QString formula = QStringLiteral( "\"VertexScalarDataset\" + 2" );
+  QgsMeshOnTheFlyDatasetGroup OTFDatasetGroup( "OTF Dataset group", formula, mpMeshLayer, 0, 10000000 );
+  OTFDatasetGroup.initialize();
+  QCOMPARE( OTFDatasetGroup.datasetCount(), 2 );
+
+  const QgsMeshDataset *dataset = OTFDatasetGroup.dataset( 0 );
+  QCOMPARE( dataset->valuesCount(), 5 );
+  QCOMPARE( dataset->datasetValue( 0 ).scalar(), 3 );
+  QCOMPARE( dataset->datasetValue( 1 ).scalar(), 4 );
+  QCOMPARE( dataset->datasetValue( 2 ).scalar(), 5 );
+  QCOMPARE( dataset->datasetValue( 3 ).scalar(), 4 );
+  QCOMPARE( dataset->datasetValue( 4 ).scalar(), 3 );
+
+  dataset = OTFDatasetGroup.dataset( 1 );
+  QCOMPARE( dataset->datasetValue( 0 ).scalar(), 4 );
+  QCOMPARE( dataset->datasetValue( 1 ).scalar(), 5 );
+  QCOMPARE( dataset->datasetValue( 2 ).scalar(), 6 );
+  QCOMPARE( dataset->datasetValue( 3 ).scalar(), 5 );
+  QCOMPARE( dataset->datasetValue( 4 ).scalar(), 4 );
+
+  formula = QStringLiteral( "\"VertexScalarDataset\" + \"FaceScalarDataset\"" );
+  OTFDatasetGroup = QgsMeshOnTheFlyDatasetGroup( "OTF Dataset group", formula, mpMeshLayer, 0, 10000000 );
+  OTFDatasetGroup.initialize();
+  QCOMPARE( OTFDatasetGroup.datasetCount(), 2 );
+
+  dataset = OTFDatasetGroup.dataset( 0 );
+  QCOMPARE( dataset->valuesCount(), 5 );
+  QCOMPARE( dataset->datasetValue( 0 ).scalar(), 2 );
+  QCOMPARE( dataset->datasetValue( 1 ).scalar(), 3.5 );
+  QCOMPARE( dataset->datasetValue( 2 ).scalar(), 5 );
+  QCOMPARE( dataset->datasetValue( 3 ).scalar(), 3.5 );
+  QCOMPARE( dataset->datasetValue( 4 ).scalar(), 2 );
+
+  dataset = OTFDatasetGroup.dataset( 1 );
+  QCOMPARE( dataset->valuesCount(), 5 );
+  QCOMPARE( dataset->datasetValue( 0 ).scalar(), 4 );
+  QCOMPARE( dataset->datasetValue( 1 ).scalar(), 5.5 );
+  QCOMPARE( dataset->datasetValue( 2 ).scalar(), 7 );
+  QCOMPARE( dataset->datasetValue( 3 ).scalar(), 5.5 );
+  QCOMPARE( dataset->datasetValue( 4 ).scalar(), 4 );
 }
 
 QGSTEST_MAIN( TestQgsMeshCalculator )

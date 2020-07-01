@@ -43,7 +43,7 @@ class QgsMeshDatasetGroupSaveMenu: public QObject
     void setMeshLayer( QgsMeshLayer *meshLayer );
 
   signals:
-    void datasetGroupSaved();
+    void datasetGroupSaved( const QString &uri );
 
   private:
     QgsMeshLayer *mMeshLayer = nullptr;
@@ -65,7 +65,8 @@ class APP_NO_EXPORT QgsMeshDatasetGroupTreeModel : public QAbstractItemModel
       IsActiveScalarDatasetGroup,
       IsActiveVectorDatasetGroup,
       DatasetGroupIndex,
-      IsMemory
+      IsMemory,
+      IsExpression
     };
 
     explicit QgsMeshDatasetGroupTreeModel( QObject *parent = nullptr );
@@ -90,6 +91,15 @@ class APP_NO_EXPORT QgsMeshDatasetGroupTreeModel : public QAbstractItemModel
     //! Returns the dataset group tree item with \a index, keeps ownership
     QgsMeshDatasetGroupTreeItem *datasetGroupTreeItem( int groupIndex );
 
+    //! Returns the dataset group tree item corresponding to \a index, keeps ownership
+    QgsMeshDatasetGroupTreeItem *datasetGroupTreeItem( QModelIndex index )
+    {
+      if ( !index.isValid() || !hasIndex( index.row(), index.column(), index.parent() ) )
+        return nullptr;
+
+      return static_cast<QgsMeshDatasetGroupTreeItem *>( index.internalPointer() );
+    }
+
     //! Returns whether the dataset groups related to the QModelIndex is set as enabled
     bool isEnabled( const QModelIndex &index ) const;
 
@@ -102,8 +112,10 @@ class APP_NO_EXPORT QgsMeshDatasetGroupTreeModel : public QAbstractItemModel
     //! Removes an item from the tree
     void removeItem( const QModelIndex &index );
 
-    //! Sets the storage type for specified item
-    void setStorageType( const QModelIndex &index, QgsMeshDatasetGroupTreeItem::StorageType type );
+    //! Sets the dataset group type for specified item
+    void setDatasetGroupType( const QModelIndex &index,
+                              QgsMeshDatasetGroupTreeItem::DatasetGroupType type,
+                              const QString &information = QString() );
 
   private:
     std::unique_ptr<QgsMeshDatasetGroupTreeItem> mRootItem;
@@ -190,7 +202,7 @@ class APP_EXPORT QgsMeshDatasetGroupTreeView: public QTreeView
 
   private slots:
     void removeCurrentItem();
-    void onDatasetGroupSaved();
+    void onDatasetGroupSaved( const QString &uri );
 
   private:
     QgsMeshDatasetGroupTreeModel *mModel;
@@ -270,6 +282,8 @@ class APP_EXPORT QgsMeshDatasetGroupListModel: public QAbstractListModel
     QVariant data( const QModelIndex &index, int role ) const override;
 
     void setDisplayProviderName( bool displayProviderName );
+
+    QStringList variableNames() const;
 
   private:
     QgsMeshDatasetGroupTreeItem *mRootItem = nullptr;
