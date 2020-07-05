@@ -221,6 +221,7 @@ SET(QGIS_ANALYSIS_SRCS
   mesh/qgsmeshcalculator.cpp
   mesh/qgsmeshcalcutils.cpp
   mesh/qgsmeshcontours.cpp
+  mesh/qgsmeshvirtualdatasetgroup.cpp
 
   network/qgsgraph.cpp
   network/qgsgraphbuilder.cpp
@@ -291,6 +292,7 @@ SET(QGIS_ANALYSIS_HDRS
   mesh/qgsmeshcalculator.h
   mesh/qgsmeshcalcutils.h
   mesh/qgsmeshcontours.h
+  mesh/qgsmeshvirtualdatasetgroup.h
 
   network/qgsgraph.h
   network/qgsgraphanalyzer.h
