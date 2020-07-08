@@ -23,6 +23,7 @@
 #include "qgsgeometry.h"
 #include "qobjectuniqueptr.h"
 #include "qgssnappingutils.h"
+#include "qgsgeometryrubberband.h"
 
 #include <QPoint>
 #include <QList>
@@ -34,7 +35,73 @@ class QgsSnapIndicator;
 class QgsVertexMarker;
 class QgsMapLayer;
 class QgsGeometryValidator;
-class QgsCurveRubberBand;
+class QgsMapToolCaptureRubberband;
+
+/**
+ * Class that reprensents a rubber can that can be linear or circular.
+ */
+class QgsMapToolCaptureRubberband: public QgsGeometryRubberBand
+{
+  public:
+    //! Constructor
+    QgsMapToolCaptureRubberband( QgsMapCanvas *mapCanvas, QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry );
+
+    //! Returns the curve defined by the rubber band, the caller has to take the ownership, nullptr if no curve is defined.
+    QgsCurve *curve();
+
+    /**
+     * Returns if the curve defined by the rubber band is complete :
+     * has more than 2 points for circular string and more than 1 point for linear string
+     */
+    bool curveIsComplete() const;
+
+    /**
+     * Resets the rubber band with the specified geometry type
+     * that must be line geometry or polygon geometry.
+     */
+    void reset( QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry ) override;
+
+    //! Adds point to the rubber band
+    void addPoint( const QgsPointXY &point, bool doUpdate = true );
+
+    //! Moves the last point to the \a point position
+    void movePoint( const QgsPointXY &point );
+
+    //! Moves the point with \a index to the \a point position
+    void movePoint( int index, const QgsPointXY &point );
+
+    //! Returns the points count in the rubber band (except the first point if polygon)
+    int pointsCount();
+
+    /**
+     * Sets the first point that serves to render polygon rubber band
+     */
+    void setFirstPolygonPoint( const QgsPointXY &point );
+
+    //! Returns the type of the curve (linear string or circular string)
+    QgsWkbTypes::Type stringType() const;
+
+    //! Sets the type of the curve (linear string or circular string)
+    void setStringType( const QgsWkbTypes::Type &type );
+
+    //! Returns the last point of the rubber band
+    QgsPoint lastPoint() const;
+
+    //! Removes the last point of the rrubber band
+    void removeLastPoint();
+
+  private:
+    QgsWkbTypes::Type mStringType = QgsWkbTypes::LineString;
+
+    void setGeometry( QgsAbstractGeometry *geom ) override;
+    void updateCurve();
+
+    QgsCurve *createLinearString();
+    QgsCurve *createCircularString();
+
+    QgsPointSequence mPoints;
+    QgsPoint mFirstPolygonPoint;
+};
 
 /**
  * \ingroup gui
@@ -298,7 +365,7 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     bool tracingAddVertex( const QgsPointXY &point );
 
     //! create a curve rubber band
-    QgsCurveRubberBand *createCurveRubberBand( QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry, bool alternativeBand = false ) const;
+    QgsMapToolCaptureRubberband *createCurveRubberBand( QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry, bool alternativeBand = false ) const;
 
   private:
 
@@ -318,7 +385,7 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     QObjectUniquePtr<QgsRubberBand> mRubberBand;
 
     //! Temporary rubber band for polylines and polygons. this connects the last added point to the mouse cursor position
-    std::unique_ptr<QgsCurveRubberBand> mTempRubberBand;
+    std::unique_ptr<QgsMapToolCaptureRubberband> mTempRubberBand;
 
     //! List to store the points of digitized lines and polygons (in layer coordinates)
     QgsCompoundCurve mCaptureCurve;

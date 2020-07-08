@@ -1550,6 +1550,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
     /**
      * Splits features cut by the given curve
      * \param curve curve that splits the layer features
+     * \param preserveCircular whether if circular strings are preserved after splitting
      * \param topologicalEditing TRUE if topological editing is enabled
      * \returns QgsGeometry::OperationResult
      *
@@ -1566,7 +1567,7 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * to the underlying data provider until a commitChanges() call is made. Any uncommitted
      * changes can be discarded by calling rollBack().
      */
-    Q_INVOKABLE QgsGeometry::OperationResult splitFeatures( const QgsCurve *curve, bool topologicalEditing = false );
+    Q_INVOKABLE QgsGeometry::OperationResult splitFeatures( const QgsCurve *curve, bool preserveCircular = false, bool topologicalEditing = false );
 
     /**
      * Adds topological points for every vertex of the geometry.

@@ -206,11 +206,12 @@ class CORE_EXPORT QgsVectorLayerEditUtils
     /**
      * Splits features cut by the given curve
      * \param curve line that splits the layer features
+     * \param preserveCircular whether if circular strings are preserved after splitting
      * \param topologicalEditing TRUE if topological editing is enabled
      * \returns 0 in case of success,
      *  4 if there is a selection but no feature split
      */
-    QgsGeometry::OperationResult splitFeatures( const QgsCurve *curve, bool topologicalEditing = false );
+    QgsGeometry::OperationResult splitFeatures( const QgsCurve *curve, bool preserveCircular = false, bool topologicalEditing = false );
 
     /**
      * Adds topological points for every vertex of the geometry.
