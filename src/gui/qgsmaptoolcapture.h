@@ -300,8 +300,6 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     //! create a curve rubber band
     QgsCurveRubberBand *createCurveRubberBand( QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry, bool alternativeBand = false ) const;
 
-    void syncRubberBandToCaptureCurve();
-
   private:
 
     enum TraceGeometryType

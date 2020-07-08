@@ -170,7 +170,9 @@ QgsRectangle QgsGeometryRubberBand::rubberBandRectangle() const
 
 QgsCurveRubberBand::QgsCurveRubberBand( QgsMapCanvas *mapCanvas, QgsWkbTypes::GeometryType geomType ):
   QgsGeometryRubberBand( mapCanvas, geomType )
-{}
+{
+  setIsVerticesDrawn( false );
+}
 
 QgsCurve *QgsCurveRubberBand::curve()
 {
@@ -264,7 +266,6 @@ void QgsCurveRubberBand::setStringType( const QgsWkbTypes::Type &type )
   }
 
   setIsVerticesDrawn( type == QgsWkbTypes::CircularString );
-
   updateCurve();
 }
 
@@ -334,4 +335,20 @@ QgsCurve *QgsCurveRubberBand::createCircularString()
   }
   else
     return curve.release();
+}
+
+QgsPoint QgsCurveRubberBand::lastPoint() const
+{
+  if ( mPoints.empty() )
+    return QgsPoint();
+
+  return mPoints.last();
+}
+
+void QgsCurveRubberBand::removeLastPoint()
+{
+  if ( mPoints.count() > 1 )
+    mPoints.removeLast();
+
+  updateCurve();
 }
