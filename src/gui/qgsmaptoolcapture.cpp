@@ -313,7 +313,7 @@ bool QgsMapToolCapture::tracingAddVertex( const QgsPointXY &point )
 
   // Curves de-approximation
   QgsSettings settings;
-  if ( settings.value( QStringLiteral( "/qgis/digitizing/convert_to_curve" ), false ).toBool() )
+  //if ( settings.value( QStringLiteral( "/qgis/digitizing/convert_to_curve" ), false ).toBool() )
   {
     // If the tool and the layer support curves
     QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( mCanvas->currentLayer() );
@@ -648,28 +648,13 @@ void QgsMapToolCapture::undo()
 
   if ( mRubberBand )
   {
-    int rubberBandSize = mRubberBand->numberOfVertices();
-    int tempRubberBandSize = mTempRubberBand->pointsCount();
-    int captureListSize = size();
+    QgsPoint lastPoint = mTempRubberBand->lastPoint();
 
-    if ( rubberBandSize < 1 || captureListSize < 1 )
+    if ( mTempRubberBand->stringType() == QgsWkbTypes::CircularString && mTempRubberBand->pointsCount() > 2 )
     {
+      mTempRubberBand->removeLastPoint();
+      mTempRubberBand->movePoint( lastPoint );
       return;
-    }
-
-    mRubberBand->removePoint( -1 );
-
-    if ( rubberBandSize > 1 )
-    {
-      if ( tempRubberBandSize > 1 )
-      {
-        const QgsPointXY *point = mRubberBand->getPoint( 0, rubberBandSize - 2 );
-        mTempRubberBand->movePoint( tempRubberBandSize - 2, *point );
-      }
-    }
-    else
-    {
-      mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
     }
 
     QgsVertexId vertexToRemove;
@@ -679,6 +664,24 @@ void QgsMapToolCapture::undo()
     mCaptureCurve.deleteVertex( vertexToRemove );
     mSnappingMatches.removeAt( vertexToRemove.vertex );
     updateExtraSnapLayer();
+
+
+    mRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
+    QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( mCanvas->currentLayer() );
+    mRubberBand->addGeometry( QgsGeometry( mCaptureCurve.clone() ), vlayer );
+
+    mTempRubberBand->reset( mCaptureMode == CapturePolygon ? QgsWkbTypes::PolygonGeometry : QgsWkbTypes::LineGeometry );
+    if ( mCaptureMode == CapturePolygon )
+    {
+      QgsPoint pt = mCaptureCurve.startPoint();
+      QgsPointXY mapPt = toMapCoordinates( qobject_cast<QgsVectorLayer *>( mCanvas->currentLayer() ), QgsPointXY( pt.x(), pt.y() ) );
+      mTempRubberBand->setFirstPolygonPoint( mapPt );
+    }
+
+    QgsPoint pt = mCaptureCurve.endPoint();
+    QgsPointXY mapPt = toMapCoordinates( qobject_cast<QgsVectorLayer *>( mCanvas->currentLayer() ), QgsPointXY( pt.x(), pt.y() ) );
+    mTempRubberBand->addPoint( mapPt );
+    mTempRubberBand->movePoint( lastPoint );
 
     mCadDockWidget->removePreviousPoint();
 

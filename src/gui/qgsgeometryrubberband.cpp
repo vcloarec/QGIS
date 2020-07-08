@@ -207,7 +207,7 @@ void QgsCurveRubberBand::reset( QgsWkbTypes::GeometryType geomType )
     return;
 
   mPoints.clear();
-  QgsGeometryRubberBand::reset( geomType );
+  updateCurve();
 }
 
 void QgsCurveRubberBand::addPoint( const QgsPointXY &point, bool doUpdate )
@@ -262,6 +262,8 @@ void QgsCurveRubberBand::setStringType( const QgsWkbTypes::Type &type )
   {
     mPoints.removeAt( 1 );
   }
+
+  setIsVerticesDrawn( type == QgsWkbTypes::CircularString );
 
   updateCurve();
 }

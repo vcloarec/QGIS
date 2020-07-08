@@ -410,8 +410,6 @@ QgsGeometry::OperationResult QgsVectorLayerEditUtils::splitFeatures( const QgsCu
   if ( !mLayer->isSpatial() )
     return QgsGeometry::InvalidBaseGeometry;
 
-  bool suppportCurve = mLayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
-
   QgsRectangle bBox; //bounding box of the split line
   QgsGeometry::OperationResult returnCode = QgsGeometry::OperationResult::Success;
   QgsGeometry::OperationResult splitFunctionReturn; //return code of QgsGeometry::splitGeometry
