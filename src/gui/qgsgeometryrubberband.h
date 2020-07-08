@@ -185,21 +185,9 @@ class QgsCurveRubberBand: public QgsGeometryRubberBand
     //! Sets the type of the curve (linear string or circular string)
     void setStringType( const QgsWkbTypes::Type &type );
 
-    QgsPoint lastPoint() const
-    {
-      if ( mPoints.empty() )
-        return QgsPoint();
+    QgsPoint lastPoint() const;
 
-      return mPoints.last();
-    }
-
-    void removeLastPoint()
-    {
-      if ( mPoints.count() > 1 )
-        mPoints.removeLast();
-
-      updateCurve();
-    }
+    void removeLastPoint();
 
   private:
     QgsWkbTypes::Type mStringType = QgsWkbTypes::LineString;

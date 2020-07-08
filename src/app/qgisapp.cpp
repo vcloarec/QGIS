@@ -1570,7 +1570,7 @@ QgisApp::QgisApp( QSplashScreen *splash, bool restorePlugins, bool skipVersionCh
   QShortcut *shortcutTracing = new QShortcut( QKeySequence( tr( "Ctrl+Shift+." ) ), this );
   connect( shortcutTracing, &QShortcut::activated, this, &QgisApp::toggleEventTracing );
 
-  QShortcut *shortcutToggleLinearCircularDigitizing = new QShortcut( QKeySequence( tr( "Ctrl+G" ) ), this );
+  QShortcut *shortcutToggleLinearCircularDigitizing = new QShortcut( QKeySequence( tr( "Ctrl+Shift+G" ) ), this );
   connect( shortcutToggleLinearCircularDigitizing, &QShortcut::activated, mMapTools.mAddFeature, &QgsMapToolCapture::toggleLinearCircularDigitizing );
   connect( shortcutToggleLinearCircularDigitizing, &QShortcut::activated,
            static_cast<QgsMapToolSplitFeatures *>( mMapTools.mSplitFeatures ), &QgsMapToolCapture::toggleLinearCircularDigitizing );
