@@ -158,7 +158,7 @@ class QgsCurveRubberBand: public QgsGeometryRubberBand
 
     /**
      * Resets the rubber band with the specified geometry type
-     * that must be line geometry or polygoe geometry.
+     * that must be line geometry or polygon geometry.
      */
     void reset( QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry ) override;
 
@@ -184,6 +184,22 @@ class QgsCurveRubberBand: public QgsGeometryRubberBand
 
     //! Sets the type of the curve (linear string or circular string)
     void setStringType( const QgsWkbTypes::Type &type );
+
+    QgsPoint lastPoint() const
+    {
+      if ( mPoints.empty() )
+        return QgsPoint();
+
+      return mPoints.last();
+    }
+
+    void removeLastPoint()
+    {
+      if ( mPoints.count() > 1 )
+        mPoints.removeLast();
+
+      updateCurve();
+    }
 
   private:
     QgsWkbTypes::Type mStringType = QgsWkbTypes::LineString;
