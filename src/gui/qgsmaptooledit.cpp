@@ -167,6 +167,8 @@ QgsGeometryRubberBand *QgsMapToolEdit::createGeometryRubberBand( QgsWkbTypes::Ge
   return rb;
 }
 
+
+
 void QgsMapToolEdit::notifyNotVectorLayer()
 {
   emit messageEmitted( tr( "No active vector layer" ) );

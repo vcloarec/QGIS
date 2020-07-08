@@ -22,6 +22,7 @@
 
 class QgsRubberBand;
 class QgsGeometryRubberBand;
+class QgsCurveRubberBand;
 class QgsVectorLayer;
 class QKeyEvent;
 

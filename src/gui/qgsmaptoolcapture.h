@@ -28,11 +28,13 @@
 #include <QList>
 #include "qgis_gui.h"
 
+
 class QgsRubberBand;
 class QgsSnapIndicator;
 class QgsVertexMarker;
 class QgsMapLayer;
 class QgsGeometryValidator;
+class QgsCurveRubberBand;
 
 /**
  * \ingroup gui
@@ -129,6 +131,9 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
      * \since QGIS 3.8
      */
     QgsRubberBand *takeRubberBand() SIP_FACTORY;
+
+  public slots:
+    void toggleLinearCircularDigitizing();
 
   private slots:
     void addError( const QgsGeometry::Error &error );
@@ -292,7 +297,17 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     //! handle of addition of clicked point (with the rest of the trace) when tracing enabled
     bool tracingAddVertex( const QgsPointXY &point );
 
+    //! create a curve rubber band
+    QgsCurveRubberBand *createCurveRubberBand( QgsWkbTypes::GeometryType geometryType = QgsWkbTypes::LineGeometry, bool alternativeBand = false ) const;
+
   private:
+
+    enum TraceGeometryType
+    {
+      LineString,
+      CircularString
+    };
+
     //! The capture mode in which this tool operates
     CaptureMode mCaptureMode;
 
@@ -303,7 +318,7 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
     QObjectUniquePtr<QgsRubberBand> mRubberBand;
 
     //! Temporary rubber band for polylines and polygons. this connects the last added point to the mouse cursor position
-    QObjectUniquePtr<QgsRubberBand> mTempRubberBand;
+    std::unique_ptr<QgsCurveRubberBand> mTempRubberBand;
 
     //! List to store the points of digitized lines and polygons (in layer coordinates)
     QgsCompoundCurve mCaptureCurve;
@@ -331,6 +346,8 @@ class GUI_EXPORT QgsMapToolCapture : public QgsMapToolAdvancedDigitizing
      * again after every time a new trace with offset is created (to get new "anchor" point)
      */
     QgsPointXY mTracingStartPoint;
+
+    TraceGeometryType mTraceGeometryType = LineString;
 
     friend class TestQgsMapToolReshape;
 

@@ -204,6 +204,15 @@ class CORE_EXPORT QgsVectorLayerEditUtils
     QgsGeometry::OperationResult splitFeatures( const QgsPointSequence &splitLine, bool topologicalEditing = false );
 
     /**
+     * Splits features cut by the given curve
+     * \param curve line that splits the layer features
+     * \param topologicalEditing TRUE if topological editing is enabled
+     * \returns 0 in case of success,
+     *  4 if there is a selection but no feature split
+     */
+    QgsGeometry::OperationResult splitFeatures( const QgsCurve *curve, bool topologicalEditing = false );
+
+    /**
      * Adds topological points for every vertex of the geometry.
      * \param geom the geometry where each vertex is added to segments of other features
      * \return 0 in case of success

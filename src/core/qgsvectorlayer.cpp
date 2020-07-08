@@ -1377,6 +1377,15 @@ QgsGeometry::OperationResult QgsVectorLayer::splitFeatures( const QgsPointSequen
   return utils.splitFeatures( splitLine, topologicalEditing );
 }
 
+QgsGeometry::OperationResult QgsVectorLayer::splitFeatures( const QgsCurve *curve, bool topologicalEditing )
+{
+  if ( !mValid || !mEditBuffer || !mDataProvider )
+    return QgsGeometry::OperationResult::LayerNotEditable;
+
+  QgsVectorLayerEditUtils utils( this );
+  return utils.splitFeatures( curve, topologicalEditing );
+}
+
 int QgsVectorLayer::addTopologicalPoints( const QgsGeometry &geom )
 {
   if ( !mValid || !mEditBuffer || !mDataProvider )

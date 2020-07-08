@@ -24,6 +24,12 @@
 #include <QPen>
 #include "qgis_gui.h"
 
+#include "qgscompoundcurve.h"
+#include "qgscurvepolygon.h"
+#include "qgscircularstring.h"
+#include "qgslinestring.h"
+#include "qgspoint.h"
+
 #ifdef SIP_RUN
 % ModuleHeaderCode
 // For ConvertToSubClassCode.
@@ -86,12 +92,18 @@ class GUI_EXPORT QgsGeometryRubberBand: public QgsMapCanvasItem
     };
 
     QgsGeometryRubberBand( QgsMapCanvas *mapCanvas, QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry );
-    ~QgsGeometryRubberBand() override;
+    virtual ~QgsGeometryRubberBand() override;
+
+    virtual void reset( QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry )
+    {
+      mGeometry.reset();
+      mGeometryType = geomType;
+    }
 
     //! Sets geometry (takes ownership). Geometry is expected to be in map coordinates
-    void setGeometry( QgsAbstractGeometry *geom SIP_TRANSFER );
+    virtual void setGeometry( QgsAbstractGeometry *geom SIP_TRANSFER );
     //! Returns a pointer to the geometry
-    const QgsAbstractGeometry *geometry() { return mGeometry; }
+    const QgsAbstractGeometry *geometry() { return mGeometry.get(); }
     //! Moves vertex to new position (in map coordinates)
     void moveVertex( QgsVertexId id, const QgsPoint &newPos );
     //! Sets fill color for vertex markers
@@ -106,20 +118,84 @@ class GUI_EXPORT QgsGeometryRubberBand: public QgsMapCanvasItem
     void setBrushStyle( Qt::BrushStyle brushStyle );
     //! Sets vertex marker icon type
     void setIconType( IconType iconType ) { mIconType = iconType; }
+    //! Sets whether the vertices are drawn
+    void setIsVerticesDrawn( bool isVerticesDrawn );
 
   protected:
     void paint( QPainter *painter ) override;
+    QgsWkbTypes::GeometryType geometryType() const;
 
   private:
-    QgsAbstractGeometry *mGeometry = nullptr;
+    std::unique_ptr<QgsAbstractGeometry> mGeometry = nullptr;
     QBrush mBrush;
     QPen mPen;
     int mIconSize;
     IconType mIconType;
     QgsWkbTypes::GeometryType mGeometryType;
+    bool mDrawVertices = true;
 
     void drawVertex( QPainter *p, double x, double y );
     QgsRectangle rubberBandRectangle() const;
+};
+
+/**
+ * Class that reprensents a rubber can that can be linear or circular.
+ */
+class QgsCurveRubberBand: public QgsGeometryRubberBand
+{
+  public:
+    //! Constructor
+    QgsCurveRubberBand( QgsMapCanvas *mapCanvas, QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry );
+
+    //! Returns the curve defined by the rubber band, the caller has to take the ownership, nullptr if no curve is defined.
+    QgsCurve *curve();
+
+    /**
+     * Returns if the curve defined by the rubber band is complete :
+     * has more than 2 points for circular string and more than 1 point for linear string
+     */
+    bool curveIsComplete() const;
+
+    /**
+     * Resets the rubber band with the specified geometry type
+     * that must be line geometry or polygoe geometry.
+     */
+    void reset( QgsWkbTypes::GeometryType geomType = QgsWkbTypes::LineGeometry ) override;
+
+    //! Adds point to the rubber band
+    void addPoint( const QgsPointXY &point, bool doUpdate = true );
+
+    //! Moves the last point to the \a point position
+    void movePoint( const QgsPointXY &point );
+
+    //! Moves the point with \a index to the \a point position
+    void movePoint( int index, const QgsPointXY &point );
+
+    //! Returns the points count in the rubber band (except the first point if polygon)
+    int pointsCount();
+
+    /**
+     * Sets the first point that serves to render polygon rubber band
+     */
+    void setFirstPolygonPoint( const QgsPointXY &point );
+
+    //! Returns the type of the curve (linear string or circular string)
+    QgsWkbTypes::Type stringType() const;
+
+    //! Sets the type of the curve (linear string or circular string)
+    void setStringType( const QgsWkbTypes::Type &type );
+
+  private:
+    QgsWkbTypes::Type mStringType = QgsWkbTypes::LineString;
+
+    void setGeometry( QgsAbstractGeometry *geom ) override;
+    void updateCurve();
+
+    QgsCurve *createLinearString();
+    QgsCurve *createCircularString();
+
+    QgsPointSequence mPoints;
+    QgsPoint mFirstPolygonPoint;
 };
 
 #endif // QGSGEOMETRYRUBBERBAND_H

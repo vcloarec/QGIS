@@ -405,6 +405,109 @@ QgsGeometry::OperationResult QgsVectorLayerEditUtils::splitFeatures( const QgsPo
   return returnCode;
 }
 
+QgsGeometry::OperationResult QgsVectorLayerEditUtils::splitFeatures( const QgsCurve *curve, bool topologicalEditing )
+{
+  if ( !mLayer->isSpatial() )
+    return QgsGeometry::InvalidBaseGeometry;
+
+  bool suppportCurve = mLayer->dataProvider()->capabilities() & QgsVectorDataProvider::CircularGeometries;
+
+  QgsRectangle bBox; //bounding box of the split line
+  QgsGeometry::OperationResult returnCode = QgsGeometry::OperationResult::Success;
+  QgsGeometry::OperationResult splitFunctionReturn; //return code of QgsGeometry::splitGeometry
+  int numberOfSplitFeatures = 0;
+
+  QgsFeatureIterator features;
+  const QgsFeatureIds selectedIds = mLayer->selectedFeatureIds();
+
+  if ( !selectedIds.isEmpty() ) //consider only the selected features if there is a selection
+  {
+    features = mLayer->getSelectedFeatures();
+  }
+  else //else consider all the feature that intersect the bounding box of the split line
+  {
+
+    bBox = curve->boundingBox();
+
+    if ( bBox.isEmpty() )
+    {
+      //if the bbox is a line, try to make a square out of it
+      if ( bBox.width() == 0.0 && bBox.height() > 0 )
+      {
+        bBox.setXMinimum( bBox.xMinimum() - bBox.height() / 2 );
+        bBox.setXMaximum( bBox.xMaximum() + bBox.height() / 2 );
+      }
+      else if ( bBox.height() == 0.0 && bBox.width() > 0 )
+      {
+        bBox.setYMinimum( bBox.yMinimum() - bBox.width() / 2 );
+        bBox.setYMaximum( bBox.yMaximum() + bBox.width() / 2 );
+      }
+      else
+      {
+        //If we have a single point, we still create a non-null box
+        double bufferDistance = 0.000001;
+        if ( mLayer->crs().isGeographic() )
+          bufferDistance = 0.00000001;
+        bBox.setXMinimum( bBox.xMinimum() - bufferDistance );
+        bBox.setXMaximum( bBox.xMaximum() + bufferDistance );
+        bBox.setYMinimum( bBox.yMinimum() - bufferDistance );
+        bBox.setYMaximum( bBox.yMaximum() + bufferDistance );
+      }
+    }
+
+    features = mLayer->getFeatures( QgsFeatureRequest().setFilterRect( bBox ).setFlags( QgsFeatureRequest::ExactIntersect ) );
+  }
+
+  QgsFeature feat;
+  while ( features.nextFeature( feat ) )
+  {
+    if ( !feat.hasGeometry() )
+    {
+      continue;
+    }
+    QVector<QgsGeometry> newGeometries;
+    QgsPointSequence topologyTestPoints;
+    QgsGeometry featureGeom = feat.geometry();
+    splitFunctionReturn = featureGeom.splitGeometry( curve, newGeometries, topologicalEditing, topologyTestPoints );
+    if ( splitFunctionReturn == QgsGeometry::OperationResult::Success )
+    {
+      //change this geometry
+      mLayer->changeGeometry( feat.id(), featureGeom );
+
+      //insert new features
+      QgsAttributeMap attributeMap = feat.attributes().toMap();
+      for ( const QgsGeometry &geom : qgis::as_const( newGeometries ) )
+      {
+        QgsFeature f = QgsVectorLayerUtils::createFeature( mLayer, geom, attributeMap );
+        mLayer->addFeature( f );
+      }
+
+      if ( topologicalEditing )
+      {
+        QgsPointSequence::const_iterator topol_it = topologyTestPoints.constBegin();
+        for ( ; topol_it != topologyTestPoints.constEnd(); ++topol_it )
+        {
+          addTopologicalPoints( *topol_it );
+        }
+      }
+      ++numberOfSplitFeatures;
+    }
+    else if ( splitFunctionReturn != QgsGeometry::OperationResult::Success && splitFunctionReturn != QgsGeometry::NothingHappened ) // i.e. no split but no error occurred
+    {
+      returnCode = splitFunctionReturn;
+    }
+  }
+
+  if ( numberOfSplitFeatures == 0 && !selectedIds.isEmpty() )
+  {
+    //There is a selection but no feature has been split.
+    //Maybe user forgot that only the selected features are split
+    returnCode = QgsGeometry::OperationResult::NothingHappened;
+  }
+
+  return returnCode;
+}
+
 QgsGeometry::OperationResult QgsVectorLayerEditUtils::splitParts( const QVector<QgsPointXY> &splitLine, bool topologicalEditing )
 {
   QgsPointSequence l;
