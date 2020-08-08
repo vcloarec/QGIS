@@ -900,6 +900,65 @@ QList<QgsDataItemProvider *> QgsMdalProviderMetadata::dataItemProviders() const
   return providers;
 }
 
+bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString uri, const QString &driverName, const QgsCoordinateReferenceSystem &crs ) const
+{
+  MDAL_DriverH driver = MDAL_driverFromName( driverName.toStdString().c_str() );
+  MDAL_MeshH mdalMesh = MDAL_CreateMesh( driver );
+
+  int bufferSize = 2000;
+  int vertexIndex = 0;
+  int faceIndex = 0;
+
+  while ( vertexIndex < mesh.vertexCount() )
+  {
+    int vertexCount = std::max( bufferSize, mesh.vertexCount() - vertexIndex );
+    QVector<double> verticesCoordinates( vertexCount * 3 );
+    for ( int i = 0; i < vertexCount / 3; ++i )
+    {
+      const QgsMeshVertex &vert = mesh.vertex( vertexIndex );
+      verticesCoordinates[( i + vertexIndex ) * 3] = vert.x();
+      verticesCoordinates[( i + vertexIndex + 1 ) * 3] = vert.y();
+      verticesCoordinates[( i + vertexIndex ) * 2] = vert.z();
+    }
+    vertexIndex += vertexCount;
+
+    MDAL_M_addVertices( mdalMesh, vertexCount, verticesCoordinates.data() );
+  }
+
+  while ( faceIndex < mesh.faceCount() )
+  {
+    int faceCount = std::max( bufferSize, mesh.faceCount() - faceIndex );
+    QVector<int> faceSizes( faceCount );
+    QVector<int> indices;
+    for ( int i = 0; i < faceCount; ++i )
+    {
+      const QgsMeshFace &face = mesh.face( faceIndex + i );
+      faceSizes[i] = face.count();
+      for ( int j = 0; j < faceSizes[i]; ++j )
+        indices.push_back( face.at( j ) );
+    }
+    MDAL_M_addFaces( mdalMesh, faceCount, faceSizes.data(), indices.data() );
+    if ( MDAL_LastStatus() != MDAL_Status::None )
+    {
+      MDAL_CloseMesh( mdalMesh );
+      return false;
+    }
+  }
+
+  MDAL_M_setProjection( mdalMesh, crs.toWkt().toStdString().c_str() );
+
+  MDAL_SaveMesh( mdalMesh, uri.toStdString().c_str(), driverName.toStdString().c_str() );
+
+  if ( MDAL_LastStatus() != MDAL_Status::None )
+  {
+    MDAL_CloseMesh( mdalMesh );
+    return false;
+  }
+
+  MDAL_CloseMesh( mdalMesh );
+  return true;
+}
+
 QString QgsMdalProviderMetadata::filters( FilterType type )
 {
   switch ( type )

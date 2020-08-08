@@ -42,6 +42,9 @@ class QgsDataItemProvider;
 class QgsTransaction;
 
 class QgsRasterDataProvider;
+class QgsMeshDataProvider;
+class QgsMesh;
+
 
 /**
  * \ingroup core
@@ -287,6 +290,16 @@ class CORE_EXPORT QgsProviderMetadata : public QObject
       double *geoTransform,
       const QgsCoordinateReferenceSystem &crs,
       const QStringList &createOptions = QStringList() ) SIP_FACTORY;
+
+    /**
+     * Creates mesh data source (depending of the provider)
+     * \since QGIS 3.16
+     */
+    virtual bool createMeshData(
+      const QgsMesh &mesh,
+      const QString uri,
+      const QString &driverName,
+      const QgsCoordinateReferenceSystem &crs ) const;
 
     /**
      * Returns pyramid resampling methods available for provider
