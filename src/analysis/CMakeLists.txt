@@ -225,6 +225,7 @@ SET(QGIS_ANALYSIS_SRCS
   vector/qgszonalstatistics.cpp
 
   mesh/qgsmeshcontours.cpp
+  mesh/qgsmeshtriangulation.cpp
 
   network/qgsgraph.cpp
   network/qgsgraphbuilder.cpp
@@ -292,6 +293,7 @@ SET(QGIS_ANALYSIS_HDRS
   interpolation/qgstininterpolator.h
 
   mesh/qgsmeshcontours.h
+  mesh/qgsmeshtriangulation.h
 
   network/qgsgraph.h
   network/qgsgraphanalyzer.h

@@ -1,0 +1,73 @@
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/analysis/mesh/qgsmeshtriangulation.h                             *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/
+
+
+
+
+
+
+class QgsMeshTriangulation
+{
+%Docstring
+
+Class that handles mesh creation with Delaunay constrained triangulation
+
+.. versionadded:: 3.16
+%End
+
+%TypeHeaderCode
+#include "qgsmeshtriangulation.h"
+%End
+  public:
+
+    QgsMeshTriangulation();
+%Docstring
+Contructor
+%End
+
+    bool addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+%Docstring
+Adds vertices from a vector layer, return true if success
+
+:param vectorLayer: the vector layer with vertices to insert
+:param valueAttribute: the index of the attribute that represents the value of vertices, if -1 uses Z coordinate of vertices
+:param transformContext: the transform context used to transform coordinates
+%End
+
+    bool addBreakLines( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+%Docstring
+Adds break lines from a vector layer, return true if success
+
+:param vectorLayer: the vector layer with vertices to insert
+:param valueAttribute: the index of the attribute that represents the value of vertices, if -1 uses Z coordinate of vertices
+:param transformContext: the transform context used to transform coordinates
+
+.. note::
+
+   if the vector layer contain point, only vertices will be added without breaklines
+%End
+
+    QgsMesh triangulatedMesh() const;
+%Docstring
+Returns the triangulated mesh
+%End
+
+    void setCrs( const QgsCoordinateReferenceSystem &crs );
+%Docstring
+Sets the coordinate reference system for the triangulation
+%End
+
+};
+
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/analysis/mesh/qgsmeshtriangulation.h                             *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/
