@@ -22,10 +22,11 @@
 
 #include "qgis_analysis.h"
 
-class QgsTriangulation;
 class QgsVectorLayer;
 class QgsCoordinateTransformContext;
 class QgsFeature;
+class QgsTriangulation;
+class QgsFeedback;
 
 
 /**
@@ -36,12 +37,16 @@ class QgsFeature;
  *
  * \since QGIS 3.16
  */
-class ANALYSIS_EXPORT QgsMeshTriangulation
+class ANALYSIS_EXPORT QgsMeshTriangulation : public QObject
 {
+    Q_OBJECT
   public:
 
     //! Contructor
     QgsMeshTriangulation();
+
+    //! Destructor
+    ~QgsMeshTriangulation();
 
     /**
      * Adds vertices from a vector layer, return true if success
@@ -50,7 +55,7 @@ class ANALYSIS_EXPORT QgsMeshTriangulation
      * \param valueAttribute the index of the attribute that represents the value of vertices, if -1 uses Z coordinate of vertices
      * \param transformContext the transform context used to transform coordinates
      */
-    bool addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+    bool addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext, QgsFeedback *feedback = nullptr );
 
     /**
      * Adds break lines from a vector layer, return true if success
@@ -60,7 +65,7 @@ class ANALYSIS_EXPORT QgsMeshTriangulation
      *
      * \note if the vector layer contain point, only vertices will be added without breaklines
      */
-    bool addBreakLines( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+    bool addBreakLines( QgsVectorLayer *linesSource, int valueAttribute, const QgsCoordinateTransformContext &transformContext, QgsFeedback *feedback = nullptr );
 
     //! Returns the triangulated mesh
     QgsMesh triangulatedMesh() const;
@@ -69,10 +74,14 @@ class ANALYSIS_EXPORT QgsMeshTriangulation
     void setCrs( const QgsCoordinateReferenceSystem &crs );
 
   private:
+#ifdef SIP_RUN
+    QgsMeshTriangulation( const QgsMeshTriangulation &rhs );
+#endif
+
     QgsCoordinateReferenceSystem mCrs;
     std::unique_ptr<QgsTriangulation> mTriangulation;
 
-    void addBreakLinesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform );
+    void addBreakLinesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform, QgsFeedback *feedback = nullptr );
 };
 
 #endif // QGSMESHTRIANGULATION_H

@@ -36,10 +36,13 @@ from qgis.core import (QgsProcessingUtils,
                        QgsWkbTypes,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingException,
-                       QgsCoordinateReferenceSystem)
+                       QgsCoordinateReferenceSystem,
+                       QgsProviderRegistry,
+                       QgsMesh)
 from qgis.analysis import (QgsInterpolator,
                            QgsTinInterpolator,
-                           QgsGridFileWriter)
+                           QgsGridFileWriter,
+                           QgsMeshTriangulation)
 
 from processing.algs.qgis.QgisAlgorithm import QgisAlgorithm
 from processing.algs.qgis.ui.TinMeshWidgets import ParameterTinMeshData
@@ -84,32 +87,29 @@ class TinMeshCreation(QgisAlgorithm):
         breakLineLayers= []
         breakLinesValueSource = []
         crs = QgsCoordinateReferenceSystem()
+
+        meshTriangulation=QgsMeshTriangulation()
+
         for i, row in enumerate(sourceData.split('::|::')):
             v = row.split('::~::')
 
             # need to keep a reference until interpolation is complete
-            sourceLayer = QgsProcessingUtils.variantToSource(v[0], context)
+            sourceLayer = QgsProcessingUtils.mapLayerFromString(v[0], context)
             transformContext = context.transformContext()
 
             if not crs.isValid():
                 crs = sourceLayer.sourceCrs()
 
-            valueSource = int(v[1])
-            valueAttribute = int(v[2])
-            if valueSource == "value_attribute" and valueAttribute == -1:
-                raise QgsProcessingException(self.tr('Layer {} is set to use a value attribute, but no attribute was set'.format(i + 1)))
+            valueAttribute = int(v[1])
 
-            if v[3] == '0':  #points
-                pointsLayers.append(sourceLayer)
-                pointsValueSource.append(valueAttribute)
+            if v[2] == '0':  #points
+                meshTriangulation.addVertices(sourceLayer, valueAttribute, context.transformContext(), feedback)
             else:            #lines
-                breakLineLayers.append(sourceLayer)
-                breakLinesValueSource.append(valueAttribute)
+                meshTriangulation.addBreakLines(sourceLayer, valueAttribute, context.transformContext(), feedback)
 
-        #
-        # interpolator = QgsTinInterpolator(layerData, interpolationMethod, feedback)
-        # if triangulation_sink is not None:
-        #     interpolator.setTriangulationSink(triangulation_sink)
-        #
+        providerMeta=QgsProviderRegistry.instance().providerMetadata("mdal")
+        mesh=meshTriangulation.triangulatedMesh()
+        providerMeta.createMeshData(mesh,"/home/vincent/es_mesh","2DM",crs)
+
 
         return {self.OUTPUT_MESH: 0}

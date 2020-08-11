@@ -943,6 +943,7 @@ bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString
       MDAL_CloseMesh( mdalMesh );
       return false;
     }
+    faceIndex++;
   }
 
   MDAL_M_setProjection( mdalMesh, crs.toWkt().toStdString().c_str() );

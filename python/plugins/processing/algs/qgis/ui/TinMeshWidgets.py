@@ -60,28 +60,27 @@ class ParameterTinMeshData(QgsProcessingParameterDefinition):
     def clone(self):
         return ParameterTinMeshData(self.name(), self.description())
 
-@staticmethod
-def parseValue(value):
-    if value is None:
-        return None
+    @staticmethod
+    def parseValue(value):
+        if value is None:
+            return None
 
-    if value == '':
-        return None
+        if value == '':
+            return None
 
-    if isinstance(value, str):
-        return value if value != '' else None
-    else:
-        return ParameterTinMeshData.dataToString(value)
+        if isinstance(value, str):
+            return value if value != '' else None
+        else:
+            return ParameterTinMeshData.dataToString(value)
 
-@staticmethod
-def dataToString(data):
-    s = ''
-    for c in data:
-        s += '{}::~::{}::~::{:d}::~::{:d};'.format(c[0],
-                                                   c[1],
-                                                   c[2],
-                                                   c[3])
-    return s[:-1]
+    @staticmethod
+    def dataToString(data):
+        s = ''
+        for c in data:
+            s += '{}::~::{}::~::{:d};'.format(c[0],
+                                              c[1],
+                                              c[2])
+        return s[:-1]
 
 
 WIDGET, BASE = uic.loadUiType(os.path.join(pluginPath, 'tinmeshdatawidgetbase.ui'))
@@ -181,7 +180,6 @@ class TinMeshDataWidget(BASE, WIDGET):
                 vertexValueAttribute = item.text(1)
                 valueSource = "value_attribute"
                 if vertexValueAttribute == 'Z_COORD':
-                    valueSource = "Z_COORD"
                     fieldIndex = -1
                 else:
                     fieldIndex = layer.fields().indexFromName(vertexValueAttribute)
@@ -193,10 +191,7 @@ class TinMeshDataWidget(BASE, WIDGET):
                 else:
                     inputType = QgsInterpolator.SourceBreakLines
 
-                layers += '{}::~::{:d}::~::{:d}::~::{:d}::|::'.format(layer.source(),
-                                                                      valueSource,
-                                                                      fieldIndex,
-                                                                      inputType)
+                layers += '{}::~::{:d}::~::{:d}::|::'.format(layer.source(), fieldIndex, inputType)
         return layers[:-len('::|::')]
 
 

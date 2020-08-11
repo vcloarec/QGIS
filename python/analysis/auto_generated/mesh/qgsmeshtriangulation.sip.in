@@ -11,7 +11,7 @@
 
 
 
-class QgsMeshTriangulation
+class QgsMeshTriangulation : QObject
 {
 %Docstring
 
@@ -30,7 +30,9 @@ Class that handles mesh creation with Delaunay constrained triangulation
 Contructor
 %End
 
-    bool addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+    ~QgsMeshTriangulation();
+
+    bool addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext, QgsFeedback *feedback = 0 );
 %Docstring
 Adds vertices from a vector layer, return true if success
 
@@ -39,7 +41,7 @@ Adds vertices from a vector layer, return true if success
 :param transformContext: the transform context used to transform coordinates
 %End
 
-    bool addBreakLines( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext );
+    bool addBreakLines( QgsVectorLayer *linesSource, int valueAttribute, const QgsCoordinateTransformContext &transformContext, QgsFeedback *feedback = 0 );
 %Docstring
 Adds break lines from a vector layer, return true if success
 
@@ -62,6 +64,8 @@ Returns the triangulated mesh
 Sets the coordinate reference system for the triangulation
 %End
 
+  private:
+    QgsMeshTriangulation( const QgsMeshTriangulation &rhs );
 };
 
 /************************************************************************

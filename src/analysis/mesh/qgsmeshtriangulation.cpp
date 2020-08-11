@@ -23,13 +23,21 @@
 #include "qgscurvepolygon.h"
 #include "qgsmultisurface.h"
 #include "qgsmulticurve.h"
+#include "qgsfeedback.h"
 
-QgsMeshTriangulation::QgsMeshTriangulation()
+QgsMeshTriangulation::QgsMeshTriangulation(): QObject()
 {
   mTriangulation.reset( new QgsDualEdgeTriangulation() );
 }
 
-bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext )
+
+QgsMeshTriangulation::~QgsMeshTriangulation() = default;
+
+
+bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer,
+                                        int valueAttribute,
+                                        const QgsCoordinateTransformContext &transformContext,
+                                        QgsFeedback *feedback )
 {
   if ( !vectorLayer )
     return false;
@@ -42,8 +50,19 @@ bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer, int valueAt
   QgsFeatureIterator fIt = vectorLayer->getFeatures();
   QgsFeature feat;
   bool isZvalueGeom = valueAttribute < 0;
+  int i = 0;
+  int featureCount = vectorLayer->featureCount();
   while ( fIt.nextFeature( feat ) )
   {
+    if ( feedback )
+    {
+      if ( feedback->isCanceled() )
+        break;
+
+      feedback->setProgress( i / featureCount );
+      i++;
+    }
+
     QgsGeometry geom = feat.geometry();
     geom.transform( transform, QgsCoordinateTransform::ForwardTransform, true );
     QgsAbstractGeometry::vertex_iterator vit = geom.vertices_begin();
@@ -54,6 +73,8 @@ bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer, int valueAt
 
     while ( vit != geom.vertices_end() )
     {
+      if ( feedback && feedback->isCanceled() )
+        break;
       if ( isZvalueGeom )
         mTriangulation->addPoint( *vit );
       else
@@ -69,12 +90,9 @@ bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer, int valueAt
   return true;
 }
 
-bool QgsMeshTriangulation::addBreakLines( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext )
+bool QgsMeshTriangulation::addBreakLines( QgsVectorLayer *vectorLayer, int valueAttribute, const QgsCoordinateTransformContext &transformContext, QgsFeedback *feedback )
 {
   if ( !vectorLayer )
-    return false;
-
-  if ( !vectorLayer->isValid() )
     return false;
 
   QgsCoordinateTransform transform( vectorLayer->crs(), mCrs, transformContext );
@@ -84,7 +102,7 @@ bool QgsMeshTriangulation::addBreakLines( QgsVectorLayer *vectorLayer, int value
   switch ( geomType )
   {
     case QgsWkbTypes::PointGeometry:
-      return addVertices( vectorLayer, valueAttribute, transformContext );
+      return addVertices( vectorLayer, valueAttribute, transformContext, feedback );
       break;
     case QgsWkbTypes::LineGeometry:
     case QgsWkbTypes::PolygonGeometry:
@@ -93,7 +111,7 @@ bool QgsMeshTriangulation::addBreakLines( QgsVectorLayer *vectorLayer, int value
       QgsFeature feat;
       while ( fIt.nextFeature( feat ) )
       {
-        addBreakLinesFromFeature( feat, valueAttribute, transform );
+        addBreakLinesFromFeature( feat, valueAttribute, transform, feedback );
       }
 
       return true;
@@ -102,6 +120,8 @@ bool QgsMeshTriangulation::addBreakLines( QgsVectorLayer *vectorLayer, int value
     default:
       return false;
   }
+
+  return false;
 }
 
 QgsMesh QgsMeshTriangulation::triangulatedMesh() const
@@ -114,7 +134,7 @@ void QgsMeshTriangulation::setCrs( const QgsCoordinateReferenceSystem &crs )
   mCrs = crs;
 }
 
-void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform )
+void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform, QgsFeedback *feedback )
 {
   double valueOnVertex = 0;
   if ( valueAttribute >= 0 )
@@ -142,6 +162,8 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
 
     for ( const QgsCurvePolygon *polygon : polygons )
     {
+      if ( feedback && feedback->isCanceled() )
+        break;
       if ( !polygon )
         continue;
 
@@ -150,6 +172,8 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
 
       for ( int i = 0; i < polygon->numInteriorRings(); ++i )
       {
+        if ( feedback && feedback->isCanceled() )
+          break;
         curves.emplace_back( polygon->interiorRing( i ) );
       }
     }
@@ -161,6 +185,8 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
       const QgsMultiCurve *mc = qgsgeometry_cast< const QgsMultiCurve * >( geom.constGet() );
       for ( int i = 0; i < mc->numGeometries(); ++i )
       {
+        if ( feedback && feedback->isCanceled() )
+          break;
         curves.emplace_back( qgsgeometry_cast< const QgsCurve * >( mc->geometryN( i ) ) );
       }
     }
@@ -170,10 +196,21 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
     }
   }
 
+
+  int i = 0;
   for ( const QgsCurve *curve : curves )
   {
     if ( !curve )
       continue;
+
+    if ( feedback )
+    {
+      if ( feedback->isCanceled() )
+        break;
+
+      feedback->setProgress( i / curves.size() );
+      i++;
+    }
 
     QgsPointSequence linePoints;
     curve->points( linePoints );
@@ -184,3 +221,4 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
     mTriangulation->addLine( linePoints, QgsInterpolator::SourceBreakLines );
   }
 }
+
