@@ -915,10 +915,10 @@ bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString
     QVector<double> verticesCoordinates( vertexCount * 3 );
     for ( int i = 0; i < vertexCount / 3; ++i )
     {
-      const QgsMeshVertex &vert = mesh.vertex( vertexIndex );
-      verticesCoordinates[( i + vertexIndex ) * 3] = vert.x();
-      verticesCoordinates[( i + vertexIndex + 1 ) * 3] = vert.y();
-      verticesCoordinates[( i + vertexIndex ) * 2] = vert.z();
+      const QgsMeshVertex &vert = mesh.vertex( vertexIndex + i );
+      verticesCoordinates[ i * 3 + vertexIndex * 3  ] = vert.x();
+      verticesCoordinates[ i * 3 + 1 + vertexIndex * 3] = vert.y();
+      verticesCoordinates[i * 3 + 2 + vertexIndex * 3] = vert.z();
     }
     vertexIndex += vertexCount;
 
@@ -1012,6 +1012,9 @@ QList<QgsMeshDriverMetadata> QgsMdalProviderMetadata::meshDriversMetadata()
     bool hasSaveEdgeDatasetsCapability = MDAL_DR_writeDatasetsCapability( mdalDriver, MDAL_DataLocation::DataOnEdges );
     if ( hasSaveEdgeDatasetsCapability )
       capabilities |= QgsMeshDriverMetadata::CanWriteEdgeDatasets;
+    bool hasMeshSaveCapability = MDAL_DR_saveMeshCapability( mdalDriver );
+    if ( hasMeshSaveCapability )
+      capabilities |= QgsMeshDriverMetadata::CanWriteMeshData;
     const QgsMeshDriverMetadata meta( name, longName, capabilities, writeDatasetSuffix );
     ret.push_back( meta );
   }

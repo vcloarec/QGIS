@@ -25,9 +25,11 @@ import os
 import math
 
 from qgis.PyQt.QtGui import QIcon
+from qgis.utils import iface
 
 from qgis.core import (QgsProcessingUtils,
                        QgsProcessing,
+                       QgsProcessingParameterCrs,
                        QgsProcessingParameterEnum,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterExtent,
@@ -38,6 +40,7 @@ from qgis.core import (QgsProcessingUtils,
                        QgsProcessingException,
                        QgsCoordinateReferenceSystem,
                        QgsProviderRegistry,
+                       QgsMeshDriverMetadata,
                        QgsMesh)
 from qgis.analysis import (QgsInterpolator,
                            QgsTinInterpolator,
@@ -52,7 +55,11 @@ pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 class TinMeshCreation(QgisAlgorithm):
     SOURCE_DATA = 'SOURCE_DATA'
+    EXTENT = 'EXTENT'
+    MESH_FORMAT = 'MESH_FORMAT'
+    CRS = 'CRS_OUTPUT'
     OUTPUT_MESH = 'OUTPUT_MESH'
+
 
     def icon(self):
         return QIcon(os.path.join(pluginPath, 'images', 'interpolation.png'))
@@ -69,6 +76,25 @@ class TinMeshCreation(QgisAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(ParameterTinMeshData(self.SOURCE_DATA,self.tr('Input layer(s)')))
 
+        self.FORMATS=[]
+        self.providerMetaData=QgsProviderRegistry.instance().providerMetadata("mdal")
+        meshDriverMetaList=self.providerMetaData.meshDriversMetadata()
+        meshDriverAvailable=[]
+        for driver in meshDriverMetaList:
+            if bool(driver.capabilities() & QgsMeshDriverMetadata.CanWriteMeshData):
+                meshDriverAvailable.append(driver)
+                self.FORMATS.append(driver.name())
+
+
+        self.addParameter(QgsProcessingParameterEnum(self.MESH_FORMAT,
+                                                     self.tr('Output format'),
+                                                     options=self.FORMATS,
+                                                     defaultValue=0))
+
+        self.addParameter(QgsProcessingParameterCrs(self.CRS,
+                                           self.tr('Output coordinate system'),
+                                           optional=True))
+
     def name(self):
         return 'tinmeshcreation'
 
@@ -82,11 +108,9 @@ class TinMeshCreation(QgisAlgorithm):
             raise QgsProcessingException(
                 self.tr('You need to specify at least one input layer.'))
 
-        pointsLayers = []
-        pointsValueSource = []
-        breakLineLayers= []
-        breakLinesValueSource = []
-        crs = QgsCoordinateReferenceSystem()
+        crs = self.parameterAsCrs(parameters, self.CRS, context)
+        if not crs.isValid():
+            crs=iface.mapCanvas().mapSettings().destinationCrs()
 
         meshTriangulation=QgsMeshTriangulation()
 
@@ -107,9 +131,9 @@ class TinMeshCreation(QgisAlgorithm):
             else:            #lines
                 meshTriangulation.addBreakLines(sourceLayer, valueAttribute, context.transformContext(), feedback)
 
-        providerMeta=QgsProviderRegistry.instance().providerMetadata("mdal")
+
         mesh=meshTriangulation.triangulatedMesh()
-        providerMeta.createMeshData(mesh,"/home/vincent/es_mesh","2DM",crs)
+        self.providerMetaData.createMeshData(mesh,"/home/cloarec/es_mesh","2DM",crs)
 
 
         return {self.OUTPUT_MESH: 0}
