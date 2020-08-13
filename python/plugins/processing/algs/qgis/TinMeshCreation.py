@@ -28,24 +28,16 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.utils import iface
 
 from qgis.core import (QgsProcessingUtils,
-                       QgsProcessing,
                        QgsProcessingParameterCrs,
                        QgsProcessingParameterEnum,
-                       QgsProcessingParameterNumber,
-                       QgsProcessingParameterExtent,
-                       QgsProcessingParameterDefinition,
-                       QgsProcessingParameterRasterDestination,
-                       QgsWkbTypes,
-                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessingException,
-                       QgsCoordinateReferenceSystem,
                        QgsProviderRegistry,
                        QgsMeshDriverMetadata,
+                       QgsMeshLayer,
                        QgsMesh)
-from qgis.analysis import (QgsInterpolator,
-                           QgsTinInterpolator,
-                           QgsGridFileWriter,
-                           QgsMeshTriangulation)
+from qgis.analysis import (QgsMeshTriangulation,
+                           QgsMeshZValueDatasetGroup)
 
 from processing.algs.qgis.QgisAlgorithm import QgisAlgorithm
 from processing.algs.qgis.ui.TinMeshWidgets import ParameterTinMeshData
@@ -59,7 +51,6 @@ class TinMeshCreation(QgisAlgorithm):
     MESH_FORMAT = 'MESH_FORMAT'
     CRS = 'CRS_OUTPUT'
     OUTPUT_MESH = 'OUTPUT_MESH'
-
 
     def icon(self):
         return QIcon(os.path.join(pluginPath, 'images', 'interpolation.png'))
@@ -95,6 +86,10 @@ class TinMeshCreation(QgisAlgorithm):
                                            self.tr('Output coordinate system'),
                                            optional=True))
 
+        self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_MESH,
+                                                                self.tr('Output file'),
+                                                                optional=False))
+
     def name(self):
         return 'tinmeshcreation'
 
@@ -116,24 +111,35 @@ class TinMeshCreation(QgisAlgorithm):
 
         for i, row in enumerate(sourceData.split('::|::')):
             v = row.split('::~::')
-
-            # need to keep a reference until interpolation is complete
-            sourceLayer = QgsProcessingUtils.mapLayerFromString(v[0], context)
-            transformContext = context.transformContext()
-
+            layer = QgsProcessingUtils.mapLayerFromString(v[0], context)
             if not crs.isValid():
-                crs = sourceLayer.sourceCrs()
+                crs = layer.sourceCrs()
 
             valueAttribute = int(v[1])
 
             if v[2] == '0':  #points
-                meshTriangulation.addVertices(sourceLayer, valueAttribute, context.transformContext(), feedback)
+                meshTriangulation.addVertices(layer, valueAttribute, context.transformContext(), feedback)
             else:            #lines
-                meshTriangulation.addBreakLines(sourceLayer, valueAttribute, context.transformContext(), feedback)
+                meshTriangulation.addBreakLines(layer, valueAttribute, context.transformContext(), feedback)
 
 
-        mesh=meshTriangulation.triangulatedMesh()
-        self.providerMetaData.createMeshData(mesh,"/home/cloarec/es_mesh","2DM",crs)
+        fileName=self.parameterAsFile(parameters,self.OUTPUT_MESH,context)
+        driverIndex = self.parameterAsEnum(parameters, self.MESH_FORMAT, context)
+        mesh = meshTriangulation.triangulatedMesh()
+        self.providerMetaData.createMeshData(mesh,fileName,self.FORMATS[driverIndex],crs)
+
+        #SELAFIN format doesn't support saving Z value on mesh vertices, so create a specific dataset group
+        if self.FORMATS[driverIndex] == "SELAFIN":
+            self.addZValueDataset(fileName, mesh)
+
+        return {self.OUTPUT_MESH: fileName}
 
 
-        return {self.OUTPUT_MESH: 0}
+    def addZValueDataset(self,fileName,mesh):
+
+        tempLayer=QgsMeshLayer(fileName, "temp", "mdal")
+
+        zValueDatasetGroup=QgsMeshZValueDatasetGroup(mesh)
+        tempLayer.addDatasets(zValueDatasetGroup)
+        datasetGroupIndex=tempLayer.datasetGroupCount()-1
+        tempLayer.saveDataset(fileName, datasetGroupIndex, "SELAFIN")

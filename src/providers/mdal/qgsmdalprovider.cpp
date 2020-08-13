@@ -903,6 +903,9 @@ QList<QgsDataItemProvider *> QgsMdalProviderMetadata::dataItemProviders() const
 bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString uri, const QString &driverName, const QgsCoordinateReferenceSystem &crs ) const
 {
   MDAL_DriverH driver = MDAL_driverFromName( driverName.toStdString().c_str() );
+  if ( !driver )
+    return false;
+
   MDAL_MeshH mdalMesh = MDAL_CreateMesh( driver );
 
   int bufferSize = 2000;
@@ -911,14 +914,15 @@ bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString
 
   while ( vertexIndex < mesh.vertexCount() )
   {
-    int vertexCount = std::max( bufferSize, mesh.vertexCount() - vertexIndex );
+    int vertexCount = std::min( bufferSize, mesh.vertexCount() - vertexIndex );
     QVector<double> verticesCoordinates( vertexCount * 3 );
-    for ( int i = 0; i < vertexCount / 3; ++i )
+    for ( int i = 0; i < vertexCount ; ++i )
     {
-      const QgsMeshVertex &vert = mesh.vertex( vertexIndex + i );
-      verticesCoordinates[ i * 3 + vertexIndex * 3  ] = vert.x();
-      verticesCoordinates[ i * 3 + 1 + vertexIndex * 3] = vert.y();
-      verticesCoordinates[i * 3 + 2 + vertexIndex * 3] = vert.z();
+      int globalIndex = vertexIndex + i;
+      const QgsMeshVertex &vert = mesh.vertex( globalIndex );
+      verticesCoordinates[i * 3  ] = vert.x();
+      verticesCoordinates[i * 3 + 1] = vert.y();
+      verticesCoordinates[i * 3 + 2] = vert.z();
     }
     vertexIndex += vertexCount;
 
@@ -927,7 +931,7 @@ bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString
 
   while ( faceIndex < mesh.faceCount() )
   {
-    int faceCount = std::max( bufferSize, mesh.faceCount() - faceIndex );
+    int faceCount = std::min( bufferSize, mesh.faceCount() - faceIndex );
     QVector<int> faceSizes( faceCount );
     QVector<int> indices;
     for ( int i = 0; i < faceCount; ++i )
@@ -943,7 +947,7 @@ bool QgsMdalProviderMetadata::createMeshData( const QgsMesh &mesh, const QString
       MDAL_CloseMesh( mdalMesh );
       return false;
     }
-    faceIndex++;
+    faceIndex += faceCount;
   }
 
   MDAL_M_setProjection( mdalMesh, crs.toWkt().toStdString().c_str() );

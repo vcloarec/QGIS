@@ -84,4 +84,64 @@ class ANALYSIS_EXPORT QgsMeshTriangulation : public QObject
     void addBreakLinesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform, QgsFeedback *feedback = nullptr );
 };
 
+#ifndef SIP_RUN
+
+/**
+ * \ingroup analysis
+ * \class QgsMeshZValueDataset
+ *
+ * Convenient class that can be used to obtain a dataset on vertices that represents the Z value of the mesh vertices
+ *
+ * \since QGIS 3.16
+ */
+class QgsMeshZValueDataset: public QgsMeshDataset
+{
+  public:
+    //! Constructor with the mesh
+    QgsMeshZValueDataset( const QgsMesh &mesh );
+
+    QgsMeshDatasetValue datasetValue( int valueIndex ) const override;
+    QgsMeshDataBlock datasetValues( bool isScalar, int valueIndex, int count ) const override;
+    QgsMeshDataBlock areFacesActive( int faceIndex, int count ) const override;
+    bool isActive( int faceIndex ) const override;
+    QgsMeshDatasetMetadata metadata() const override;
+    int valuesCount() const override;
+
+  private:
+    QgsMesh mMesh;
+    double mZMinimum = std::numeric_limits<double>::max();
+    double mZMaximum = -std::numeric_limits<double>::max();
+};
+
+#endif //SIP_RUN
+
+/**
+ * \ingroup analysis
+ * \class QgsMeshZValueDataset
+ *
+ * Convenient class that can be used to obtain a datasetgroup on vertices that represents the Z value of the mesh vertices
+ *
+ * \since QGIS 3.16
+ */
+class ANALYSIS_EXPORT QgsMeshZValueDatasetGroup: public QgsMeshDatasetGroup
+{
+  public:
+    //! Constructor with the mesh
+    QgsMeshZValueDatasetGroup( const QgsMesh &mesh );
+
+    void initialize() override;
+    QgsMeshDatasetMetadata datasetMetadata( int datasetIndex ) const override;
+    int datasetCount() const override;
+    QgsMeshDataset *dataset( int index ) const override;
+    QgsMeshDatasetGroup::Type type() const override {return QgsMeshDatasetGroup::Virtual;}
+    QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const override;
+
+  private:
+#ifdef SIP_RUN
+    QgsMeshZValueDatasetGroup( const QgsMeshZValueDatasetGroup &rhs );
+#endif
+    std::unique_ptr<QgsMeshZValueDataset> mDataset;
+
+};
+
 #endif // QGSMESHTRIANGULATION_H

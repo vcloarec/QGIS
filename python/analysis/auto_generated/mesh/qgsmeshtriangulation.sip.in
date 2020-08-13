@@ -68,6 +68,41 @@ Sets the coordinate reference system for the triangulation
     QgsMeshTriangulation( const QgsMeshTriangulation &rhs );
 };
 
+
+class QgsMeshZValueDatasetGroup: QgsMeshDatasetGroup
+{
+%Docstring
+
+Convenient class that can be used to obtain a datasetgroup on vertices that represents the Z value of the mesh vertices
+
+.. versionadded:: 3.16
+%End
+
+%TypeHeaderCode
+#include "qgsmeshtriangulation.h"
+%End
+  public:
+    QgsMeshZValueDatasetGroup( const QgsMesh &mesh );
+%Docstring
+Constructor with the mesh
+%End
+
+    virtual void initialize();
+
+    virtual QgsMeshDatasetMetadata datasetMetadata( int datasetIndex ) const;
+
+    virtual int datasetCount() const;
+
+    virtual QgsMeshDataset *dataset( int index ) const;
+
+    virtual QgsMeshDatasetGroup::Type type() const;
+    virtual QDomElement writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const;
+
+
+  private:
+    QgsMeshZValueDatasetGroup( const QgsMeshZValueDatasetGroup &rhs );
+};
+
 /************************************************************************
  * This file has been generated automatically from                      *
  *                                                                      *

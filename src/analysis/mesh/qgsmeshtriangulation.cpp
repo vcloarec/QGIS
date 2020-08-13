@@ -79,9 +79,8 @@ bool QgsMeshTriangulation::addVertices( QgsVectorLayer *vectorLayer,
         mTriangulation->addPoint( *vit );
       else
       {
-        QgsPoint point = *vit;
-        point.setZ( value );
-        mTriangulation->addPoint( point );
+        ;
+        mTriangulation->addPoint( QgsPoint( QgsWkbTypes::PointZ, ( *vit ).x(), ( *vit ).y(), value ) );
       }
       ++vit;
     }
@@ -196,7 +195,6 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
     }
   }
 
-
   int i = 0;
   for ( const QgsCurve *curve : curves )
   {
@@ -222,3 +220,91 @@ void QgsMeshTriangulation::addBreakLinesFromFeature( const QgsFeature &feature, 
   }
 }
 
+QgsMeshZValueDatasetGroup::QgsMeshZValueDatasetGroup( const QgsMesh &mesh ):
+  QgsMeshDatasetGroup( QObject::tr( "Z value" ), QgsMeshDatasetGroupMetadata::DataOnVertices )
+{
+  mDataset.reset( new QgsMeshZValueDataset( mesh ) );
+}
+
+void QgsMeshZValueDatasetGroup::initialize()
+{
+  calculateStatistic();
+}
+
+QgsMeshDatasetMetadata QgsMeshZValueDatasetGroup::datasetMetadata( int datasetIndex ) const
+{
+  if ( datasetIndex != 0 )
+    return QgsMeshDatasetMetadata();
+
+  return mDataset->metadata();
+}
+
+int QgsMeshZValueDatasetGroup::datasetCount() const {return 1;}
+
+QgsMeshDataset *QgsMeshZValueDatasetGroup::dataset( int index ) const
+{
+  if ( index != 0 )
+    return nullptr;
+
+  return mDataset.get();
+}
+
+QDomElement QgsMeshZValueDatasetGroup::writeXml( QDomDocument &doc, const QgsReadWriteContext &context ) const
+{
+  Q_UNUSED( doc );
+  Q_UNUSED( context );
+  return QDomElement();
+}
+
+QgsMeshZValueDataset::QgsMeshZValueDataset( const QgsMesh &mesh ): mMesh( mesh )
+{
+  for ( const QgsMeshVertex vertex : mMesh.vertices )
+  {
+    if ( vertex.z() < mZMinimum )
+      mZMinimum = vertex.z();
+    if ( vertex.z() > mZMaximum )
+      mZMaximum = vertex.z();
+  }
+}
+
+QgsMeshDatasetValue QgsMeshZValueDataset::datasetValue( int valueIndex ) const
+{
+  if ( valueIndex < 0 || valueIndex >= mMesh.vertexCount() )
+    return QgsMeshDatasetValue();
+
+  return QgsMeshDatasetValue( mMesh.vertex( valueIndex ).z() );
+}
+
+QgsMeshDataBlock QgsMeshZValueDataset::datasetValues( bool isScalar, int valueIndex, int count ) const
+{
+  Q_UNUSED( isScalar )
+  QgsMeshDataBlock ret( QgsMeshDataBlock::ScalarDouble, count );
+  QVector<double> zValues( count );
+  for ( int i = valueIndex; i < valueIndex + count; ++i )
+    zValues[i - valueIndex] = mMesh.vertex( i ).z();
+  ret.setValues( zValues );
+  return ret;
+
+}
+
+QgsMeshDataBlock QgsMeshZValueDataset::areFacesActive( int faceIndex, int count ) const
+{
+  Q_UNUSED( faceIndex );
+  Q_UNUSED( count );
+  QgsMeshDataBlock ret( QgsMeshDataBlock::ActiveFlagInteger, count );
+  ret.setValid( true );
+  return ret;
+}
+
+bool QgsMeshZValueDataset::isActive( int faceIndex ) const
+{
+  return ( faceIndex > 0 && faceIndex < mMesh.faceCount() );
+}
+
+QgsMeshDatasetMetadata QgsMeshZValueDataset::metadata() const
+{
+  return QgsMeshDatasetMetadata( 0, true, mZMinimum, mZMaximum, 0 );
+}
+
+int QgsMeshZValueDataset::valuesCount() const
+{ return mMesh.vertexCount();}
