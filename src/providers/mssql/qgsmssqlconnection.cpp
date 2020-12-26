@@ -324,16 +324,21 @@ QStringList QgsMssqlConnection::schemas( const QString &uri, QString *errorMessa
 // connect to database
   QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
 
-  if ( !openDatabase( db ) )
+  return schemas( db, errorMessage );
+}
+
+QStringList QgsMssqlConnection::schemas( QSqlDatabase &dataBase, QString *errorMessage )
+{
+  if ( !openDatabase( dataBase ) )
   {
     if ( errorMessage )
-      *errorMessage = db.lastError().text();
+      *errorMessage = dataBase.lastError().text();
     return QStringList();
   }
 
   const QString sql = QStringLiteral( "select s.name as schema_name from sys.schemas s" );
 
-  QSqlQuery q = QSqlQuery( db );
+  QSqlQuery q = QSqlQuery( dataBase );
   q.setForwardOnly( true );
   if ( !q.exec( sql ) )
   {

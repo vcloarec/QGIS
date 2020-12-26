@@ -72,6 +72,11 @@ void QgsMssqlConnectionItem::readConnectionSettings()
     mPassword = settings.value( key + "/password" ).toString();
   }
 
+  mSchemaSettings.clear();
+  QVariant schemasSettingsVariant = settings.value( key + "/schemas" );
+  if ( schemasSettingsVariant.isValid() && schemasSettingsVariant.type() == QVariant::Map )
+    mSchemaSettings = schemasSettingsVariant.toMap();
+
   mUseGeometryColumns = QgsMssqlConnection::geometryColumnsOnly( mName );
   mUseEstimatedMetadata = QgsMssqlConnection::useEstimatedMetadata( mName );
   mAllowGeometrylessTables = QgsMssqlConnection::allowGeometrylessTables( mName );
@@ -99,23 +104,18 @@ void QgsMssqlConnectionItem::refresh()
   QgsDebugMsgLevel( "mPath = " + mPath, 3 );
   stop();
 
-  // read up the schemas and layers from database
-  QVector<QgsDataItem *> items = createChildren();
-
-  // Add new items
-  const auto constItems = items;
-  for ( QgsDataItem *item : constItems )
+  // Clear all children
+  const QVector<QgsDataItem *> allChidren = children();
+  for ( QgsDataItem *item : allChidren )
   {
-    // Is it present in children?
-    int index = findItem( mChildren, item );
-    if ( index >= 0 )
-    {
-      static_cast< QgsMssqlSchemaItem * >( mChildren.at( index ) )->addLayers( item );
-      delete item;
-      continue;
-    }
-    addChildItem( item, true );
+    removeChildItem( item );
+    delete item;
   }
+
+  // read up the schemas and layers from database
+  const QVector<QgsDataItem *> items = createChildren();
+  for ( QgsDataItem *item : items )
+    addChildItem( item, true );
 }
 
 QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
@@ -132,6 +132,8 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
   readConnectionSettings();
 
   QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
+
+  QVariantMap schemaSettings = mSchemaSettings.value( mDatabase ).toMap();
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
@@ -171,6 +173,9 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
     {
       QgsMssqlLayerProperty layer;
       layer.schemaName = q.value( 0 ).toString();
+      if ( schemaSettings.contains( layer.schemaName ) )
+        if ( !schemaSettings.value( layer.schemaName ).toBool() )
+          continue;
       layer.tableName = q.value( 1 ).toString();
       layer.geometryColName = q.value( 2 ).toString();
       layer.srid = q.value( 3 ).toString();
@@ -266,7 +271,8 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
     const QStringList allSchemas = QgsMssqlConnection::schemas( uri, nullptr );
     for ( const QString &schema : allSchemas )
     {
-      if ( addedSchemas.contains( schema ) )
+      if ( addedSchemas.contains( schema ) ||
+           ( schemaSettings.contains( schema ) && !schemaSettings.value( schema ).toBool() ) )
         continue;
 
       if ( QgsMssqlConnection::isSystemSchema( schema ) )

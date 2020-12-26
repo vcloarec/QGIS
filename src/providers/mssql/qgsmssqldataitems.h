@@ -91,6 +91,7 @@ class QgsMssqlConnectionItem : public QgsDataCollectionItem
     bool mUseEstimatedMetadata;
     bool mAllowGeometrylessTables;
     QgsMssqlGeomColumnTypeThread *mColumnTypeThread = nullptr;
+    QVariantMap mSchemaSettings;
 
     void readConnectionSettings();
     void stop();
