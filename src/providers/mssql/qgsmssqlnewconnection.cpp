@@ -60,7 +60,8 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
     txtService->setText( settings.value( key + "/service" ).toString() );
     txtHost->setText( settings.value( key + "/host" ).toString() );
     listDatabase->addItem( settings.value( key + "/database" ).toString() );
-    QVariant schemasVariant = settings.value( key + "/schemas" );
+    groupBoxSchemasFilter->setChecked( settings.value( key + "/schemasFiltering" ).toBool() );
+    QVariant schemasVariant = settings.value( key + "/schemasFiltered" );
     if ( schemasVariant.isValid() && schemasVariant.type() == QVariant::Map )
       mSchemaSettings = schemasVariant.toMap();
 
@@ -97,6 +98,7 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
   }
 
   onCurrentDataBaseChange();
+  groupBoxSchemasFilter->setCollapsed( !groupBoxSchemasFilter->isChecked() );
 }
 
 //! Autoconnected SLOTS
@@ -142,9 +144,14 @@ void QgsMssqlNewConnection::accept()
   settings.setValue( baseKey + "/saveUsername", chkStoreUsername->isChecked() ? "true" : "false" );
   settings.setValue( baseKey + "/savePassword", chkStorePassword->isChecked() ? "true" : "false" );
 
-  if ( !mSchemaModel.dataBaseName().isEmpty() )
-    mSchemaSettings.insert( mSchemaModel.dataBaseName(), mSchemaModel.schemasSettings() );
-  settings.setValue( baseKey + "/schemas", mSchemaSettings );
+  if ( groupBoxSchemasFilter->isChecked() )
+  {
+    if ( !mSchemaModel.dataBaseName().isEmpty() )
+      mSchemaSettings.insert( mSchemaModel.dataBaseName(), mSchemaModel.schemasSettings() );
+    settings.setValue( baseKey + "/schemasFiltered", mSchemaSettings );
+  }
+
+  settings.setValue( baseKey + "/schemasFiltering", groupBoxSchemasFilter->isChecked() );
 
   QgsMssqlConnection::setGeometryColumnsOnly( connName, cb_geometryColumns->isChecked() );
   QgsMssqlConnection::setAllowGeometrylessTables( connName, cb_allowGeometrylessTables->isChecked() );
@@ -323,7 +330,6 @@ void QgsMssqlNewConnection::onCurrentDataBaseChange()
   for ( const QString &sch : schemasList )
   {
     if ( !newSchemaSettings.contains( sch ) && !QgsMssqlConnection::isSystemSchema( sch ) )
-
       newSchemaSettings.insert( sch, true );
   }
 

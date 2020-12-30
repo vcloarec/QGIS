@@ -73,9 +73,13 @@ void QgsMssqlConnectionItem::readConnectionSettings()
   }
 
   mSchemaSettings.clear();
-  QVariant schemasSettingsVariant = settings.value( key + "/schemas" );
-  if ( schemasSettingsVariant.isValid() && schemasSettingsVariant.type() == QVariant::Map )
-    mSchemaSettings = schemasSettingsVariant.toMap();
+  mSchemasFilteringEnabled = settings.value( key + "/schemasFiltering" ).toBool();
+  if ( mSchemasFilteringEnabled )
+  {
+    QVariant schemasSettingsVariant = settings.value( key + "/schemasFiltered" );
+    if ( schemasSettingsVariant.isValid() && schemasSettingsVariant.type() == QVariant::Map )
+      mSchemaSettings = schemasSettingsVariant.toMap();
+  }
 
   mUseGeometryColumns = QgsMssqlConnection::geometryColumnsOnly( mName );
   mUseEstimatedMetadata = QgsMssqlConnection::useEstimatedMetadata( mName );
@@ -173,7 +177,7 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
     {
       QgsMssqlLayerProperty layer;
       layer.schemaName = q.value( 0 ).toString();
-      if ( schemaSettings.contains( layer.schemaName ) )
+      if ( mSchemasFilteringEnabled && schemaSettings.contains( layer.schemaName ) )
         if ( !schemaSettings.value( layer.schemaName ).toBool() )
           continue;
       layer.tableName = q.value( 1 ).toString();
