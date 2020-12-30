@@ -45,8 +45,10 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
   connect( txtHost, &QLineEdit::textChanged, this, &QgsMssqlNewConnection::updateOkButtonState );
   connect( listDatabase, &QListWidget::currentItemChanged, this, &QgsMssqlNewConnection::updateOkButtonState );
   connect( listDatabase, &QListWidget::currentItemChanged, this, &QgsMssqlNewConnection::onCurrentDataBaseChange );
-  connect( cb_geometryColumns,  &QCheckBox::clicked, this, &QgsMssqlNewConnection::onCurrentDataBaseChange );
+  connect( groupBoxGeometryColumns,  &QGroupBox::toggled, this, &QgsMssqlNewConnection::onCurrentDataBaseChange );
   connect( cb_allowGeometrylessTables,  &QCheckBox::clicked, this, &QgsMssqlNewConnection::onCurrentDataBaseChange );
+
+  connect( checkBoxExtentFromGeometryColumns, &QCheckBox::toggled, this, &QgsMssqlNewConnection::onExtentFromGeometryToggled );
 
   lblWarning->hide();
 
@@ -66,7 +68,8 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
       mSchemaSettings = schemasVariant.toMap();
 
     listDatabase->setCurrentRow( 0 );
-    cb_geometryColumns->setChecked( QgsMssqlConnection::geometryColumnsOnly( connName ) );
+    groupBoxGeometryColumns->setChecked( QgsMssqlConnection::geometryColumnsOnly( connName ) );
+    groupBoxGeometryColumns->setCollapsed( !groupBoxGeometryColumns->isChecked() );
     cb_allowGeometrylessTables->setChecked( QgsMssqlConnection::allowGeometrylessTables( connName ) );
     cb_useEstimatedMetadata->setChecked( QgsMssqlConnection::useEstimatedMetadata( connName ) );
     mCheckNoInvalidGeometryHandling->setChecked( QgsMssqlConnection::isInvalidGeometryHandlingDisabled( connName ) );
@@ -153,7 +156,9 @@ void QgsMssqlNewConnection::accept()
 
   settings.setValue( baseKey + "/schemasFiltering", groupBoxSchemasFilter->isChecked() );
 
-  QgsMssqlConnection::setGeometryColumnsOnly( connName, cb_geometryColumns->isChecked() );
+  QgsMssqlConnection::setGeometryColumnsOnly( connName, groupBoxGeometryColumns->isChecked() );
+  QgsMssqlConnection::setExtentInGeometryColumns( connName, checkBoxExtentFromGeometryColumns->isChecked() );
+  QgsMssqlConnection::setPrimaryKeyInGeometryColumn( connName, checkBoxPKFromGeometryColumns->isChecked() );
   QgsMssqlConnection::setAllowGeometrylessTables( connName, cb_allowGeometrylessTables->isChecked() );
   QgsMssqlConnection::setUseEstimatedMetadata( connName, cb_useEstimatedMetadata->isChecked() );
   QgsMssqlConnection::setInvalidGeometryHandlingDisabled( connName, mCheckNoInvalidGeometryHandling->isChecked() );
@@ -202,22 +207,7 @@ bool QgsMssqlNewConnection::testConnection( const QString &testDatabase )
     return false;
   }
 
-  QString database;
-  QListWidgetItem *item = listDatabase->currentItem();
-  if ( !testDatabase.isEmpty() )
-  {
-    database = testDatabase;
-  }
-  else if ( item && item->text() != QLatin1String( "(from service)" ) )
-  {
-    database = item->text();
-  }
-
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( txtService->text().trimmed(),
-                    txtHost->text().trimmed(),
-                    database,
-                    txtUsername->text().trimmed(),
-                    txtPassword->text().trimmed() );
+  QSqlDatabase db = getDatabase( testDatabase );
 
   if ( db.isOpen() )
     db.close();
@@ -230,10 +220,6 @@ bool QgsMssqlNewConnection::testConnection( const QString &testDatabase )
   }
   else
   {
-    if ( database.isEmpty() )
-    {
-      database = txtService->text();
-    }
     bar->clearWidgets();
   }
 
@@ -249,11 +235,8 @@ void QgsMssqlNewConnection::listDatabases()
   listDatabase->clear();
   QString queryStr = QStringLiteral( "SELECT name FROM master..sysdatabases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb')" );
 
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( txtService->text().trimmed(),
-                    txtHost->text().trimmed(),
-                    QStringLiteral( "master" ),
-                    txtUsername->text().trimmed(),
-                    txtPassword->text().trimmed() );
+  QSqlDatabase db = getDatabase( QStringLiteral( "master" ) );
+
   if ( db.open() )
   {
     QSqlQuery query = QSqlQuery( db );
@@ -293,6 +276,26 @@ void QgsMssqlNewConnection::showHelp()
   QgsHelp::openHelp( QStringLiteral( "managing_data_source/opening_data.html#connecting-to-mssql-spatial" ) );
 }
 
+QSqlDatabase QgsMssqlNewConnection::getDatabase( const QString &name ) const
+{
+  QString database;
+  QListWidgetItem *item = listDatabase->currentItem();
+  if ( !name.isEmpty() )
+  {
+    database = name;
+  }
+  else if ( item && item->text() != QLatin1String( "(from service)" ) )
+  {
+    database = item->text();
+  }
+
+  return QgsMssqlConnection::getDatabase( txtService->text().trimmed(),
+                                          txtHost->text().trimmed(),
+                                          database,
+                                          txtUsername->text().trimmed(),
+                                          txtPassword->text().trimmed() );
+}
+
 void QgsMssqlNewConnection::updateOkButtonState()
 {
   QListWidgetItem *item = listDatabase->currentItem();
@@ -311,11 +314,7 @@ void QgsMssqlNewConnection::onCurrentDataBaseChange()
   if ( listDatabase->currentItem() )
     databaseName = listDatabase->currentItem()->text();
 
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( txtService->text().trimmed(),
-                    txtHost->text().trimmed(),
-                    databaseName,
-                    txtUsername->text().trimmed(),
-                    txtPassword->text().trimmed() );
+  QSqlDatabase db = getDatabase();
 
   QStringList schemasList = QgsMssqlConnection::schemas( db, nullptr );
 
@@ -335,6 +334,15 @@ void QgsMssqlNewConnection::onCurrentDataBaseChange()
 
   mSchemaModel.setDataBaseName( databaseName );
   mSchemaModel.setSchemasSetting( newSchemaSettings );
+}
+
+void QgsMssqlNewConnection::onExtentFromGeometryToggled( bool checked )
+{
+  if ( !checked )
+    return;
+
+  QSqlDatabase db = getDatabase();
+
 }
 
 QgsMssqlNewConnection::SchemaModel::SchemaModel( QObject *parent ): QAbstractListModel( parent )

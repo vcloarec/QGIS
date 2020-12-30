@@ -64,6 +64,12 @@ class QgsMssqlConnection
      */
     static void setGeometryColumnsOnly( const QString &name, bool enabled );
 
+    static bool extentInGeometryColumns( const QString &name );
+    static void setExtentInGeometryColumns( const QString &name, bool enabled );
+
+    static bool primaryKeyInGeometryColumns( const QString &name );
+    static void setPrimaryKeyInGeometryColumn( const QString &name, bool enabled );
+
     /**
      * Returns true if the connection with matching \a name should
      * show geometryless tables when scanning for tables.

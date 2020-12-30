@@ -511,6 +511,11 @@ QString QgsMssqlLayerItem::createUri()
   uri.setUseEstimatedMetadata( QgsMssqlConnection::useEstimatedMetadata( connItem->name() ) );
   mDisableInvalidGeometryHandling = QgsMssqlConnection::isInvalidGeometryHandlingDisabled( connItem->name() );
   uri.setParam( QStringLiteral( "disableInvalidGeometryHandling" ), mDisableInvalidGeometryHandling ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  if ( QgsMssqlConnection::geometryColumnsOnly( connItem->name() ) )
+  {
+    uri.setParam( QStringLiteral( "extentInGeometryColumns" ), QgsMssqlConnection::extentInGeometryColumns( connItem->name() ) ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+    uri.setParam( QStringLiteral( "primaryKeyInGeometryColumns" ), QgsMssqlConnection::primaryKeyInGeometryColumns( connItem->name() ) ? QStringLiteral( "1" ) : QStringLiteral( "0" ) );
+  }
 
   QgsDebugMsgLevel( QStringLiteral( "layer uri: %1" ).arg( uri.uri() ), 3 );
   return uri.uri();

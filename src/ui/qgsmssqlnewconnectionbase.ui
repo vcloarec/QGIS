@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>772</width>
-    <height>691</height>
+    <height>765</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -223,16 +223,32 @@ Untick save if you don't wish to be the case.</string>
        <widget class="QListWidget" name="listDatabase"/>
       </item>
       <item row="2" column="0" colspan="2">
-       <widget class="QCheckBox" name="cb_geometryColumns">
-        <property name="toolTip">
-         <string>If checked, only tables which are present in the &quot;geometry_columns&quot; metadata table will be available. This speeds up table scanning, but requires users to manually manage the geometry_columns table and ensure that layers are correctly represented in the table.</string>
-        </property>
-        <property name="text">
+       <widget class="QgsCollapsibleGroupBoxBasic" name="groupBoxGeometryColumns">
+        <property name="title">
          <string>Only look in the geometry_columns metadata table</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <property name="checked">
          <bool>false</bool>
         </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QCheckBox" name="checkBoxExtentFromGeometryColumns">
+           <property name="text">
+            <string>Use layer extent from these columns</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="checkBoxPKFromGeometryColumns">
+           <property name="text">
+            <string>Use primary key from these columns</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
       <item row="3" column="0" colspan="2">
@@ -367,7 +383,6 @@ Untick save if you don't wish to be the case.</string>
   <tabstop>chkStorePassword</tabstop>
   <tabstop>btnListDatabase</tabstop>
   <tabstop>listDatabase</tabstop>
-  <tabstop>cb_geometryColumns</tabstop>
   <tabstop>cb_allowGeometrylessTables</tabstop>
   <tabstop>cb_useEstimatedMetadata</tabstop>
   <tabstop>mCheckNoInvalidGeometryHandling</tabstop>
