@@ -54,6 +54,8 @@ class QgsMssqlNewConnection : public QDialog, private Ui::QgsMssqlNewConnectionB
     void onCurrentDataBaseChange();
 
     void onExtentFromGeometryToggled( bool checked );
+    void onPrimaryKeyFromGeometryToggled( bool checked );
+
   private:
     //! Class that reprents a model to display available schemas on a database and choose which will be displayed in QGIS
     class SchemaModel: public QAbstractListModel
@@ -92,6 +94,9 @@ class QgsMssqlNewConnection : public QDialog, private Ui::QgsMssqlNewConnectionB
 
     QSqlDatabase getDatabase( const QString &name = QString() ) const;
 
+    bool testExtentInGeometryColumns() const;
+
+    bool testPrimaryKeyInGeometryColumns() const;
 };
 
 #endif //  QGSMSSQLNEWCONNECTION_H

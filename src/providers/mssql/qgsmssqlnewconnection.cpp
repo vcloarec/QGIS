@@ -49,6 +49,7 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
   connect( cb_allowGeometrylessTables,  &QCheckBox::clicked, this, &QgsMssqlNewConnection::onCurrentDataBaseChange );
 
   connect( checkBoxExtentFromGeometryColumns, &QCheckBox::toggled, this, &QgsMssqlNewConnection::onExtentFromGeometryToggled );
+  connect( checkBoxPKFromGeometryColumns, &QCheckBox::toggled, this, &QgsMssqlNewConnection::onPrimaryKeyFromGeometryToggled );
 
   lblWarning->hide();
 
@@ -69,7 +70,8 @@ QgsMssqlNewConnection::QgsMssqlNewConnection( QWidget *parent, const QString &co
 
     listDatabase->setCurrentRow( 0 );
     groupBoxGeometryColumns->setChecked( QgsMssqlConnection::geometryColumnsOnly( connName ) );
-    groupBoxGeometryColumns->setCollapsed( !groupBoxGeometryColumns->isChecked() );
+    whileBlocking( checkBoxExtentFromGeometryColumns )->setChecked( QgsMssqlConnection::extentInGeometryColumns( connName ) );
+    whileBlocking( checkBoxPKFromGeometryColumns )->setChecked( QgsMssqlConnection::primaryKeyInGeometryColumns( connName ) );
     cb_allowGeometrylessTables->setChecked( QgsMssqlConnection::allowGeometrylessTables( connName ) );
     cb_useEstimatedMetadata->setChecked( QgsMssqlConnection::useEstimatedMetadata( connName ) );
     mCheckNoInvalidGeometryHandling->setChecked( QgsMssqlConnection::isInvalidGeometryHandlingDisabled( connName ) );
@@ -157,8 +159,8 @@ void QgsMssqlNewConnection::accept()
   settings.setValue( baseKey + "/schemasFiltering", groupBoxSchemasFilter->isChecked() );
 
   QgsMssqlConnection::setGeometryColumnsOnly( connName, groupBoxGeometryColumns->isChecked() );
-  QgsMssqlConnection::setExtentInGeometryColumns( connName, checkBoxExtentFromGeometryColumns->isChecked() );
-  QgsMssqlConnection::setPrimaryKeyInGeometryColumn( connName, checkBoxPKFromGeometryColumns->isChecked() );
+  QgsMssqlConnection::setExtentInGeometryColumns( connName, checkBoxExtentFromGeometryColumns->isChecked() && testExtentInGeometryColumns() );
+  QgsMssqlConnection::setPrimaryKeyInGeometryColumn( connName, checkBoxPKFromGeometryColumns->isChecked() && testPrimaryKeyInGeometryColumns() );
   QgsMssqlConnection::setAllowGeometrylessTables( connName, cb_allowGeometrylessTables->isChecked() );
   QgsMssqlConnection::setUseEstimatedMetadata( connName, cb_useEstimatedMetadata->isChecked() );
   QgsMssqlConnection::setInvalidGeometryHandlingDisabled( connName, mCheckNoInvalidGeometryHandling->isChecked() );
@@ -296,6 +298,7 @@ QSqlDatabase QgsMssqlNewConnection::getDatabase( const QString &name ) const
                                           txtPassword->text().trimmed() );
 }
 
+
 void QgsMssqlNewConnection::updateOkButtonState()
 {
   QListWidgetItem *item = listDatabase->currentItem();
@@ -339,10 +342,61 @@ void QgsMssqlNewConnection::onCurrentDataBaseChange()
 void QgsMssqlNewConnection::onExtentFromGeometryToggled( bool checked )
 {
   if ( !checked )
+  {
+    bar->clearWidgets();
     return;
+  }
 
+  if ( !testExtentInGeometryColumns() )
+    bar->pushWarning( tr( "Use extent in Geometry columns" ), tr( "Extent columns not found." ) );
+  else
+    bar->pushInfo( tr( "Use extent in Geometry columns" ), tr( "Extent columns found." ) );
+}
+
+void QgsMssqlNewConnection::onPrimaryKeyFromGeometryToggled( bool checked )
+{
+  if ( !checked )
+  {
+    bar->clearWidgets();
+    return;
+  }
+
+  if ( !testPrimaryKeyInGeometryColumns() )
+    bar->pushWarning( tr( "Use primary key(s) in Geometry columns" ), tr( "Primary key column not found." ) );
+  else
+    bar->pushInfo( tr( "Use primary key(s) in Geometry columns" ), tr( "Primary key column found." ) );
+}
+
+bool QgsMssqlNewConnection::testExtentInGeometryColumns() const
+{
   QSqlDatabase db = getDatabase();
 
+  if ( !QgsMssqlConnection::openDatabase( db ) )
+    return false;
+
+  QString queryStr = QStringLiteral( "SELECT qgis_xmin,qgis_xmax,qgis_ymin,qgis_ymax FROM geometry_columns" );
+  QSqlQuery query = QSqlQuery( db );
+  bool test = query.exec( queryStr );
+
+  db.close();
+
+  return test;
+}
+
+bool QgsMssqlNewConnection::testPrimaryKeyInGeometryColumns() const
+{
+  QSqlDatabase db = getDatabase();
+
+  if ( !QgsMssqlConnection::openDatabase( db ) )
+    return false;
+
+  QString queryStr = QStringLiteral( "SELECT qgis_pkey FROM geometry_columns" );
+  QSqlQuery query = QSqlQuery( db );
+  bool test = query.exec( queryStr );
+
+  db.close();
+
+  return test;
 }
 
 QgsMssqlNewConnection::SchemaModel::SchemaModel( QObject *parent ): QAbstractListModel( parent )
