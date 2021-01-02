@@ -538,6 +538,8 @@ QgsPointXY QgsMeshLayerRenderer::fractionPoint( const QgsPointXY &p1, const QgsP
 
 void QgsMeshLayerRenderer::renderScalarDatasetOnFaces( const QgsMeshRendererScalarSettings &scalarSettings )
 {
+  QElapsedTimer time;
+  time.start();
   QgsRenderContext &context = *renderContext();
 
   QgsColorRampShader *fcn = new QgsColorRampShader( scalarSettings.colorRampShader() );
@@ -559,6 +561,7 @@ void QgsMeshLayerRenderer::renderScalarDatasetOnFaces( const QgsMeshRendererScal
   QImage img = bl->image();
 
   context.painter()->drawImage( 0, 0, img );
+  qDebug() << "rendering scalr took " << time.elapsed();
 }
 
 void QgsMeshLayerRenderer::renderVectorDataset()
