@@ -124,7 +124,6 @@ void QgsMssqlConnectionItem::refresh()
 
 QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
 {
-
   setState( Populating );
 
   stop();
@@ -137,8 +136,6 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
 
   QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
 
-  QVariantMap schemaSettings = mSchemaSettings.value( mDatabase ).toMap();
-
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
     children.append( new QgsErrorItem( this, db.lastError().text(), mPath + "/error" ) );
@@ -146,20 +143,7 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
   }
 
   // build sql statement
-  QString query( QStringLiteral( "select " ) );
-  if ( mUseGeometryColumns )
-  {
-    query += QLatin1String( "f_table_schema, f_table_name, f_geometry_column, srid, geometry_type, 0 from geometry_columns" );
-  }
-  else
-  {
-    query += QLatin1String( "sys.schemas.name, sys.objects.name, sys.columns.name, null, 'GEOMETRY', case when sys.objects.type = 'V' then 1 else 0 end from sys.columns join sys.types on sys.columns.system_type_id = sys.types.system_type_id and sys.columns.user_type_id = sys.types.user_type_id join sys.objects on sys.objects.object_id = sys.columns.object_id join sys.schemas on sys.objects.schema_id = sys.schemas.schema_id where (sys.types.name = 'geometry' or sys.types.name = 'geography') and (sys.objects.type = 'U' or sys.objects.type = 'V')" );
-  }
-
-  if ( mAllowGeometrylessTables )
-  {
-    query += QLatin1String( " union all select sys.schemas.name, sys.objects.name, null, null, 'NONE', case when sys.objects.type = 'V' then 1 else 0 end from sys.objects join sys.schemas on sys.objects.schema_id = sys.schemas.schema_id where not exists (select * from sys.columns sc1 join sys.types on sc1.system_type_id = sys.types.system_type_id where (sys.types.name = 'geometry' or sys.types.name = 'geography') and sys.objects.object_id = sc1.object_id) and (sys.objects.type = 'U' or sys.objects.type = 'V')" );
-  }
+  QString query = QgsMssqlConnection::buildQueryForSchemas( mName );
 
   const bool disableInvalidGeometryHandling = QgsMssqlConnection::isInvalidGeometryHandlingDisabled( mName );
 
@@ -177,9 +161,6 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
     {
       QgsMssqlLayerProperty layer;
       layer.schemaName = q.value( 0 ).toString();
-      if ( mSchemasFilteringEnabled && schemaSettings.contains( layer.schemaName ) )
-        if ( !schemaSettings.value( layer.schemaName ).toBool() )
-          continue;
       layer.tableName = q.value( 1 ).toString();
       layer.geometryColName = q.value( 2 ).toString();
       layer.srid = q.value( 3 ).toString();
@@ -270,23 +251,28 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
       }
     }
 
-    // add missing schemas (i.e., empty schemas)
-    const QString uri = connInfo();
-    const QStringList allSchemas = QgsMssqlConnection::schemas( uri, nullptr );
-    for ( const QString &schema : allSchemas )
+    if ( !mUseGeometryColumns )
     {
-      if ( addedSchemas.contains( schema ) ||
-           ( schemaSettings.contains( schema ) && !schemaSettings.value( schema ).toBool() ) )
-        continue;
+      // add missing schemas (i.e., empty schemas)
+      const QString uri = connInfo();
+      const QStringList allSchemas = QgsMssqlConnection::schemas( uri, nullptr );
+      QVariantMap schemaSettings = mSchemaSettings.value( mDatabase ).toMap();
+      for ( const QString &schema : allSchemas )
+      {
+        if ( addedSchemas.contains( schema ) ||
+             ( schemaSettings.contains( schema ) && !schemaSettings.value( schema ).toBool() ) )
+          continue;
 
-      if ( QgsMssqlConnection::isSystemSchema( schema ) )
-        continue;
+        if ( QgsMssqlConnection::isSystemSchema( schema ) )
+          continue;
 
-      QgsMssqlSchemaItem *schemaItem = new QgsMssqlSchemaItem( this, schema, mPath + '/' + schema );
-      schemaItem->setState( Populated ); // no tables
-      addedSchemas.insert( schema );
-      children.append( schemaItem );
+        QgsMssqlSchemaItem *schemaItem = new QgsMssqlSchemaItem( this, schema, mPath + '/' + schema );
+        schemaItem->setState( Populated ); // no tables
+        addedSchemas.insert( schema );
+        children.append( schemaItem );
+      }
     }
+
 
     // spawn threads (new layers will be added later on)
     if ( mColumnTypeThread )
