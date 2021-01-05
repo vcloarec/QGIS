@@ -251,27 +251,28 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
       }
     }
 
-    if ( !mUseGeometryColumns )
+
+    // add missing schemas (i.e., empty schemas)
+    const QString uri = connInfo();
+    const QStringList allSchemas = QgsMssqlConnection::schemas( uri, nullptr );
+    QVariantMap schemaSettings = mSchemaSettings.value( mDatabase ).toMap();
+    for ( const QString &schema : allSchemas )
     {
-      // add missing schemas (i.e., empty schemas)
-      const QString uri = connInfo();
-      const QStringList allSchemas = QgsMssqlConnection::schemas( uri, nullptr );
-      QVariantMap schemaSettings = mSchemaSettings.value( mDatabase ).toMap();
-      for ( const QString &schema : allSchemas )
-      {
-        if ( addedSchemas.contains( schema ) ||
-             ( schemaSettings.contains( schema ) && !schemaSettings.value( schema ).toBool() ) )
-          continue;
+      if ( mSchemasFilteringEnabled && !schemaSettings.value( schema ).toBool() )
+        continue;  // user does not want it to be shown
 
-        if ( QgsMssqlConnection::isSystemSchema( schema ) )
-          continue;
+      if ( addedSchemas.contains( schema ) )
+        continue;
 
-        QgsMssqlSchemaItem *schemaItem = new QgsMssqlSchemaItem( this, schema, mPath + '/' + schema );
-        schemaItem->setState( Populated ); // no tables
-        addedSchemas.insert( schema );
-        children.append( schemaItem );
-      }
+      if ( QgsMssqlConnection::isSystemSchema( schema ) )
+        continue;
+
+      QgsMssqlSchemaItem *schemaItem = new QgsMssqlSchemaItem( this, schema, mPath + '/' + schema );
+      schemaItem->setState( Populated ); // no tables
+      addedSchemas.insert( schema );
+      children.append( schemaItem );
     }
+
 
 
     // spawn threads (new layers will be added later on)

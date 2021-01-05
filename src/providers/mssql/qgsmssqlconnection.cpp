@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsmssqlconnection.h"
+#include "qgsmssqlprovider.h"
 #include "qgslogger.h"
 #include "qgssettings.h"
 #include "qgsdatasourceuri.h"
@@ -494,7 +495,7 @@ QString QgsMssqlConnection::buildQueryForSchemas( const QString &connName )
       {
         if ( schemaSettingsForDatabase.value( schemaName ).toBool() )
         {
-          schemaNames.append( "'" + schemaName + "'" );
+          schemaNames.append( QgsMssqlProvider::quotedValue( schemaName ) );
         }
       }
       if ( !schemaNames.empty() )
