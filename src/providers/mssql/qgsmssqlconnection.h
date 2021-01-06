@@ -64,10 +64,36 @@ class QgsMssqlConnection
      */
     static void setGeometryColumnsOnly( const QString &name, bool enabled );
 
+    /**
+     * Returns whether the connection with matching \a name should
+     * use the extent present in the geometry column (qgis_xmin, qgis_xmax,qgis_ymin, qgis_ymax)
+     *
+     * \see setExtentInGeometryColumns()
+     */
     static bool extentInGeometryColumns( const QString &name );
+
+    /**
+     * Sets whether the connection with matching \a name should
+     * use the extent present in the geometry column (qgis_xmin, qgis_xmax,qgis_ymin, qgis_ymax)
+     *
+     * \see extentInGeometryColumns()
+     */
     static void setExtentInGeometryColumns( const QString &name, bool enabled );
 
+    /**
+     * Returns whether the connection with matching \a name should
+     * use the primary key(s) present in the geometry column (qgis_pkey), if more than one, primary keys are separated by comma
+     *
+     * \see setPrimaryKeyInGeometryColumn()
+     */
     static bool primaryKeyInGeometryColumns( const QString &name );
+
+    /**
+     * Sets whether the connection with matching \a name should
+     * use the primary key(s) present in the geometry column (qgis_pkey), if more than one, primary keys are separated by comma
+     *
+     * \see primaryKeyInGeometryColumns()
+     */
     static void setPrimaryKeyInGeometryColumn( const QString &name, bool enabled );
 
     /**

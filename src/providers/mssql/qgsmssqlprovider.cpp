@@ -153,10 +153,9 @@ QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &o
         : false;
 
     QStringList cols;
-    mPrimaryKeyType = PktUnknown;
-    mPrimaryKeyAttrs.clear();
     if ( primaryKeyFromGeometryColumnsTable )
     {
+      mPrimaryKeyType = PktUnknown;
       mPrimaryKeyAttrs.clear();
       mValid = getPrimaryKeyFromGeometryColumns( cols );
     }
@@ -165,6 +164,8 @@ QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &o
       QString primaryKey = anUri.keyColumn();
       if ( !primaryKey.isEmpty() )
       {
+
+        mPrimaryKeyAttrs.clear();
         cols = parseUriKey( primaryKey );
       }
     }
