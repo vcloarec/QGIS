@@ -160,7 +160,7 @@ void QgsMssqlNewConnection::accept()
 
   QgsMssqlConnection::setGeometryColumnsOnly( connName, groupBoxGeometryColumns->isChecked() );
   QgsMssqlConnection::setExtentInGeometryColumns( connName, checkBoxExtentFromGeometryColumns->isChecked() && testExtentInGeometryColumns() );
-  QgsMssqlConnection::setPrimaryKeyInGeometryColumn( connName, checkBoxPKFromGeometryColumns->isChecked() && testPrimaryKeyInGeometryColumns() );
+  QgsMssqlConnection::setPrimaryKeyInGeometryColumns( connName, checkBoxPKFromGeometryColumns->isChecked() && testPrimaryKeyInGeometryColumns() );
   QgsMssqlConnection::setAllowGeometrylessTables( connName, cb_allowGeometrylessTables->isChecked() );
   QgsMssqlConnection::setUseEstimatedMetadata( connName, cb_useEstimatedMetadata->isChecked() );
   QgsMssqlConnection::setInvalidGeometryHandlingDisabled( connName, mCheckNoInvalidGeometryHandling->isChecked() );
@@ -348,9 +348,9 @@ void QgsMssqlNewConnection::onExtentFromGeometryToggled( bool checked )
   }
 
   if ( !testExtentInGeometryColumns() )
-    bar->pushWarning( tr( "Use extent in Geometry columns" ), tr( "Extent columns not found." ) );
+    bar->pushWarning( tr( "Use extent from geometry_columns table" ), tr( "Extent columns (qgis_xmin, qgis_ymin, qgis_xmax, qgis_ymax) not found." ) );
   else
-    bar->pushInfo( tr( "Use extent in Geometry columns" ), tr( "Extent columns found." ) );
+    bar->pushInfo( tr( "Use extent from geometry_columns table" ), tr( "Extent columns found." ) );
 }
 
 void QgsMssqlNewConnection::onPrimaryKeyFromGeometryToggled( bool checked )
@@ -362,9 +362,9 @@ void QgsMssqlNewConnection::onPrimaryKeyFromGeometryToggled( bool checked )
   }
 
   if ( !testPrimaryKeyInGeometryColumns() )
-    bar->pushWarning( tr( "Use primary key(s) in Geometry columns" ), tr( "Primary key column not found." ) );
+    bar->pushWarning( tr( "Use primary key(s) from geometry_columns table" ), tr( "Primary key column (qgs_pkey) not found." ) );
   else
-    bar->pushInfo( tr( "Use primary key(s) in Geometry columns" ), tr( "Primary key column found." ) );
+    bar->pushInfo( tr( "Use primary key(s) from geometry_columns table" ), tr( "Primary key column found." ) );
 }
 
 bool QgsMssqlNewConnection::testExtentInGeometryColumns() const

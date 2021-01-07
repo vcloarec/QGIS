@@ -994,8 +994,6 @@ void QgsMssqlProvider::UpdateStatistics( bool estimate, QgsError &error ) const
       mSRId = mParser.GetSRSId();
     }
   }
-
-  return;
 }
 
 // Return the extent of the layer

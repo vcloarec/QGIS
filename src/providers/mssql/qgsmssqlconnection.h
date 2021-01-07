@@ -65,8 +65,14 @@ class QgsMssqlConnection
     static void setGeometryColumnsOnly( const QString &name, bool enabled );
 
     /**
-     * Returns whether the connection with matching \a name should
-     * use the extent present in the geometry column (qgis_xmin, qgis_xmax,qgis_ymin, qgis_ymax)
+     * Returns whether the connection with matching \a name should,
+     * use the extent manually specified in the geometry_columns table using additional
+     * QGIS-specific columns: qgis_xmin, qgis_xmax, qgis_ymin, qgis_ymax.
+     *
+     * This is an optional optimization that allows QGIS to skip extent calculation when loading
+     * layers and thus lowering the amount of time needed to load them. The disadvantage
+     * is that the extent needs to be manually set and updated by database admins and it requires
+     * adding custom columns to the geometry_columns table.
      *
      * \see setExtentInGeometryColumns()
      */
@@ -74,7 +80,6 @@ class QgsMssqlConnection
 
     /**
      * Sets whether the connection with matching \a name should
-     * use the extent present in the geometry column (qgis_xmin, qgis_xmax,qgis_ymin, qgis_ymax)
      *
      * \see extentInGeometryColumns()
      */
@@ -82,7 +87,16 @@ class QgsMssqlConnection
 
     /**
      * Returns whether the connection with matching \a name should
-     * use the primary key(s) present in the geometry column (qgis_pkey), if more than one, primary keys are separated by comma
+     * determine primary key's column name from a manually specified value in the geometry_columns table using
+     * an additional QGIS-specific column called "qgis_pkey". If more than one column is used for the primary key,
+     * value of "qgis_pkey" can contain multiple column names separated by comma.
+     *
+     * Note: this option only applies to views: for tables the primary key is automatically fetched from table definition.
+     *
+     * This is an optional optimization that allows QGIS to skip primary key calculation for views when loading
+     * layers and thus lowering the amount of time needed to load them. The disadvantage
+     * is that the primary key column name needs to be manually set and updated by database admins
+     * and it requires adding a custom column to the geometry_columns table.
      *
      * \see setPrimaryKeyInGeometryColumn()
      */
@@ -90,11 +104,10 @@ class QgsMssqlConnection
 
     /**
      * Sets whether the connection with matching \a name should
-     * use the primary key(s) present in the geometry column (qgis_pkey), if more than one, primary keys are separated by comma
      *
      * \see primaryKeyInGeometryColumns()
      */
-    static void setPrimaryKeyInGeometryColumn( const QString &name, bool enabled );
+    static void setPrimaryKeyInGeometryColumns( const QString &name, bool enabled );
 
     /**
      * Returns true if the connection with matching \a name should

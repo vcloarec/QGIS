@@ -185,7 +185,7 @@ bool QgsMssqlConnection::primaryKeyInGeometryColumns( const QString &name )
   return settings.value( "/MSSQL/connections/" + name + "/primaryKeyInGeometryColumns", false ).toBool();
 }
 
-void QgsMssqlConnection::setPrimaryKeyInGeometryColumn( const QString &name, bool enabled )
+void QgsMssqlConnection::setPrimaryKeyInGeometryColumns( const QString &name, bool enabled )
 {
   QgsSettings settings;
   settings.setValue( "/MSSQL/connections/" + name + "/primaryKeyInGeometryColumns", enabled );

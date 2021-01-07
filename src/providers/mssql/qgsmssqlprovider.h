@@ -253,8 +253,9 @@ class QgsMssqlProvider final: public QgsVectorDataProvider
 
     static QStringList parseUriKey( const QString &key );
 
-    //§ Extract the extent from the geometry_columns table, returns false if fails
+    //! Extract the extent from the geometry_columns table, returns false if fails
     bool getExtentFromGeometryColumns( QgsRectangle &extent ) const;
+    //! Extract primary key(s) from the geometry_columns table, returns false if fails
     bool getPrimaryKeyFromGeometryColumns( QStringList &primaryKeys );
 
     std::shared_ptr<QgsMssqlSharedData> mShared;
