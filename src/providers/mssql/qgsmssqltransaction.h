@@ -66,33 +66,44 @@ class QgsMssqlConnectionWrapper : public QObject
 {
     Q_OBJECT
   public:
-    QgsMssqlConnectionWrapper( const QgsDataSourceUri &uri ) :
-      QObject()
-      , mUri( uri )
-    {}
-
-    QVariant queryResultValue( const QString &uid, int index ) const;
-    bool isQuerySuccessful( const QString &uid ) const;
-    bool isQueryActive( const QString &uid ) const;
+    QgsMssqlConnectionWrapper( const QgsDataSourceUri &uri );
 
   public slots:
+    //! Creates the connection with the database
     void createConnection();
 
-    void beginTransaction();
-    void commitTransaction();
-    void rollbackTransaction();
+    //! Begins a transaction, return true if successful, \see QSqlDataBase::transaction()
+    bool beginTransaction();
 
-    void createQuery( const QString &uid );
+    //! Commits the active transasction, return the value returned by QSqlDataBase::commit()
+    bool commitTransaction();
+
+    //! Rollbacks the active transasction, return the value returned by QSqlDataBase::rollback()
+    bool rollbackTransaction();
+
+    //! Create a query and return an unique id associated to this query, this unique id can be used for operation on this query
+    QString createQuery();
+
+    //! Remove the query associated with the unique \a uid
     void removeQuery( const QString &uid );
-    void executeQuery( const QString &uid, const QString &query );
+
+    //! Executes the query associated with the unique id \a uid, returns the same value than QsqlQuery::exec()
+    bool executeQuery( const QString &uid, const QString &query );
+
+    /**
+     *  Returns the value of field index of the current record the query associated with the unique id \a uid
+     *  An invalid QVariant is returned if the query does not exist anymore or, if it exists have the same behavior than QSqlQuery::value()
+     */
+    QVariant queryValue( const QString &uid, int index ) const;
+
+    //! Returns whether the query is active, same behavior than QSqlQuery::isActive() except if the query does not exist anymore, return false
+    bool isQueryActive( const QString &uid ) const;
 
   private:
-
     QSqlDatabase mDatabaseConnection;
     QgsDataSourceUri mUri;
     QMap<QString, QSharedPointer<QSqlQuery>> mQueries;
     QMap<QString, bool> mQueriesSuccesful;
-    mutable QMutex mMutex;
     bool mIsTransactionActive;
 };
 
@@ -112,6 +123,8 @@ class QgsMssqlThreadSafeConnection : public QObject
         bool exec( const QString query );
         bool isActive();
 
+        QVariant value( int index );
+
       private:
         QString mUid;
         QPointer<QgsMssqlThreadSafeConnection> mConnection = nullptr;
@@ -119,9 +132,9 @@ class QgsMssqlThreadSafeConnection : public QObject
         friend class QgsMssqlThreadSafeConnection;
     };
 
-    void beginTransaction();
-    void commitTransaction();
-    void rollbackTransaction();
+    bool beginTransaction();
+    bool commitTransaction();
+    bool rollbackTransaction();
 
     //! Creates a query associated to the connection
     Query createQuery();
@@ -130,11 +143,12 @@ class QgsMssqlThreadSafeConnection : public QObject
     QgsMssqlConnectionWrapper *mConnection = nullptr;
     QThread *mTransactionThread;
 
+    //! Ask to the connection trhead to create a query, return the unique id of the query
     QString createQueryPrivate();
-    void removeQueryPrivate( const QString &queryId );
-    bool isQuerySucessfull( const QString &queryId );
-    void executeQuery( const QString &query, const QString &uid );
+    void removeQuery( const QString &queryId );
+    bool executeQuery( const QString &query, const QString &uid );
     bool queryIsActive( const QString &queryId ) const;
+    QVariant queryValue( const QString &queryId, int index ) const;
 
     friend class Query;
 };
