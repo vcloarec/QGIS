@@ -189,76 +189,68 @@ bool QgsMssqlTransaction::rollbackTransaction( QString &error )
 
 //****************************** thread safe connection wrapper
 
-void QgsMssqlConnectionWrapper::createQuery( const QString &uid )
+QString QgsMssqlConnectionWrapper::createQuery()
 {
-  QMutexLocker locker( &mMutex );
+  QString uid = QUuid::createUuid().toString();
   mQueries[uid] = QSharedPointer<QSqlQuery>( new QSqlQuery( mDatabaseConnection ) );
+  return uid;
 }
 
 void QgsMssqlConnectionWrapper::removeQuery( const QString &uid )
 {
-  QMutexLocker locker( &mMutex );
   if ( mQueries.contains( uid ) )
     mQueries.remove( uid );
 }
 
-void QgsMssqlConnectionWrapper::executeQuery( const QString &uid, const QString &query )
+bool QgsMssqlConnectionWrapper::executeQuery( const QString &uid, const QString &query )
 {
-  QMutexLocker locker( &mMutex );
   if ( mQueries.contains( uid ) )
-    mQueriesSuccesful[uid] = mQueries.value( uid )->exec( query );
+    return mQueriesSuccesful[uid] = mQueries.value( uid )->exec( query );
+
+  return false;
 }
 
-QVariant QgsMssqlConnectionWrapper::queryResultValue( const QString &uid, int index ) const
+QVariant QgsMssqlConnectionWrapper::queryValue( const QString &uid, int index ) const
 {
-  QMutexLocker locker( &mMutex );
   if ( !mQueries.contains( uid ) )
     return QVariant();
-
   return mQueries.value( uid )->value( index );
 }
 
-bool QgsMssqlConnectionWrapper::isQuerySuccessful( const QString &uid ) const
-{
-  QMutexLocker locker( &mMutex );
-  return mQueriesSuccesful.value( uid, false );
-}
 
 bool QgsMssqlConnectionWrapper::isQueryActive( const QString &uid ) const
 {
-  QMutexLocker locker( &mMutex );
   if ( !mQueries.contains( uid ) )
     return mQueries.value( uid )->isActive();
   return false;
 }
 
+QgsMssqlConnectionWrapper::QgsMssqlConnectionWrapper( const QgsDataSourceUri &uri ) :
+  QObject()
+  , mUri( uri )
+{}
+
 void QgsMssqlConnectionWrapper::createConnection()
 {
-  QMutexLocker locker( &mMutex );
   mDatabaseConnection = QgsMssqlConnection::getDatabaseConnection( mUri, mUri.connectionInfo() );
 }
 
-void QgsMssqlConnectionWrapper::beginTransaction()
+bool QgsMssqlConnectionWrapper::beginTransaction()
 {
-  QMutexLocker locker( &mMutex );
   mQueries.clear();
-  mIsTransactionActive = mDatabaseConnection.transaction();
+  return mDatabaseConnection.transaction();
 }
 
-void QgsMssqlConnectionWrapper::commitTransaction()
+bool QgsMssqlConnectionWrapper::commitTransaction()
 {
-  QMutexLocker locker( &mMutex );
   mQueries.clear();
-  mDatabaseConnection.commit();
-  mIsTransactionActive = false;
+  return mDatabaseConnection.commit();
 }
 
-void QgsMssqlConnectionWrapper::rollbackTransaction()
+bool QgsMssqlConnectionWrapper::rollbackTransaction()
 {
-  QMutexLocker locker( &mMutex );
   mQueries.clear();
-  mDatabaseConnection.rollback();
-  mIsTransactionActive = false;
+  return mDatabaseConnection.rollback();
 }
 
 //******************************
@@ -279,22 +271,28 @@ QgsMssqlThreadSafeConnection::~QgsMssqlThreadSafeConnection()
   mTransactionThread->wait();
 }
 
-void QgsMssqlThreadSafeConnection::beginTransaction()
+bool QgsMssqlThreadSafeConnection::beginTransaction()
 {
+  bool success = false;
   if ( mConnection )
-    QMetaObject::invokeMethod( mConnection, "beginTransaction", Qt::BlockingQueuedConnection );
+    QMetaObject::invokeMethod( mConnection, "beginTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
+  return success;
 }
 
-void QgsMssqlThreadSafeConnection::commitTransaction()
+bool QgsMssqlThreadSafeConnection::commitTransaction()
 {
+  bool success = false;
   if ( mConnection )
-    QMetaObject::invokeMethod( mConnection, "commitTransaction", Qt::BlockingQueuedConnection );
+    QMetaObject::invokeMethod( mConnection, "commitTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
+  return success;
 }
 
-void QgsMssqlThreadSafeConnection::rollbackTransaction()
+bool QgsMssqlThreadSafeConnection::rollbackTransaction()
 {
+  bool success = false;
   if ( mConnection )
-    QMetaObject::invokeMethod( mConnection, "rollbackTransaction", Qt::BlockingQueuedConnection );
+    QMetaObject::invokeMethod( mConnection, "rollbackTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
+  return success;
 }
 
 QgsMssqlThreadSafeConnection::Query QgsMssqlThreadSafeConnection::createQuery()
@@ -307,36 +305,40 @@ QString QgsMssqlThreadSafeConnection::createQueryPrivate()
 {
   if ( !mConnection )
     return QString();
-  QString uid = QUuid::createUuid().toString();
-  QMetaObject::invokeMethod( mConnection, "createQuery", Qt::BlockingQueuedConnection, Q_ARG( QString, uid ) );
+  QString uid;
+  QMetaObject::invokeMethod( mConnection, "createQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, uid ) );
   return uid;
 }
 
-void QgsMssqlThreadSafeConnection::removeQueryPrivate( const QString &queryId )
+void QgsMssqlThreadSafeConnection::removeQuery( const QString &queryId )
 {
   if ( mConnection )
     QMetaObject::invokeMethod( mConnection, "removeQuery", Qt::BlockingQueuedConnection, Q_ARG( QString, queryId ) );
 }
 
-bool QgsMssqlThreadSafeConnection::isQuerySucessfull( const QString &queryId )
-{
-  if ( mConnection )
-    return mConnection->isQuerySuccessful( queryId );
-  return false;
-}
 
-
-void QgsMssqlThreadSafeConnection::executeQuery( const QString &query, const QString &uid )
+bool QgsMssqlThreadSafeConnection::executeQuery( const QString &query, const QString &uid )
 {
+  bool success = false;
   if ( mConnection )
-    QMetaObject::invokeMethod( mConnection, "executeQuery", Qt::BlockingQueuedConnection, Q_ARG( QString, query ), Q_ARG( QString, uid ) );
+    QMetaObject::invokeMethod( mConnection, "executeQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ), Q_ARG( QString, query ), Q_ARG( QString, uid ) );
+  return success;
 }
 
 bool QgsMssqlThreadSafeConnection::queryIsActive( const QString &queryId ) const
 {
+  bool active = false;
   if ( mConnection )
-    mConnection->isQueryActive( queryId );
+    QMetaObject::invokeMethod( mConnection, "isQueryActive", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, active ), Q_ARG( QString, queryId ) );
   return false;
+}
+
+QVariant QgsMssqlThreadSafeConnection::queryValue( const QString &queryId, int index ) const
+{
+  QVariant value;
+  if ( mConnection )
+    QMetaObject::invokeMethod( mConnection, "queryValue", Qt::BlockingQueuedConnection, Q_ARG( QString, queryId ), Q_ARG( int, index ) );
+  return value;
 }
 
 QgsMssqlThreadSafeConnection::Query::Query( QgsMssqlThreadSafeConnection *connection ):
@@ -349,20 +351,27 @@ QgsMssqlThreadSafeConnection::Query::Query( QgsMssqlThreadSafeConnection *connec
 QgsMssqlThreadSafeConnection::Query::~Query()
 {
   if ( !mConnection.isNull() )
-    mConnection->removeQueryPrivate( mUid );
+    mConnection->removeQuery( mUid );
 }
 
 bool QgsMssqlThreadSafeConnection::Query::exec( const QString query )
 {
   if ( mConnection.isNull() )
     return false;
-  mConnection->executeQuery( mUid, query );
-  return mConnection->isQuerySucessfull( mUid );
+  return mConnection->executeQuery( mUid, query );
+
 }
 
 bool QgsMssqlThreadSafeConnection::Query::isActive()
 {
   if ( mConnection.isNull() )
     return false;
-  mConnection->queryIsActive( mUid );
+  return mConnection->queryIsActive( mUid );
+}
+
+QVariant QgsMssqlThreadSafeConnection::Query::value( int index )
+{
+  if ( !mConnection.isNull() )
+    return mConnection->queryValue( mUid, index );
+  return QVariant();
 }
