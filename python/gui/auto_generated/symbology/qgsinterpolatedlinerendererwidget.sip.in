@@ -1,0 +1,53 @@
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/gui/symbology/qgsinterpolatedlinerendererwidget.h                *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/
+
+
+
+class QgsInterpolatedLineRendererWidget : QgsRendererWidget
+{
+%Docstring(signature="appended")
+
+.. versionadded:: 3.20
+%End
+
+%TypeHeaderCode
+#include "qgsinterpolatedlinerendererwidget.h"
+%End
+  public:
+
+    static QgsRendererWidget *create( QgsVectorLayer *layer, QgsStyle *style, QgsFeatureRenderer *renderer ) /Factory/;
+%Docstring
+Static creation method
+
+:param layer: the layer where this renderer is applied
+:param style:
+:param renderer: the renderer (will not take ownership)
+%End
+
+    QgsInterpolatedLineRendererWidget( QgsVectorLayer *layer, QgsStyle *style, QgsFeatureRenderer *renderer );
+%Docstring
+Constructor
+
+:param layer: the layer where this renderer is applied
+:param style:
+:param renderer: the mask renderer (will not take ownership)
+%End
+
+
+    virtual QgsFeatureRenderer *renderer();
+
+
+};
+
+/************************************************************************
+ * This file has been generated automatically from                      *
+ *                                                                      *
+ * src/gui/symbology/qgsinterpolatedlinerendererwidget.h                *
+ *                                                                      *
+ * Do not edit manually ! Edit header and run scripts/sipify.pl again   *
+ ************************************************************************/

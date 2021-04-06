@@ -103,6 +103,7 @@ set(TESTS
  testqgsimagecache.cpp
  testqgsimageoperation.cpp
  testqgsinternalgeometryengine.cpp
+ testqgsinterpolatedlinerenderer.cpp
  testqgsinvertedpolygonrenderer.cpp
  testqgsjsonutils.cpp
  testqgslabelingengine.cpp
