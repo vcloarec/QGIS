@@ -23,7 +23,7 @@
 
 /**
  * \ingroup gui
- * \class QgsInterpolatedLineRendererWidget
+ * \brief QgsInterpolatedLineRendererWidget
  * \since QGIS 3.20
  */
 class GUI_EXPORT QgsInterpolatedLineRendererWidget : public QgsRendererWidget, private Ui::QgsInterpolatedLineRendererWidgetBase,  private QgsExpressionContextGenerator
