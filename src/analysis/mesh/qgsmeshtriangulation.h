@@ -78,6 +78,8 @@ class ANALYSIS_EXPORT QgsMeshTriangulation : public QObject
     //! Sets the coordinate reference system used for the triangulation
     void setCrs( const QgsCoordinateReferenceSystem &crs );
 
+    QgsRectangle addVertex( const QgsPoint &point );
+
   private:
 #ifdef SIP_RUN
     QgsMeshTriangulation( const QgsMeshTriangulation &rhs );

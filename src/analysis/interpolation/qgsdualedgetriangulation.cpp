@@ -140,6 +140,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
 
   //then update mPointVector
   mPointVector.append( new QgsPoint( p ) );
+  mCacheMesh.vertices.append( p );
 
   //then update the HalfEdgeStructure
   if ( mDimension == -1 )//insert the first point into the triangulation
@@ -309,6 +310,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
     while ( mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext()]->getPoint() != -1 )
     {
       mHalfEdge[mHalfEdge[ cwEdge ]->getNext()]->setPoint( newPoint );
+      closeEdgeForMesh( mHalfEdge[ cwEdge ]->getNext() );
       cwEdge = mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext();
     }
 
@@ -321,12 +323,14 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
     mHalfEdge.at( edgeFromLastCwPointToNewPointPoint )->setPoint( newPoint );
     mHalfEdge.at( edgeFromNewPointtoVirtualPoint )->setDual( edgeFromVirtualPointToNewPoint );
     mHalfEdge.at( edgeFromLastCwPointToVirtualPoint )->setNext( edgeFromVirtualPointToNewPoint );
+    closeEdgeForMesh( edgeFromLastCwPointToNewPointPoint );
 
     //First counter clock wise
     int ccwEdge = mEdgeOutside;
     while ( mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getDual()]->getNext()]->getDual()]->getNext()]->getPoint() != -1 )
     {
       mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ ccwEdge ]->getNext()]->getNext()]->getDual()]->setPoint( newPoint );
+      closeEdgeForMesh( mHalfEdge[mHalfEdge[mHalfEdge[ ccwEdge ]->getNext()]->getNext()]->getDual() );
       ccwEdge = mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getDual()]->getNext()]->getDual()]->getNext()]->getDual();
     }
 
@@ -335,6 +339,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
     mHalfEdge.at( edgeFromNewPointtoVirtualPoint )->setNext( edgeToLastCcwPoint );
     mHalfEdge.at( edgeFromLastCcwPointToNewPoint )->setNext( edgeFromNewPointtoVirtualPoint );
     mHalfEdge.at( edgeFromLastCcwPointToNewPoint )->setPoint( newPoint );
+    closeEdgeForMesh( edgeFromLastCcwPointToNewPoint );
   }
   else
   {
@@ -348,6 +353,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
 
       //mEdgeOutside is in each case visible
       mHalfEdge[mHalfEdge[mEdgeOutside]->getNext()]->setPoint( mPointVector.count() - 1 );
+      closeEdgeForMesh( mHalfEdge[mEdgeOutside]->getNext() );
 
       //find cwEdge and replace the virtual point with the new point when necessary (equivalent to while the hull is not convex going clock wise)
       while ( MathUtils::leftOf( *mPointVector[ mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext()]->getPoint()],
@@ -355,6 +361,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
       {
         //set the point number of the necessary edge to the actual point instead of the virtual point
         mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext()]->getNext()]->setPoint( mPointVector.count() - 1 );
+        closeEdgeForMesh( mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext()]->getNext() );
         //advance cwedge one edge further clockwise
         cwEdge = ( unsigned int )mHalfEdge[mHalfEdge[mHalfEdge[cwEdge]->getNext()]->getDual()]->getNext();
       }
@@ -370,11 +377,14 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
       mHalfEdge[edge1]->setNext( edge2 );
       mHalfEdge[edge2]->setNext( edge3 );
 
+      closeEdgeForMesh( edge1 );
+
       //find ccwedge and replace the virtual point with the new point when necessary
       while ( MathUtils::leftOf( *mPointVector[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getPoint()], mPointVector[mPointVector.count() - 1], mPointVector[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual()]->getNext()]->getPoint()] ) < ( -leftOfTresh ) )
       {
         //set the point number of the necessary edge to the actual point instead of the virtual point
         mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual()]->setPoint( mPointVector.count() - 1 );
+        closeEdgeForMesh( mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual() );
         //advance ccwedge one edge further counterclockwise
         ccwEdge = mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual()]->getNext()]->getNext();
       }
@@ -383,8 +393,6 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
       unsigned int edge4 = insertEdge( mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext(), -10, mPointVector.count() - 1, false, false );//points from the last visible point counterclockwise to the new point
       unsigned int edge5 = insertEdge( edge3, -10, -1, false, false );//points from the new point to the virtual point
       unsigned int edge6 = insertEdge( mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual(), edge4, mHalfEdge[mHalfEdge[ccwEdge]->getDual()]->getPoint(), false, false );//points from the virtual point to the last visible point counterclockwise
-
-
 
       //adjust the other pointers
       mHalfEdge[mHalfEdge[mHalfEdge[mHalfEdge[ccwEdge]->getNext()]->getNext()]->getDual()]->setDual( edge6 );
@@ -411,6 +419,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
     {
       int nextnumber = mHalfEdge[number]->getNext();
       int nextnextnumber = mHalfEdge[mHalfEdge[number]->getNext()]->getNext();
+      removeFaceMesh( number );
 
       //insert 6 new HalfEdges for the connections to the vertices of the triangle
       unsigned int edge1 = insertEdge( -10, nextnumber, mHalfEdge[number]->getPoint(), false, false );
@@ -428,6 +437,10 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
       mHalfEdge.at( number )->setNext( static_cast<int>( edge2 ) );
       mHalfEdge.at( nextnumber )->setNext( static_cast<int>( edge4 ) );
       mHalfEdge.at( nextnextnumber )->setNext( static_cast<int>( edge6 ) );
+
+      closeEdgeForMesh( edge1 );
+      closeEdgeForMesh( edge3 );
+      closeEdgeForMesh( edge5 );
 
       //check, if there are swaps necessary
       checkSwapRecursively( number, 0 );
@@ -487,7 +500,6 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
       checkSwapRecursively( edgee, 0 );
       checkSwapRecursively( edgef, 0 );
     }
-
     else if ( number == -100 || number == -5 )//this means unknown problems or a numerical error occurred in 'baseEdgeOfTriangle'
     {
       //QgsDebugMsg( "point has not been inserted because of unknown problems" );
@@ -508,6 +520,7 @@ int QgsDualEdgeTriangulation::addPoint( const QgsPoint &p )
 
   return ( mPointVector.count() - 1 );
 }
+
 
 int QgsDualEdgeTriangulation::baseEdgeOfPoint( int point )
 {
@@ -827,6 +840,9 @@ void QgsDualEdgeTriangulation::doOnlySwap( unsigned int edge )
   mHalfEdge[edge6]->setNext( edge3 );
   mHalfEdge[edge1]->setPoint( mHalfEdge[edge3]->getPoint() );//change the points to which edge1 and edge2 point
   mHalfEdge[edge2]->setPoint( mHalfEdge[edge5]->getPoint() );
+
+  updateFaceMesh( edge1 );
+  updateFaceMesh( edge2 );
 }
 
 void QgsDualEdgeTriangulation::doSwapRecursively( unsigned int edge, unsigned int recursiveDeep )
@@ -846,6 +862,9 @@ void QgsDualEdgeTriangulation::doSwapRecursively( unsigned int edge, unsigned in
   mHalfEdge.at( edge1 )->setPoint( mHalfEdge.at( edge3 )->getPoint() );//change the points to which edge1 and edge2 point
   mHalfEdge.at( edge2 )->setPoint( mHalfEdge.at( edge5 )->getPoint() );
   recursiveDeep++;
+
+  updateFaceMesh( edge1 );
+  updateFaceMesh( edge2 );
 
   if ( recursiveDeep < 100 )
   {
@@ -881,6 +900,9 @@ void QgsDualEdgeTriangulation::doSwapRecursively( unsigned int edge, unsigned in
         mHalfEdge.at( e6 )->setNext( e3 );
         mHalfEdge.at( e1 )->setPoint( mHalfEdge.at( e3 )->getPoint() );//change the points to which edge1 and edge2 point
         mHalfEdge.at( e2 )->setPoint( mHalfEdge.at( e5 )->getPoint() );
+
+        updateFaceMesh( e1 );
+        updateFaceMesh( e2 );
 
         edgesToSwap.push( e3 );
         edgesToSwap.push( e6 );
@@ -1324,7 +1346,86 @@ unsigned int QgsDualEdgeTriangulation::insertEdge( int dual, int next, int point
   HalfEdge *edge = new HalfEdge( dual, next, point, mbreak, forced );
   mHalfEdge.append( edge );
   return mHalfEdge.count() - 1;
+}
 
+void QgsDualEdgeTriangulation::closeEdgeForMesh( int index )
+{
+  if ( !mIsEditing )
+    return;
+  QgsMeshFace face;
+  face.reserve( 3 );
+  HalfEdge *edge = mHalfEdge[index];
+  HalfEdge *nextEdge = edge;
+  for ( int i = 0; i < 3; ++i )
+  {
+    if ( nextEdge )
+    {
+      int pointIndex = nextEdge->getPoint();
+      if ( pointIndex >= 0 && mPointVector.at( pointIndex ) != nullptr )
+        face.append( pointIndex );
+      nextEdge = mHalfEdge[nextEdge->getNext()];
+    }
+  }
+
+  if ( nextEdge != edge )
+    return;
+
+  if ( face.count() == 3 )
+  {
+    int faceIndex;
+    if ( mAvailableFaceIndex.isEmpty() )
+    {
+      faceIndex = mCacheMesh.faces.count();
+      mCacheMesh.faces.append( face );
+    }
+    else
+      faceIndex = mAvailableFaceIndex.pop();
+
+    mCacheMesh.faces[faceIndex] = face;
+
+    for ( int i = 0; i < 3; ++i )
+    {
+      mHalfEdgeToMeshFace[edge->getNext()] = faceIndex;
+      edge = mHalfEdge[edge->getNext()];
+    }
+  }
+}
+
+void QgsDualEdgeTriangulation::updateFaceMesh( int edgeIndex )
+{
+
+  HalfEdge *edge = mHalfEdge[edgeIndex];
+  if ( !edge )
+    return;
+  int faceIndex = mHalfEdgeToMeshFace.value( edgeIndex, -1 );
+  if ( faceIndex < 0 )
+    return;
+
+  QgsMeshFace &face = mCacheMesh.faces[faceIndex];
+
+  HalfEdge *nextEdge = edge;
+  for ( int i = 0; i < 3; ++i )
+  {
+    if ( nextEdge )
+    {
+      int pointIndex = nextEdge->getPoint();
+      if ( pointIndex >= 0 && mPointVector.at( pointIndex ) != nullptr )
+        face[i] = pointIndex;
+      nextEdge = mHalfEdge[nextEdge->getNext()];
+      mHalfEdgeToMeshFace[nextEdge->getNext()] = faceIndex;
+    }
+  }
+}
+
+void QgsDualEdgeTriangulation::removeFaceMesh( int edgeIndex )
+{
+  int faceIndex = mHalfEdgeToMeshFace.value( edgeIndex, -1 );
+
+  if ( faceIndex >= 0 )
+  {
+    mAvailableFaceIndex.append( faceIndex );
+    mCacheMesh.faces[faceIndex].clear();
+  }
 }
 
 static bool altitudeTriangleIsSmall( const QgsPoint &pointBase1, const QgsPoint &pointBase2, const QgsPoint &pt3, double tolerance )
@@ -3262,6 +3363,9 @@ bool QgsDualEdgeTriangulation::saveTriangulation( QgsFeatureSink *sink, QgsFeedb
 
 QgsMesh QgsDualEdgeTriangulation::triangulationToMesh( QgsFeedback *feedback ) const
 {
+  if ( !mCacheMesh.faces.isEmpty() )
+    return mCacheMesh;
+
   QVector<bool> alreadyVisitedEdges( mHalfEdge.count(), false );
 
   if ( feedback )
@@ -3452,5 +3556,6 @@ void QgsDualEdgeTriangulation::removeLastPoint()
   if ( mPointVector.isEmpty() )
     return;
   QgsPoint *p = mPointVector.takeLast();
+  mCacheMesh.vertices.removeLast();
   delete p;
 }

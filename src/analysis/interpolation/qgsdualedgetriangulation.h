@@ -27,6 +27,7 @@
 #include <QBuffer>
 #include <QStringList>
 #include <QCursor>
+#include <QStack>
 
 #include <cfloat>
 
@@ -55,6 +56,8 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     ~QgsDualEdgeTriangulation() override;
     void addLine( const QVector< QgsPoint > &points, QgsInterpolator::SourceType lineType ) override;
     int addPoint( const QgsPoint &p ) override;
+    int addLocalPoint( const QgsPoint &p );
+
     //! Performs a consistency check, remove this later
     void performConsistencyTest() override;
     //! Calculates the normal at a point on the surface
@@ -120,6 +123,12 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     QgsTriangulation::ForcedCrossBehavior mForcedCrossBehavior = QgsTriangulation::DeleteFirst;
     //! Inserts an edge and makes sure, everything is OK with the storage of the edge. The number of the HalfEdge is returned
     unsigned int insertEdge( int dual, int next, int point, bool mbreak, bool forced );
+
+    void closeEdgeForMesh( int index );
+    void updateFaceMesh( int edgeIndex );
+    void removeFaceMesh( int edgeIndex );
+
+
     //! Inserts a forced segment between the points with the numbers p1 and p2 into the triangulation and returns the number of a HalfEdge belonging to this forced edge or -100 in case of failure
     int insertForcedSegment( int p1, int p2, QgsInterpolator::SourceType segmentType );
     //! Security to prevent endless loops in 'baseEdgeOfTriangle'. It there are more iteration then this number, the point will not be inserted
@@ -174,6 +183,10 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
 
     void removeLastPoint();
 
+    bool mIsEditing = true;
+    mutable QgsMesh mCacheMesh;
+    mutable QHash<int, int> mHalfEdgeToMeshFace;
+    mutable QStack<int> mAvailableFaceIndex;
 
     friend class TestQgsInterpolator;
 };

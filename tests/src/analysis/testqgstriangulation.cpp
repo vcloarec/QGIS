@@ -263,7 +263,7 @@ void TestQgsTriangulation::meshTriangulationWithOnlyBreakLine()
            << QStringLiteral( "LineStringZ (315377.62744900002144277 5839568.60983499884605408 24.98952099999999987, 315377.05605000001378357 5839566.94189499784260988 24.94718200000000152)" );
 
   QgsFeatureList flist;
-  for ( const QString &wkt : wktLines )
+  for ( const QString &wkt : std::as_const( wktLines ) )
   {
     QgsFeature feat;
     feat.setGeometry( QgsGeometry::fromWkt( wkt ) );
