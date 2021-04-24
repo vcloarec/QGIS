@@ -56,7 +56,9 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     ~QgsDualEdgeTriangulation() override;
     void addLine( const QVector< QgsPoint > &points, QgsInterpolator::SourceType lineType ) override;
     int addPoint( const QgsPoint &p ) override;
+    bool removePoint( int index );
     int addLocalPoint( const QgsPoint &p );
+    int dimension() const;
 
     //! Performs a consistency check, remove this later
     void performConsistencyTest() override;
@@ -85,9 +87,9 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     void setForcedCrossBehavior( QgsTriangulation::ForcedCrossBehavior b ) override;
     //! Sets an interpolator object
     void setTriangleInterpolator( TriangleInterpolator *interpolator ) override;
-    //! Eliminates the horizontal triangles by swapping or by insertion of new points
+    //! Eliminates the horizontal triangles by swapping or by insertion of new points, if triangultion is in edit mode, calling this method will end the edit mode
     void eliminateHorizontalTriangles() override;
-    //! Adds points to make the triangles better shaped (algorithm of ruppert)
+    //! Adds points to make the triangles better shaped (algorithm of ruppert), if triangultion is in edit mode, calling this method will end the edit mode
     void ruppertRefinement() override;
     //! Returns TRUE, if the point with coordinates x and y is inside the convex hull and FALSE otherwise
     bool pointInside( double x, double y ) override;
@@ -98,7 +100,24 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
 
     bool saveTriangulation( QgsFeatureSink *sink, QgsFeedback *feedback = nullptr ) const override;
 
+    //! Returns a QgsMesh from the triagulation. If not in edit mode, calling this method for the first time (after modification) leads to build a new mesh that can be a long task
     virtual QgsMesh triangulationToMesh( QgsFeedback *feedback = nullptr ) const override;
+
+    //! In edits mode, returns the modified mesh and the extent where changed have been made
+    virtual QgsMesh editedTriangulationToMesh( QgsRectangle &changedExtent ) const;
+
+    /**
+     *  Starts the edit mode.
+     *  In edit mode, a QgsMesh is cache in memory and this mesh is sync with the triangulation when a adding and removing point, and swap faces.
+     *  Int editing mode, calling triangulationToMesh() after editing not lead to rebuild a new mesh but returns the mesh in cache.
+     */
+    void startEditMode();
+
+    /**
+     * Ends the edit mode.
+     * The mesh in cache is cleared and must be rebuilt when calling triangulationToMesh() for the first time.
+     */
+    void endEditMode();
 
   private:
     //! X-coordinate of the upper right corner of the bounding box
@@ -123,11 +142,6 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     QgsTriangulation::ForcedCrossBehavior mForcedCrossBehavior = QgsTriangulation::DeleteFirst;
     //! Inserts an edge and makes sure, everything is OK with the storage of the edge. The number of the HalfEdge is returned
     unsigned int insertEdge( int dual, int next, int point, bool mbreak, bool forced );
-
-    void closeEdgeForMesh( int index );
-    void updateFaceMesh( int edgeIndex );
-    void removeFaceMesh( int edgeIndex );
-
 
     //! Inserts a forced segment between the points with the numbers p1 and p2 into the triangulation and returns the number of a HalfEdge belonging to this forced edge or -100 in case of failure
     int insertForcedSegment( int p1, int p2, QgsInterpolator::SourceType segmentType );
@@ -157,7 +171,7 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     //! Number of an edge on the outside of the convex hull. It is updated in method 'baseEdgeOfTriangle' to enable insertion of points outside the convex hull
     int mEdgeOutside = -1;
     //! If an inserted point is exactly on an existing edge, 'baseEdgeOfTriangle' returns -20 and sets the variable 'mEdgeWithPoint'
-    unsigned int mEdgeWithPoint = 0;
+    unsigned int mEdgeOnPoint = 0;
     //! If an instability occurs in 'baseEdgeOfTriangle', mUnstableEdge is set to the value of the current edge
     unsigned int mUnstableEdge = 0;
     //! If a point has been inserted twice, its number is stored in this member
@@ -181,12 +195,38 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
 
     int firstEdgeOutSide();
 
-    void removeLastPoint();
-
-    bool mIsEditing = true;
+    bool mIsEditing = false;
     mutable QgsMesh mCacheMesh;
     mutable QHash<int, int> mHalfEdgeToMeshFace;
     mutable QStack<int> mAvailableFaceIndex;
+    mutable QStack<int> mAvailableHalfEdges;
+    mutable QgsRectangle mChangedMeshExtent;
+
+    //! Creates a new point and returns its index
+    int createPoint( const QgsPoint &point );
+
+    //! Deletes the point at \a index
+    void deletePoint( int index );
+
+    //! Deletes the hal edge at \a index
+    void deleteHalfEdge( int index );
+
+    //! Checks if the half edge \a index and the next ones form a face, if yes create a mesh face
+    void closeEdgeForMesh( int index );
+
+    //! Updates the face mesh associate with the hafl edge \a edgeIndex, that is, reassociate vertex index for example after a swap
+    void updateFaceMesh( int edgeIndex );
+
+    //! removes tje face mesh associate with the hald edge \a edgeIndex
+    void removeFaceMesh( int edgeIndex );
+
+    //! removes all null points and null halfedge due to edit mode. Clears the mesh in cache.
+    void purge();
+
+    //! Returns a edge inside the convex hull. This edge depends on the previous operation but will surely be in the hull
+    int edgeInsideConvexHull();
+
+    mutable QStack<int> mAvailablePoints;
 
     friend class TestQgsInterpolator;
 };
