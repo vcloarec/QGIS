@@ -63,6 +63,8 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
     */
     bool update( QgsMesh *nativeMesh, const QgsCoordinateTransform &transform = QgsCoordinateTransform() );
 
+    bool update( QgsMesh *nativeMesh, QgsRectangle &changedExtent );
+
     /**
      * Returns vertices in map coordinate system
      *
@@ -219,9 +221,13 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
      * with the given algorithm (e.g. only 2 vertices, polygon with holes)
      */
     void triangulate( const QgsMeshFace &face, int nativeIndex );
+    void triangulate( const QgsMeshFace &face, int nativeIndex, QList<int> &availableTriangularFaceIndex );
 
     // check clock wise and calculate average size of triangles
     void finalizeTriangles();
+
+    void insertVertex( int i, const QgsMeshVertex &nativeVertex );
+    void calculateCentroid( int i, const QgsMesh &nativeMesh );
 
     // vertices: map CRS; 0-N ... native vertices, N+1 - len ... extra vertices
     // faces are derived triangles
@@ -246,6 +252,8 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
     int mLod = 0;
 
     const QgsTriangularMesh *mBaseTriangularMesh = nullptr;
+
+    int mNativeFaceCount = 0;
 
     friend class TestQgsTriangularMesh;
 };

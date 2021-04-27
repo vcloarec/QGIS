@@ -44,6 +44,8 @@ class TestQgsTriangularMesh : public QObject
 
     void test_triangulate();
 
+    void test_update_mesh();
+
     void test_centroids();
 
   private:
@@ -164,6 +166,72 @@ void TestQgsTriangularMesh::test_centroids()
   QVERIFY( qgsDoubleNear( centroids.at( 0 ).y(), 300000005, 0.00001 ) );
   QVERIFY( qgsDoubleNear( centroids.at( 1 ).x(), 900000017.777777, 0.00001 ) );
   QVERIFY( qgsDoubleNear( centroids.at( 1 ).y(), 300000005.555555, 0.00001 ) );
+
+}
+
+
+void TestQgsTriangularMesh::test_update_mesh()
+{
+  // Construct a mesh of 100 x 100 square faces
+
+  QgsMesh nativeMesh;
+  QgsCoordinateReferenceSystem meshCrs( QStringLiteral( "EPSG:32620" ) );
+  QgsCoordinateReferenceSystem mapCrs( QStringLiteral( "IGNF:GUAD48UTM20" ) );
+
+  QgsCoordinateTransformContext transformContext;
+  QgsCoordinateTransform transform;//( meshCrs, mapCrs, transformContext );
+
+  double xOrigin = 691645.7;
+  double yOrigin = 1758583.1;
+
+  int xVerticesCount = 101;
+  int yVerticesCount = 101;
+
+  QgsPoint originInMap( xOrigin, yOrigin );
+
+
+  for ( int i = 0; i < xVerticesCount; ++i )
+    for ( int j = 0; j < yVerticesCount; ++j )
+    {
+      nativeMesh.vertices.append( QgsPoint( xOrigin + i * 2.0, yOrigin + j * 2.0 ) );
+    }
+
+  for ( int i = 0; i < xVerticesCount - 1; ++i )
+    for ( int j = 0; j < yVerticesCount - 1; ++j )
+    {
+      QgsMeshFace face( {i + xVerticesCount * j,
+                         i + xVerticesCount * j + 1,
+                         i + xVerticesCount * ( j + 1 ) + 1,
+                         i + xVerticesCount * ( j + 1 )} );
+      nativeMesh.faces.append( face );
+    }
+
+  QCOMPARE( nativeMesh.vertexCount(), xVerticesCount * yVerticesCount );
+  QCOMPARE( nativeMesh.faceCount(), ( xVerticesCount - 1 ) * ( yVerticesCount - 1 ) );
+
+  QgsTriangularMesh triangularMesh;
+  triangularMesh.update( &nativeMesh, transform );
+
+  QCOMPARE( triangularMesh.vertices().count(), xVerticesCount * yVerticesCount );
+  QCOMPARE( triangularMesh.triangles().count(), 2 * ( xVerticesCount - 1 ) * ( yVerticesCount - 1 ) );
+
+  QgsRectangle changedExtent( xOrigin + 50, yOrigin + 50, xOrigin + 150, yOrigin + 150.5 );
+  for ( int i = 24; i < 75; ++i )
+    for ( int j = 24; j < 75; ++j )
+    {
+      nativeMesh.faces[i + 100 * j] = QgsMeshFace();
+    }
+
+  QgsRectangle changedExtentInMap = transform.transformBoundingBox( changedExtent );
+  changedExtentInMap.scale( 0.99 ); //
+
+  QList<int> facesInCenter = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
+  QCOMPARE( facesInCenter.count(), 5000 );
+
+  triangularMesh.update( &nativeMesh, changedExtent );
+
+  facesInCenter = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
+  QCOMPARE( facesInCenter.count(), 5000 );
 
 }
 
