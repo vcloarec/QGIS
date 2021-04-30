@@ -40,9 +40,11 @@ class QTextStream;
 class QgsMssqlFeatureIterator;
 class QgsMssqlSharedData;
 
+
 #include "qgsdatasourceuri.h"
 #include "qgsgeometry.h"
 #include "qgsmssqlgeometryparser.h"
+#include "qgsmssqltransaction.h"
 
 enum QgsMssqlPrimaryKeyType
 {
@@ -160,6 +162,9 @@ class QgsMssqlProvider final: public QgsVectorDataProvider
 
     QgsCoordinateReferenceSystem crs() const override;
 
+    QgsMssqlTransaction *transaction() const override;
+    void setTransaction( QgsTransaction *transaction ) override;
+
   protected:
     //! Loads fields from input file to member attributeFields
     QVariant::Type DecodeSqlType( const QString &sqlTypeName );
@@ -213,9 +218,6 @@ class QgsMssqlProvider final: public QgsVectorDataProvider
     // The database object
     mutable QSqlDatabase mDatabase;
 
-    // The current sql query
-    QSqlQuery mQuery;
-
     // The current sql statement
     QString mStatement;
 
@@ -240,6 +242,8 @@ class QgsMssqlProvider final: public QgsVectorDataProvider
 
     bool mDisableInvalidGeometryHandling = false;
 
+    QPointer<QgsMssqlTransaction> mTransaction = nullptr;
+
     // Sets the error messages
     void setLastError( const QString &error );
 
@@ -260,8 +264,6 @@ class QgsMssqlProvider final: public QgsVectorDataProvider
     std::shared_ptr<QgsMssqlSharedData> mShared;
 
     friend class QgsMssqlFeatureSource;
-
-    static int sConnectionId;
 };
 
 /**
@@ -310,6 +312,7 @@ class QgsMssqlProviderMetadata final: public QgsProviderMetadata
       const QMap<QString, QVariant> *options ) override;
     QgsMssqlProvider *createProvider( const QString &uri, const QgsDataProvider::ProviderOptions &options, QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags() ) override;
     virtual QList< QgsDataItemProvider * > dataItemProviders() const override;
+    QgsTransaction *createTransaction( const QString &connString ) override;
 
     // Connections API
     QMap<QString, QgsAbstractProviderConnection *> connections( bool cached = true ) override;

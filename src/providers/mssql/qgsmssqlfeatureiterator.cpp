@@ -26,11 +26,13 @@
 #include <QObject>
 #include <QTextStream>
 #include <QSqlRecord>
+#include <QThread>
 
 
 QgsMssqlFeatureIterator::QgsMssqlFeatureIterator( QgsMssqlFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
   : QgsAbstractFeatureIteratorFromSource<QgsMssqlFeatureSource>( source, ownSource, request )
   , mDisableInvalidGeometryHandling( source->mDisableInvalidGeometryHandling )
+  , mTransaction( source->mTransaction )
 {
   mClosed = false;
 
@@ -420,11 +422,22 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
 {
   feature.setValid( false );
 
-  if ( !mDatabase.isValid() )
+
+  if ( mTransaction && ( QCoreApplication::instance()->thread() == QThread::currentThread() ) )
+  {
+    if ( !mQuery )
+    {
+      mQuery.reset( new QSqlQuery( mTransaction->createQuery() ) );
+      // start selection
+      if ( !rewind() )
+        return false;
+    }
+  }
+  else if ( !mDatabase.isValid() )
   {
     // No existing connection, so set it up now. It's safe to do here as we're now in
     // the thread were iteration is actually occurring.
-    mDatabase = QgsMssqlConnection::getDatabase( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
+    mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
 
     if ( !mDatabase.open() )
     {
@@ -440,6 +453,7 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
     if ( !rewind() )
       return false;
   }
+
 
   if ( !mQuery )
     return false;
@@ -659,6 +673,7 @@ QgsMssqlFeatureSource::QgsMssqlFeatureSource( const QgsMssqlProvider *p )
   , mSqlWhereClause( p->mSqlWhereClause )
   , mDisableInvalidGeometryHandling( p->mDisableInvalidGeometryHandling )
   , mCrs( p->crs() )
+  , mTransaction( p->transaction() )
 {}
 
 QgsFeatureIterator QgsMssqlFeatureSource::getFeatures( const QgsFeatureRequest &request )

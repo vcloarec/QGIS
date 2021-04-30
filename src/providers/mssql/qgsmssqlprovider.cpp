@@ -49,11 +49,11 @@
 
 #include "qgsmssqldataitems.h"
 #include "qgsmssqlfeatureiterator.h"
+#include "qgsmssqltransaction.h"
 
 
 const QString QgsMssqlProvider::MSSQL_PROVIDER_KEY = QStringLiteral( "mssql" );
 const QString QgsMssqlProvider::MSSQL_PROVIDER_DESCRIPTION = QStringLiteral( "MSSQL spatial data provider" );
-int QgsMssqlProvider::sConnectionId = 0;
 
 QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &options,
                                     QgsDataProvider::ReadFlags flags )
@@ -93,7 +93,7 @@ QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &o
 
   mSqlWhereClause = anUri.sql();
 
-  mDatabase = QgsMssqlConnection::getDatabase( mService, mHost, mDatabaseName, mUserName, mPassword );
+  mDatabase = QgsMssqlConnection::getDatabaseConnection( mService, mHost, mDatabaseName, mUserName, mPassword );
 
   if ( !QgsMssqlConnection::openDatabase( mDatabase ) )
   {
@@ -102,9 +102,6 @@ QgsMssqlProvider::QgsMssqlProvider( const QString &uri, const ProviderOptions &o
     mValid = false;
     return;
   }
-
-  // Create a query for default connection
-  mQuery = QSqlQuery( mDatabase );
 
   // Database successfully opened; we can now issue SQL commands.
   if ( !anUri.schema().isEmpty() )
@@ -338,11 +335,14 @@ void QgsMssqlProvider::setLastError( const QString &error )
 
 QSqlQuery QgsMssqlProvider::createQuery() const
 {
-  if ( !mDatabase.isOpen() )
+  if ( mTransaction.isNull() )
   {
-    mDatabase = QgsMssqlConnection::getDatabase( mService, mHost, mDatabaseName, mUserName, mPassword );
+    if ( !mDatabase.isOpen() )
+      mDatabase = QgsMssqlConnection::getDatabaseConnection( mService, mHost, mDatabaseName, mUserName, mPassword );
+    return QSqlQuery( mDatabase );
   }
-  return QSqlQuery( mDatabase );
+
+  return mTransaction->createQuery();
 }
 
 void QgsMssqlProvider::loadFields()
@@ -1726,7 +1726,12 @@ void QgsMssqlProvider::updateExtents()
 
 QgsVectorDataProvider::Capabilities QgsMssqlProvider::capabilities() const
 {
-  QgsVectorDataProvider::Capabilities cap = CreateAttributeIndex | AddFeatures | AddAttributes;
+  QgsVectorDataProvider::Capabilities cap =
+    CreateAttributeIndex |
+    AddFeatures |
+    AddAttributes |
+    TransactionSupport;
+
   bool hasGeom = false;
   if ( !mGeometryColName.isEmpty() )
   {
@@ -1830,6 +1835,19 @@ QgsCoordinateReferenceSystem QgsMssqlProvider::crs() const
     }
   }
   return mCrs;
+}
+
+QgsMssqlTransaction *QgsMssqlProvider::transaction() const
+{
+  if ( mTransaction.isNull() )
+    return nullptr;
+  else
+    return mTransaction;
+}
+
+void QgsMssqlProvider::setTransaction( QgsTransaction *transaction )
+{
+  mTransaction = static_cast<QgsMssqlTransaction *>( transaction );
 }
 
 QString QgsMssqlProvider::subsetString() const
@@ -2033,7 +2051,7 @@ QgsVectorLayerExporter::ExportError QgsMssqlProvider::createEmptyLayer( const QS
   QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = QgsMssqlConnection::getDatabaseConnection( dsUri, uri );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
@@ -2314,6 +2332,11 @@ QList<QgsDataItemProvider *> QgsMssqlProviderMetadata::dataItemProviders() const
   return providers;
 }
 
+QgsTransaction *QgsMssqlProviderMetadata::createTransaction( const QString &connString )
+{
+  return new QgsMssqlTransaction( connString );
+}
+
 QMap<QString, QgsAbstractProviderConnection *> QgsMssqlProviderMetadata::connections( bool cached )
 {
   return connectionsProtected<QgsMssqlProviderConnection, QgsMssqlConnection>( cached );
@@ -2366,7 +2389,7 @@ bool QgsMssqlProviderMetadata::saveStyle( const QString &uri,
 {
   QgsDataSourceUri dsUri( uri );
   // connect to database
-  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabaseConnection( dsUri, uri );
 
   if ( !QgsMssqlConnection::openDatabase( mDatabase ) )
   {
@@ -2524,7 +2547,7 @@ QString QgsMssqlProviderMetadata::loadStyle( const QString &uri, QString &errCau
 {
   QgsDataSourceUri dsUri( uri );
   // connect to database
-  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabaseConnection( dsUri, uri );
 
   if ( !QgsMssqlConnection::openDatabase( mDatabase ) )
   {
@@ -2572,7 +2595,7 @@ int QgsMssqlProviderMetadata::listStyles( const QString &uri,
 {
   QgsDataSourceUri dsUri( uri );
   // connect to database
-  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabaseConnection( dsUri, uri );
 
   if ( !QgsMssqlConnection::openDatabase( mDatabase ) )
   {
@@ -2658,7 +2681,7 @@ QString QgsMssqlProviderMetadata::getStyleById( const QString &uri, QString styl
 {
   QgsDataSourceUri dsUri( uri );
   // connect to database
-  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase mDatabase = QgsMssqlConnection::getDatabaseConnection( dsUri, uri );
 
   if ( !QgsMssqlConnection::openDatabase( mDatabase ) )
   {

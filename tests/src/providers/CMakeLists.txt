@@ -8,6 +8,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/src/providers/wms
   ${CMAKE_SOURCE_DIR}/src/providers/postgres
   ${CMAKE_SOURCE_DIR}/src/providers/mdal
+  ${CMAKE_SOURCE_DIR}/src/providers/mssql
   ${CMAKE_SOURCE_DIR}/src/providers/ogr
   ${CMAKE_SOURCE_DIR}/src/test
 )
@@ -72,6 +73,9 @@ target_link_libraries(qgis_postgresprovidertest postgresprovider_a qgis_core)
 ADD_QGIS_TEST(postgresconntest testqgspostgresconn.cpp)
 target_link_libraries(qgis_postgresconntest postgresprovider_a qgis_core)
 SET_TESTS_PROPERTIES(qgis_postgresconntest PROPERTIES LABELS "POSTGRES")
+
+ADD_QGIS_TEST(mssqlprovidertest testqgsmssqlprovider.cpp)
+target_link_libraries(qgis_mssqlprovidertest mssqlprovider_a qgis_core)
 
 if (NOT FORCE_STATIC_PROVIDERS)
   ADD_QGIS_TEST(mdalprovidertest testqgsmdalprovider.cpp)
