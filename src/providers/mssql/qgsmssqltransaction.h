@@ -31,6 +31,47 @@
 ///@cond PRIVATE
 #define SIP_NO_FILE
 
+/**
+ * /////////////  Locking mechanism of MSSQL
+ * MMSQL provide an option that define how transactions are isolated from each other, READ_COMMITTED_SNAPSHOT = {ON,OFF}
+ * If this option is OFF, value by default, if a transaction had modified somes rows, these rows are locked unitl the transaction is finished.
+ * Whith this locking, access to this rows by another connection are "freezed" until the end of the connection.
+ *
+ * If READ_COMMITTED_SNAPSHOT = ON, acces to the row is possible during transaction, but the rows are read in the state just before the last commit,
+ * so access to the modified row by another connection is not freezed.
+ *
+ * The option READ_COMMITTED_SNAPSHOT is a database setting, so QGIS could not change this option.
+ *
+ * In the worth case, if the main thread use a connection to access to a database with a transaction opened, QGIS freezes until this transaction finished.
+ * If this transaction is also handle in he main trhead, this freezing never finishes
+ *
+ * In the better case, the other connection is not in the main thread and will not freez QGIS. But his job is blocked until the transaction is finished
+ * (never if the transaction is handle in the same thread).
+ *
+ * The risk of freezing the main thread is not acceptable, and freezing, even temporarly, other thread will provide a bad user experience.
+ *
+ * The solution to avoid this freezing is, when a transaction is open for a connection,
+ * All request (from every where in QGIS) for connection with the same connection uri HAVE TO return the connection where the transaction has begun.
+ *
+ *
+ * /////////////  QSqlDatabase can not be shared between threads
+ *
+ * https://doc.qt.io/qt-5/threads-modules.html#threads-and-the-sql-module
+ *
+ * "A connection can only be used from within the thread that created it.
+ * Moving connections between threads or creating queries from a different thread is not supported."
+ *
+ * So, it not possible to share a transaction between threads. For example, if the connection is created in the main thread, it is not possible to use it in the renderer
+ *
+ * --> We CAN'T USE DIRECTLY QsqlDataBase to share connection with transaction between thread.
+ *
+ * To allow transaction with MSSQL, it is necessary to implement a connection object that will be created in a independant thread,
+ * and all other thread will used it with thread safe function and without using directly QSqlQuery or QsqlDatabase outside the independant thread.
+ *
+ * As this new object can not be handle by the native QSqlDataBase pool, we need to implement another mechanism to store the connection with transaction in a singleton.
+ *
+ */
+
 class QgsMssqlTransaction : public QgsTransaction
 {
     Q_OBJECT
@@ -62,95 +103,140 @@ class QgsMssqlTransaction : public QgsTransaction
 
 };
 
-class QgsMssqlConnectionWrapper : public QObject
+
+class QgsMssqlDataBaseConnectionBase;
+
+class QgsMssqlQuery
+{
+  public:
+    QgsMssqlQuery( QgsMssqlDataBaseConnectionBase *connection );
+    ~QgsMssqlQuery();
+
+    bool exec( const QString &query );
+
+    bool next();
+
+    bool isActive();
+
+    QVariant value( int index );
+
+  private:
+    QString mUid;
+    QPointer<QgsMssqlDataBaseConnectionBase> mConnection = nullptr;
+
+    friend class QgsMssqlSharableConnection;
+};
+
+class QgsMssqlDataBaseConnectionBase : public QObject
 {
     Q_OBJECT
   public:
-    QgsMssqlConnectionWrapper( const QgsDataSourceUri &uri );
+    QgsMssqlDataBaseConnectionBase( QObject *parent = nullptr );
 
   public slots:
-    //! Creates the connection with the database
-    void createConnection();
+    //! Initialize the connection with the database and open the connection
+    virtual void initConnection() = 0;
+
+    //! Returns whether the connection is open
+    virtual bool isOpen() const = 0;
 
     //! Begins a transaction, return true if successful, \see QSqlDataBase::transaction()
-    bool beginTransaction();
+    virtual bool beginTransaction() = 0;
 
     //! Commits the active transasction, return the value returned by QSqlDataBase::commit()
-    bool commitTransaction();
+    virtual bool commitTransaction() = 0;
 
     //! Rollbacks the active transasction, return the value returned by QSqlDataBase::rollback()
-    bool rollbackTransaction();
+    virtual bool rollbackTransaction() = 0;
 
+    //! Creates a query associated to the connection
+    QgsMssqlQuery createQuery();
+
+  protected slots:
     //! Create a query and return an unique id associated to this query, this unique id can be used for operation on this query
-    QString createQuery();
+    virtual QString createQueryPrivate() = 0;
 
     //! Remove the query associated with the unique \a uid
-    void removeQuery( const QString &uid );
+    virtual void removeQuery( const QString &uid ) = 0;
 
     //! Executes the query associated with the unique id \a uid, returns the same value than QsqlQuery::exec()
-    bool executeQuery( const QString &uid, const QString &query );
+    virtual bool executeQuery( const QString &uid, const QString &query ) = 0;
+
+    //! Retrievex the next record int the result of the query associated with the unique id \a uid, returns the same value than QsqlQuery::next()
+    virtual bool queryNext( const QString &uid ) = 0;
 
     /**
      *  Returns the value of field index of the current record the query associated with the unique id \a uid
      *  An invalid QVariant is returned if the query does not exist anymore or, if it exists have the same behavior than QSqlQuery::value()
      */
-    QVariant queryValue( const QString &uid, int index ) const;
+    virtual QVariant queryValue( const QString &uid, int index ) const = 0;
 
     //! Returns whether the query is active, same behavior than QSqlQuery::isActive() except if the query does not exist anymore, return false
-    bool isQueryActive( const QString &uid ) const;
+    virtual bool isQueryActive( const QString &uid ) const = 0;
 
-  private:
-    QSqlDatabase mDatabaseConnection;
-    QgsDataSourceUri mUri;
-    QMap<QString, QSharedPointer<QSqlQuery>> mQueries;
-    QMap<QString, bool> mQueriesSuccesful;
-    bool mIsTransactionActive;
+    friend class QgsMssqlQuery;
+
 };
 
 
-class QgsMssqlThreadSafeConnection : public QObject
+class QgsMssqlDataBaseConnection : public QgsMssqlDataBaseConnectionBase
 {
+    Q_OBJECT
   public:
-    QgsMssqlThreadSafeConnection( const QgsDataSourceUri &uri );
-    ~QgsMssqlThreadSafeConnection();
+    QgsMssqlDataBaseConnection( const QgsDataSourceUri &uri, QObject *parent = nullptr );
 
-    class Query
-    {
-      public:
-        Query( QgsMssqlThreadSafeConnection *connection );
-        ~Query();
+  public slots:
+    void initConnection() override;
+    bool beginTransaction() override;
+    bool commitTransaction() override;
+    bool rollbackTransaction() override;
+    bool isOpen() const override;
 
-        bool exec( const QString query );
-        bool isActive();
-
-        QVariant value( int index );
-
-      private:
-        QString mUid;
-        QPointer<QgsMssqlThreadSafeConnection> mConnection = nullptr;
-
-        friend class QgsMssqlThreadSafeConnection;
-    };
-
-    bool beginTransaction();
-    bool commitTransaction();
-    bool rollbackTransaction();
-
-    //! Creates a query associated to the connection
-    Query createQuery();
+  protected slots:
+    QString createQueryPrivate() override;
+    virtual void removeQuery( const QString &uid ) override;
+    virtual bool executeQuery( const QString &uid, const QString &query ) override;
+    virtual QVariant queryValue( const QString &uid, int index ) const override;
+    virtual bool isQueryActive( const QString &uid ) const override;
+    bool queryNext( const QString &uid ) override ;
 
   private:
-    QgsMssqlConnectionWrapper *mConnection = nullptr;
-    QThread *mTransactionThread;
+    QgsDataSourceUri mUri;
+    QSqlDatabase mDatabaseConnection;
+    QMap<QString, QSharedPointer<QSqlQuery>> mQueries;
+
+};
+
+/**
+ * This class embed a connection wrapper in another thread. All the acces to the wrapped connection is done by blocking queued slot connections
+ */
+
+class QgsMssqlSharableConnection : public QgsMssqlDataBaseConnectionBase
+{
+    Q_OBJECT
+  public:
+    QgsMssqlSharableConnection( const QgsDataSourceUri &uri, QObject *parent = nullptr );
+    ~QgsMssqlSharableConnection();
+
+    void initConnection() override;
+    bool beginTransaction() override;
+    bool commitTransaction() override;
+    bool rollbackTransaction() override;
+    bool isOpen() const override;
+
+  private:
+    QgsMssqlDataBaseConnection *mConnection = nullptr;
+    QThread *mConnectionThread;
 
     //! Ask to the connection trhead to create a query, return the unique id of the query
-    QString createQueryPrivate();
-    void removeQuery( const QString &queryId );
-    bool executeQuery( const QString &query, const QString &uid );
-    bool queryIsActive( const QString &queryId ) const;
-    QVariant queryValue( const QString &queryId, int index ) const;
+    QString createQueryPrivate() override;
+    void removeQuery( const QString &queryId ) override;
+    bool executeQuery( const QString &query, const QString &uid ) override;
+    QVariant queryValue( const QString &queryId, int index ) const override;
+    bool isQueryActive( const QString &queryId ) const override;
+    bool queryNext( const QString &uid ) override ;
 
-    friend class Query;
+    mutable QMutex mMutex;
 };
 
 

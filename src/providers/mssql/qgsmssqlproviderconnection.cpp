@@ -243,7 +243,7 @@ QgsAbstractDatabaseProviderConnection::QueryResult QgsMssqlProviderConnection::e
   const QgsDataSourceUri dsUri { uri() };
 
   // connect to database
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = QgsMssqlConnection::getDatabaseConnection( dsUri, uri() );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {

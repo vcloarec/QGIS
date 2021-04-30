@@ -27,45 +27,32 @@
 #include <QSet>
 #include <QCoreApplication>
 #include <QFile>
+#include <QApplication>
 
-int QgsMssqlConnection::sConnectionId = 0;
+//int QgsMssqlConnection::sConnectionId = 0;
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
 QMutex QgsMssqlConnection::sMutex { QMutex::Recursive };
 #else
 QRecursiveMutex QgsMssqlConnection::sMutex;
 #endif
 
-QSqlDatabase QgsMssqlConnection::getDatabase( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password )
+QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName )
 {
   QSqlDatabase db;
-  QString connectionName;
 
-  // create a separate database connection for each feature source
-  if ( service.isEmpty() )
-  {
-    if ( !host.isEmpty() )
-      connectionName = host + '.';
-
-    if ( database.isEmpty() )
-    {
-      QgsDebugMsg( QStringLiteral( "QgsMssqlProvider database name not specified" ) );
-      return db;
-    }
-
-    connectionName += QStringLiteral( "%1.%2" ).arg( database ).arg( sConnectionId++ );
-  }
-  else
-    connectionName = service;
+  // create a separate database connection for each thread,  https://doc.qt.io/qt-5/threads-modules.html#threads-and-the-sql-module
 
   // while everything we use from QSqlDatabase here is thread safe, we need to ensure
   // that the connection cleanup on thread finalization happens in a predictable order
   QMutexLocker locker( &sMutex );
 
   const QString threadSafeConnectionName = dbConnectionName( connectionName );
+  //const QString threadSafeConnectionName = connectionName;
 
   if ( !QSqlDatabase::contains( threadSafeConnectionName ) )
   {
     db = QSqlDatabase::addDatabase( QStringLiteral( "QODBC" ), threadSafeConnectionName );
+    db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
     db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
 
     // for background threads, remove database when current thread finishes
@@ -85,19 +72,23 @@ QSqlDatabase QgsMssqlConnection::getDatabase( const QString &service, const QStr
         QSqlDatabase::removeDatabase( threadSafeConnectionName );
       }, Qt::DirectConnection );
     }
+
+    qDebug() << "*************************************";
+    qDebug() << " create connection id " << db.connectionName();
   }
   else
   {
     db = QSqlDatabase::database( threadSafeConnectionName );
+    qDebug() << " return connection id " << db.connectionName();
   }
   locker.unlock();
 
-  db.setHostName( host );
+  db.setHostName( uri.host() );
   QString connectionString;
-  if ( !service.isEmpty() )
+  if ( !uri.service().isEmpty() )
   {
     // driver was specified explicitly
-    connectionString = service;
+    connectionString = uri.service();
   }
   else
   {
@@ -123,22 +114,22 @@ QSqlDatabase QgsMssqlConnection::getDatabase( const QString &service, const QStr
 #endif
   }
 
-  if ( !host.isEmpty() )
-    connectionString += ";server=" + host;
+  if ( !uri.host().isEmpty() )
+    connectionString += ";server=" + uri.host();
 
-  if ( !database.isEmpty() )
-    connectionString += ";database=" + database;
+  if ( !uri.database().isEmpty() )
+    connectionString += ";database=" + uri.database();
 
-  if ( password.isEmpty() )
+  if ( uri.password().isEmpty() )
     connectionString += QLatin1String( ";trusted_connection=yes" );
   else
-    connectionString += ";uid=" + username + ";pwd=" + password;
+    connectionString += ";uid=" + uri.username() + ";pwd=" + uri.password();
 
-  if ( !username.isEmpty() )
-    db.setUserName( username );
+  if ( !uri.username().isEmpty() )
+    db.setUserName( uri.username() );
 
-  if ( !password.isEmpty() )
-    db.setPassword( password );
+  if ( !uri.password().isEmpty() )
+    db.setPassword( uri.password() );
 
   db.setDatabaseName( connectionString );
 
@@ -146,6 +137,143 @@ QSqlDatabase QgsMssqlConnection::getDatabase( const QString &service, const QStr
   // QgsDebugMsg( connectionString );
   return db;
 }
+
+QgsMssqlDataBaseConnectionBase *QgsMssqlConnection::getDataBaseConnection_v2( const QgsDataSourceUri &uri )
+{
+  QString connectionName = uri.connectionInfo( false );
+
+}
+
+QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password )
+{
+  QgsDataSourceUri uri;
+  if ( !service.isEmpty() )
+    uri.setConnection( service, database, username, password );
+  else
+    uri.setConnection( host, QString(), database, username, password );
+
+  return getDatabaseConnection( uri, uri.connectionInfo() );
+}
+
+
+//QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password )
+//{
+//  QSqlDatabase db;
+//  QString connectionName;
+
+//  if ( service.isEmpty() )
+//  {
+//    if ( !host.isEmpty() )
+//      connectionName = host + '.';
+
+//    if ( database.isEmpty() )
+//    {
+//      QgsDebugMsg( QStringLiteral( "QgsMssqlProvider database name not specified" ) );
+//      return db;
+//    }
+
+//    connectionName += QStringLiteral( "%1.%2" ).arg( database ).arg( sConnectionId++ );
+//  }
+//  else
+//    connectionName = service;
+
+//  // create a separate database connection for each thread,  https://doc.qt.io/qt-5/threads-modules.html#threads-and-the-sql-module
+
+//  // while everything we use from QSqlDatabase here is thread safe, we need to ensure
+//  // that the connection cleanup on thread finalization happens in a predictable order
+//  QMutexLocker locker( &sMutex );
+
+//  const QString threadSafeConnectionName = dbConnectionName( connectionName );
+
+//  if ( !QSqlDatabase::contains( threadSafeConnectionName ) )
+//  {
+//    db = QSqlDatabase::addDatabase( QStringLiteral( "QODBC" ), threadSafeConnectionName );
+//    db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
+//    db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
+
+//    // for background threads, remove database when current thread finishes
+//    if ( QThread::currentThread() != QCoreApplication::instance()->thread() )
+//    {
+//      QgsDebugMsgLevel( QStringLiteral( "Scheduled auth db remove on thread close" ), 2 );
+
+//      // IMPORTANT - we use a direct connection here, because the database removal must happen immediately
+//      // when the thread finishes, and we cannot let this get queued on the main thread's event loop.
+//      // Otherwise, the QSqlDatabase's private data's thread gets reset immediately the QThread::finished,
+//      // and a subsequent call to QSqlDatabase::database with the same thread address (yep it happens, actually a lot)
+//      // triggers a condition in QSqlDatabase which detects the nullptr private thread data and returns an invalid database instead.
+//      // QSqlDatabase::removeDatabase is thread safe, so this is ok to do.
+//      QObject::connect( QThread::currentThread(), &QThread::finished, QThread::currentThread(), [threadSafeConnectionName]
+//      {
+//        QMutexLocker locker( &sMutex );
+//        qDebug() << "remove " << QSqlDatabase::database( threadSafeConnectionName ).connectionName();
+//        QSqlDatabase::removeDatabase( threadSafeConnectionName );
+//      }, Qt::DirectConnection );
+//    }
+
+//    qDebug() << "*************************************";
+//    qDebug() << " create connection id " << db.connectionName();
+//  }
+//  else
+//  {
+//    db = QSqlDatabase::database( threadSafeConnectionName );
+//    qDebug() << " return connection id " << db.connectionName();
+//  }
+//  locker.unlock();
+
+//  db.setHostName( host );
+//  QString connectionString;
+//  if ( !service.isEmpty() )
+//  {
+//    // driver was specified explicitly
+//    connectionString = service;
+//  }
+//  else
+//  {
+//#ifdef Q_OS_WIN
+//    connectionString = "driver={SQL Server}";
+//#elif defined (Q_OS_MAC)
+//    QString freeTDSDriver( QCoreApplication::applicationDirPath().append( "/lib/libtdsodbc.so" ) );
+//    if ( QFile::exists( freeTDSDriver ) )
+//    {
+//      connectionString = QStringLiteral( "driver=%1;port=1433;TDS_Version=auto" ).arg( freeTDSDriver );
+//    }
+//    else
+//    {
+//      connectionString = QStringLiteral( "driver={FreeTDS};port=1433;TDS_Version=auto" );
+//    }
+//#else
+//    // It seems that FreeTDS driver by default uses an ancient TDS protocol version (4.2) to communicate with MS SQL
+//    // which was causing various data corruption errors, for example:
+//    // - truncating data from varchar columns to 255 chars - failing to read WKT for CRS
+//    // - truncating binary data to 4096 bytes (see @@TEXTSIZE) - failing to parse larger geometries
+//    // The added "TDS_Version=auto" should negotiate more recent version (manually setting e.g. 7.2 worked fine too)
+//    connectionString = QStringLiteral( "driver={FreeTDS};port=1433;TDS_Version=auto" );
+//#endif
+//  }
+
+//  if ( !host.isEmpty() )
+//    connectionString += ";server=" + host;
+
+//  if ( !database.isEmpty() )
+//    connectionString += ";database=" + database;
+
+//  if ( password.isEmpty() )
+//    connectionString += QLatin1String( ";trusted_connection=yes" );
+//  else
+//    connectionString += ";uid=" + username + ";pwd=" + password;
+
+//  if ( !username.isEmpty() )
+//    db.setUserName( username );
+
+//  if ( !password.isEmpty() )
+//    db.setPassword( password );
+
+//  db.setDatabaseName( connectionString );
+
+//  // only uncomment temporarily -- it can show connection password otherwise!
+//  // QgsDebugMsg( connectionString );
+//  return db;
+//}
 
 bool QgsMssqlConnection::openDatabase( QSqlDatabase &db )
 {
@@ -236,7 +364,7 @@ bool QgsMssqlConnection::dropView( const QString &uri, QString *errorMessage )
   const QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -263,7 +391,7 @@ bool QgsMssqlConnection::dropTable( const QString &uri, QString *errorMessage )
   const QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -295,7 +423,7 @@ bool QgsMssqlConnection::truncateTable( const QString &uri, QString *errorMessag
   const QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -324,7 +452,7 @@ bool QgsMssqlConnection::createSchema( const QString &uri, const QString &schema
   const QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
 
   if ( !openDatabase( db ) )
   {
@@ -351,7 +479,7 @@ QStringList QgsMssqlConnection::schemas( const QString &uri, QString *errorMessa
   const QgsDataSourceUri dsUri( uri );
 
 // connect to database
-  QSqlDatabase db = getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
 
   return schemas( db, errorMessage );
 }
@@ -605,5 +733,9 @@ QString QgsMssqlConnection::dbConnectionName( const QString &name )
   // Starting with Qt 5.11, sharing the same connection between threads is not allowed.
   // We use a dedicated connection for each thread requiring access to the database,
   // using the thread address as connection name.
-  return QStringLiteral( "%1:0x%2" ).arg( name ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
+  bool mainThread = QApplication::instance()->thread() == QThread::currentThread();
+  QString otherName = name;
+  if ( mainThread )
+    otherName = otherName + "******** Main Thread *********";
+  return QStringLiteral( "%1:0x%2" ).arg( otherName ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
 }

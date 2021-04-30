@@ -136,7 +136,7 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
 
   readConnectionSettings();
 
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
+  QSqlDatabase db = QgsMssqlConnection::getDatabaseConnection( mService, mHost, mDatabase, mUsername, mPassword );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {

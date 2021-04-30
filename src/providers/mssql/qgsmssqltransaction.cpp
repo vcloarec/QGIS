@@ -187,191 +187,247 @@ bool QgsMssqlTransaction::rollbackTransaction( QString &error )
 
 }
 
-//****************************** thread safe connection wrapper
 
-QString QgsMssqlConnectionWrapper::createQuery()
+QgsMssqlDataBaseConnectionBase::QgsMssqlDataBaseConnectionBase( QObject *parent ):
+  QObject( parent )
+{}
+
+QgsMssqlQuery QgsMssqlDataBaseConnectionBase::createQuery()
+{
+  return QgsMssqlQuery( this );
+}
+
+QString QgsMssqlDataBaseConnection::createQueryPrivate()
 {
   QString uid = QUuid::createUuid().toString();
   mQueries[uid] = QSharedPointer<QSqlQuery>( new QSqlQuery( mDatabaseConnection ) );
   return uid;
 }
 
-void QgsMssqlConnectionWrapper::removeQuery( const QString &uid )
+void QgsMssqlDataBaseConnection::removeQuery( const QString &uid )
 {
   if ( mQueries.contains( uid ) )
     mQueries.remove( uid );
 }
 
-bool QgsMssqlConnectionWrapper::executeQuery( const QString &uid, const QString &query )
+bool QgsMssqlDataBaseConnection::executeQuery( const QString &uid, const QString &query )
 {
   if ( mQueries.contains( uid ) )
-    return mQueriesSuccesful[uid] = mQueries.value( uid )->exec( query );
+    return  mQueries.value( uid )->exec( query );
 
   return false;
 }
 
-QVariant QgsMssqlConnectionWrapper::queryValue( const QString &uid, int index ) const
+QVariant QgsMssqlDataBaseConnection::queryValue( const QString &uid, int index ) const
 {
-  if ( !mQueries.contains( uid ) )
-    return QVariant();
-  return mQueries.value( uid )->value( index );
+  if ( mQueries.contains( uid ) )
+    return mQueries.value( uid )->value( index );
+  return QVariant();
 }
 
 
-bool QgsMssqlConnectionWrapper::isQueryActive( const QString &uid ) const
+bool QgsMssqlDataBaseConnection::isQueryActive( const QString &uid ) const
 {
-  if ( !mQueries.contains( uid ) )
+  if ( mQueries.contains( uid ) )
     return mQueries.value( uid )->isActive();
   return false;
 }
 
-QgsMssqlConnectionWrapper::QgsMssqlConnectionWrapper( const QgsDataSourceUri &uri ) :
-  QObject()
+bool QgsMssqlDataBaseConnection::queryNext( const QString &uid )
+{
+  if ( mQueries.contains( uid ) )
+    return mQueries.value( uid )->next();
+  return false;
+}
+
+void QgsMssqlDataBaseConnection::initConnection()
+{
+  mDatabaseConnection = QgsMssqlConnection::getDatabaseConnection( mUri, mUri.connectionInfo() );
+  mDatabaseConnection.open();
+}
+
+QgsMssqlDataBaseConnection::QgsMssqlDataBaseConnection( const QgsDataSourceUri &uri, QObject *parent ):
+  QgsMssqlDataBaseConnectionBase( parent )
   , mUri( uri )
 {}
 
-void QgsMssqlConnectionWrapper::createConnection()
-{
-  mDatabaseConnection = QgsMssqlConnection::getDatabaseConnection( mUri, mUri.connectionInfo() );
-}
-
-bool QgsMssqlConnectionWrapper::beginTransaction()
+bool QgsMssqlDataBaseConnection::beginTransaction()
 {
   mQueries.clear();
   return mDatabaseConnection.transaction();
 }
 
-bool QgsMssqlConnectionWrapper::commitTransaction()
+bool QgsMssqlDataBaseConnection::commitTransaction()
 {
   mQueries.clear();
   return mDatabaseConnection.commit();
 }
 
-bool QgsMssqlConnectionWrapper::rollbackTransaction()
+bool QgsMssqlDataBaseConnection::rollbackTransaction()
 {
   mQueries.clear();
   return mDatabaseConnection.rollback();
 }
 
+bool QgsMssqlDataBaseConnection::isOpen() const
+{
+  return mDatabaseConnection.isOpen();
+}
+
 //******************************
 
-QgsMssqlThreadSafeConnection::QgsMssqlThreadSafeConnection( const QgsDataSourceUri &uri ):
-  mConnection( new QgsMssqlConnectionWrapper( uri ) )
+QgsMssqlSharableConnection::QgsMssqlSharableConnection( const QgsDataSourceUri &uri, QObject *parent ):
+  QgsMssqlDataBaseConnectionBase( parent )
+  , mConnection( new QgsMssqlDataBaseConnection( uri ) )
 {
-  mTransactionThread = new QThread;
-  mConnection->moveToThread( mTransactionThread );
-  connect( mTransactionThread, &QThread::started, mConnection, &QgsMssqlConnectionWrapper::createConnection );
-  connect( mTransactionThread, &QThread::finished, mConnection, &QgsMssqlConnectionWrapper::deleteLater );
-  mTransactionThread->start();
+  mConnectionThread = new QThread( this );
+  mConnection->moveToThread( mConnectionThread );
+  connect( mConnectionThread, &QThread::started, mConnection, &QgsMssqlDataBaseConnection::initConnection );
+  connect( mConnectionThread, &QThread::finished, mConnection, &QgsMssqlDataBaseConnection::deleteLater );
 }
 
-QgsMssqlThreadSafeConnection::~QgsMssqlThreadSafeConnection()
+QgsMssqlSharableConnection::~QgsMssqlSharableConnection()
 {
-  mTransactionThread->quit();
-  mTransactionThread->wait();
+  mConnectionThread->quit();
+  mConnectionThread->wait();
 }
 
-bool QgsMssqlThreadSafeConnection::beginTransaction()
+void QgsMssqlSharableConnection::initConnection()
 {
+  QMutexLocker locker( &mMutex );
+  if ( !mConnectionThread->isRunning() )
+    mConnectionThread->start();
+}
+
+bool QgsMssqlSharableConnection::beginTransaction()
+{
+  QMutexLocker locker( &mMutex );
   bool success = false;
-  if ( mConnection )
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "beginTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
   return success;
 }
 
-bool QgsMssqlThreadSafeConnection::commitTransaction()
+bool QgsMssqlSharableConnection::commitTransaction()
 {
+  QMutexLocker locker( &mMutex );
   bool success = false;
-  if ( mConnection )
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "commitTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
   return success;
 }
 
-bool QgsMssqlThreadSafeConnection::rollbackTransaction()
+bool QgsMssqlSharableConnection::rollbackTransaction()
 {
+  QMutexLocker locker( &mMutex );
   bool success = false;
-  if ( mConnection )
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "rollbackTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ) );
   return success;
 }
 
-QgsMssqlThreadSafeConnection::Query QgsMssqlThreadSafeConnection::createQuery()
+bool QgsMssqlSharableConnection::isOpen() const
 {
-  return QgsMssqlThreadSafeConnection::Query( this );
+  QMutexLocker locker( &mMutex );
+  bool open = false;
+  if ( mConnection && mConnectionThread->isRunning() )
+    QMetaObject::invokeMethod( mConnection, "isOpen", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, open ) );
+  return open;
 }
 
 
-QString QgsMssqlThreadSafeConnection::createQueryPrivate()
+QString QgsMssqlSharableConnection::createQueryPrivate()
 {
-  if ( !mConnection )
+  QMutexLocker locker( &mMutex );
+  if ( !mConnection && mConnectionThread->isRunning() )
     return QString();
   QString uid;
-  QMetaObject::invokeMethod( mConnection, "createQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, uid ) );
+  QMetaObject::invokeMethod( mConnection, "createQueryPrivate", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, uid ) );
   return uid;
 }
 
-void QgsMssqlThreadSafeConnection::removeQuery( const QString &queryId )
+void QgsMssqlSharableConnection::removeQuery( const QString &queryId )
 {
-  if ( mConnection )
+  QMutexLocker locker( &mMutex );
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "removeQuery", Qt::BlockingQueuedConnection, Q_ARG( QString, queryId ) );
 }
 
 
-bool QgsMssqlThreadSafeConnection::executeQuery( const QString &query, const QString &uid )
+bool QgsMssqlSharableConnection::executeQuery( const QString &query, const QString &uid )
 {
+  QMutexLocker locker( &mMutex );
   bool success = false;
-  if ( mConnection )
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "executeQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ), Q_ARG( QString, query ), Q_ARG( QString, uid ) );
   return success;
 }
 
-bool QgsMssqlThreadSafeConnection::queryIsActive( const QString &queryId ) const
+bool QgsMssqlSharableConnection::isQueryActive( const QString &queryId ) const
 {
+  QMutexLocker locker( &mMutex );
   bool active = false;
-  if ( mConnection )
+  if ( mConnection && mConnectionThread->isRunning() )
     QMetaObject::invokeMethod( mConnection, "isQueryActive", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, active ), Q_ARG( QString, queryId ) );
-  return false;
+  return active;
 }
 
-QVariant QgsMssqlThreadSafeConnection::queryValue( const QString &queryId, int index ) const
+bool QgsMssqlSharableConnection::queryNext( const QString &uid )
 {
+  QMutexLocker locker( &mMutex );
+  bool success = false;
+  if ( mConnection && mConnectionThread->isRunning() )
+    QMetaObject::invokeMethod( mConnection, "queryNext", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, success ), Q_ARG( QString, uid ) );
+  return success;
+}
+
+QVariant QgsMssqlSharableConnection::queryValue( const QString &queryId, int index ) const
+{
+  QMutexLocker locker( &mMutex );
   QVariant value;
-  if ( mConnection )
-    QMetaObject::invokeMethod( mConnection, "queryValue", Qt::BlockingQueuedConnection, Q_ARG( QString, queryId ), Q_ARG( int, index ) );
+  if ( mConnection && mConnectionThread->isRunning() )
+    QMetaObject::invokeMethod( mConnection, "queryValue", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QVariant, value ), Q_ARG( QString, queryId ), Q_ARG( int, index ) );
   return value;
 }
 
-QgsMssqlThreadSafeConnection::Query::Query( QgsMssqlThreadSafeConnection *connection ):
+QgsMssqlQuery::QgsMssqlQuery( QgsMssqlDataBaseConnectionBase *connection ):
   mConnection( connection )
 {
   if ( !mConnection.isNull() )
     mUid = mConnection->createQueryPrivate();
 }
 
-QgsMssqlThreadSafeConnection::Query::~Query()
+QgsMssqlQuery::~QgsMssqlQuery()
 {
   if ( !mConnection.isNull() )
     mConnection->removeQuery( mUid );
 }
 
-bool QgsMssqlThreadSafeConnection::Query::exec( const QString query )
+bool QgsMssqlQuery::exec( const QString &query )
 {
   if ( mConnection.isNull() )
     return false;
   return mConnection->executeQuery( mUid, query );
-
 }
 
-bool QgsMssqlThreadSafeConnection::Query::isActive()
+bool QgsMssqlQuery::next()
 {
   if ( mConnection.isNull() )
     return false;
-  return mConnection->queryIsActive( mUid );
+  return mConnection->queryNext( mUid );
 }
 
-QVariant QgsMssqlThreadSafeConnection::Query::value( int index )
+bool QgsMssqlQuery::isActive()
+{
+  if ( mConnection.isNull() )
+    return false;
+  return mConnection->isQueryActive( mUid );
+}
+
+QVariant QgsMssqlQuery::value( int index )
 {
   if ( !mConnection.isNull() )
     return mConnection->queryValue( mUid, index );
   return QVariant();
 }
+

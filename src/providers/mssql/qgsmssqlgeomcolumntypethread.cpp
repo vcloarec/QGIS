@@ -71,7 +71,7 @@ void QgsMssqlGeomColumnTypeThread::run()
                                   layerProperty.sql.isEmpty() ? QString() : QStringLiteral( " AND %1" ).arg( layerProperty.sql ) );
 
       // issue the sql query
-      QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
+      QSqlDatabase db = QgsMssqlConnection::getDatabaseConnection( mService, mHost, mDatabase, mUsername, mPassword );
       if ( !QgsMssqlConnection::openDatabase( db ) )
       {
         QgsDebugMsg( db.lastError().text() );
