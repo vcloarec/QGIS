@@ -169,7 +169,7 @@ class CORE_EXPORT QgsMeshDataSourceInterface SIP_ABSTRACT
      */
     virtual void populateMesh( QgsMesh *mesh ) const = 0;
 
-    virtual bool updateMesh( QgsMesh *mesh, QgsRectangle &updatedExtent ) {}
+    virtual bool updateMesh( QgsMesh *mesh, QList<int> &updatedVerticesIndex ) {}
 };
 
 /**

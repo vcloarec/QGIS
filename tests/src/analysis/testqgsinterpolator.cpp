@@ -290,15 +290,15 @@ void TestQgsInterpolator::dualEdgeEditing()
 {
   QgsDualEdgeTriangulation tri;
   tri.startEditMode();
-  QgsRectangle changedExtent;
-  QgsRectangle minimalExtent;
-  minimalExtent.setMinimal();
 
-  QgsMesh mesh = tri.editedTriangulationToMesh( changedExtent );
+  QSet<int> changedVerticesIndex;
+
+
+  QgsMesh mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
   QCOMPARE( mesh.vertices.size(), 0 );
   QCOMPARE( mesh.faces.size(), 0 );
   QCOMPARE( tri.dimension(), -1 );
-  QCOMPARE( changedExtent, minimalExtent );
+  QCOMPARE( changedVerticesIndex, QSet<int>() );
 
   tri.addPoint( QgsPoint( 0, 0, 0 ) );
   QCOMPARE( tri.dimension(), 0 );
@@ -310,8 +310,8 @@ void TestQgsInterpolator::dualEdgeEditing()
   QCOMPARE( tri.dimension(), 2 );
 
   QCOMPARE( tri.pointsCount(), 4 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 2, 2 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3} ) );
   QCOMPARE( mesh.faces.count(), 2 );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( {0, 1, 2} ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( {0, 2, 3} ) ) );
@@ -319,102 +319,133 @@ void TestQgsInterpolator::dualEdgeEditing()
   int lastPoint = tri.addPoint( QgsPoint( 1, 1, 0 ) );
   QCOMPARE( tri.pointsCount(), 5 );
   QCOMPARE( tri.dimension(), 2 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( {4, 1, 2} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( {1, 4, 0} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {3, 4, 2} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {0, 4, 3} ) ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3, 4} ) );
+  QCOMPARE( mesh.faces.count(), 6 );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {1, 4, 0} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {4, 1, 2} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( {3, 4, 2} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( {0, 4, 3} ) ) );
 
   //! Try without changing anything
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, minimalExtent );
-  QCOMPARE( mesh.faces.count(), 4 );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( {4, 1, 2} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( {1, 4, 0} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {3, 4, 2} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {0, 4, 3} ) ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>() );
+  QCOMPARE( mesh.faces.count(), 6 );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {1, 4, 0} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {4, 1, 2} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( {3, 4, 2} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( {0, 4, 3} ) ) );
 
   tri.removePoint( lastPoint );
-  QCOMPARE( tri.pointsCount(), 4 ); //non last point that is removed still presents but nullptr when editing, here it is the last point
-  QVERIFY( !tri.point( lastPoint ) );
+  QCOMPARE( tri.pointsCount(), 5 ); //in editing mode, removing points are still present but not connected anymore
   QCOMPARE( tri.dimension(), 2 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 ); //all faces still present but removed
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {0, 2, 3} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {0, 1, 2} ) ) );
-
-  tri.removePoint( 0 );
-  QCOMPARE( tri.pointsCount(), 4 ); //non last point that is removed still presents but nullptr when editing, here it is not the last point
-  QVERIFY( !tri.point( 0 ) );
-  QCOMPARE( tri.dimension(), 2 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 ); //all faces still present but removed
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {1, 2, 3} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
-
-  tri.addPoint( QgsPoint( -0.5, -0.5, 0 ) );
-  QCOMPARE( tri.pointsCount(), 4 ); //new point replace a old one that is null
-  QVERIFY( tri.point( 0 ) );
-  QCOMPARE( tri.dimension(), 2 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( -0.5, -0.5, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 ); //all faces still present but removed
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {1, 2, 3} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {1, 3, 0} ) ) );
-
-  tri.removePoint( 0 );
-  QCOMPARE( tri.pointsCount(), 4 ); //non last point that is removed still presents but nullptr when editing
-  QCOMPARE( tri.dimension(), 2 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( mesh.faces.count(), 4 ); //all faces still present but removed
-  QCOMPARE( changedExtent, QgsRectangle( -0.5, -0.5, 2, 2 ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {1, 2, 3} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
-
-  tri.removePoint( 3 );
-  QCOMPARE( tri.pointsCount(), 3 ); //non last point that is removed still presents but nullptr when editing, here it is not the last point
-  QVERIFY( !tri.point( 3 ) );
-  QCOMPARE( tri.dimension(), 1 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 ); //all faces still present but removed
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3, 4} ) );
+  QCOMPARE( mesh.faces.count(), 8 );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( {0, 1, 2} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( {0, 2, 3} ) ) );
+
+  tri.removePoint( 0 );
+  QCOMPARE( tri.pointsCount(), 5 );
+  QCOMPARE( tri.dimension(), 2 );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex,  QSet<int>( {0, 1, 2, 3} ) );
+  QCOMPARE( mesh.faces.count(), 9 );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( {1, 2, 3} ) ) );
+
+  tri.addPoint( QgsPoint( -0.5, -0.5, 0 ) );
+  QCOMPARE( tri.pointsCount(), 6 );
+  QCOMPARE( tri.dimension(), 2 );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex,  QSet<int>( { 1, 3, 5} ) );
+  QCOMPARE( mesh.faces.count(), 10 );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( {1, 2, 3} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 9 ), QgsMeshFace( {1, 3, 5} ) ) );
+
+  tri.removePoint( 5 );
+  QCOMPARE( tri.pointsCount(), 6 ); //non last point that is removed still presents but nullptr when editing
+  QCOMPARE( tri.dimension(), 2 );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( mesh.faces.count(), 10 );
+  QCOMPARE( changedVerticesIndex, QSet<int>( { 1, 3, 5} ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( {1, 2, 3} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 9 ), QgsMeshFace( ) ) );
+
+  tri.removePoint( 3 );
+  QCOMPARE( tri.pointsCount(), 6 ); //non last point that is removed still presents but nullptr when editing, here it is not the last point
+  QCOMPARE( tri.dimension(), 1 );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex,  QSet<int>( { 1, 2, 3} ) );
+  QCOMPARE( mesh.faces.count(), 10 ); //all faces still present but removed
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 9 ), QgsMeshFace( ) ) );
 
   tri.removePoint( 2 );
-  QCOMPARE( tri.pointsCount(), 2 );
-  QVERIFY( !tri.point( 2 ) );
+  QCOMPARE( tri.pointsCount(), 6 );
   QCOMPARE( tri.dimension(),  0 );
 
   tri.removePoint( 1 );
-  QCOMPARE( tri.pointsCount(), 0 );
-  QVERIFY( !tri.point( 1 ) );
+  QCOMPARE( tri.pointsCount(), 6 );
   QCOMPARE( tri.dimension(),  -1 );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
 
-  QCOMPARE( changedExtent, QgsRectangle( 2, 0, 2, 2 ) );
-  QCOMPARE( mesh.faces.count(), 4 ); //faces are still presents but void
+  QCOMPARE( changedVerticesIndex, QSet<int>( { 1, 2} ) );
+  QCOMPARE( mesh.faces.count(), 10 ); //faces are still presents but void
   QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 9 ), QgsMeshFace( ) ) );
   tri.endEditMode();
-  mesh = tri.editedTriangulationToMesh( changedExtent );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
   QCOMPARE( mesh.faces.count(), 0 );
 
   tri.startEditMode();
@@ -426,54 +457,54 @@ void TestQgsInterpolator::dualEdgeEditing()
   QCOMPARE( tri.pointsCount(), 4 );
   QCOMPARE( tri.dimension(),  2 );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 1, 1, 2, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3} ) );
   QCOMPARE( mesh.faces.count(), 2 );
 
   tri.removePoint( 3 );
-  QCOMPARE( tri.pointsCount(), 3 );
+  QCOMPARE( tri.pointsCount(), 4 );
   QCOMPARE( tri.dimension(),  1 );
   tri.removePoint( 2 );
-  QCOMPARE( tri.pointsCount(), 2 );
+  QCOMPARE( tri.pointsCount(), 4 );
   QCOMPARE( tri.dimension(),  1 );
   tri.removePoint( 1 );
-  QCOMPARE( tri.pointsCount(), 1 );
+  QCOMPARE( tri.pointsCount(), 4 );
   QCOMPARE( tri.dimension(),  0 );
   tri.removePoint( 0 );
-  QCOMPARE( tri.pointsCount(), 0 );
+  QCOMPARE( tri.pointsCount(), 4 );
   QCOMPARE( tri.dimension(),  -1 );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 1, 1, 2, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3} ) );
 
-  // again with colineear points butr remove in other order
+  // again with colineear points but remove in other order
   tri.addPoint( QgsPoint( 1, 1 ) );
   tri.addPoint( QgsPoint( 1, 2 ) );
   tri.addPoint( QgsPoint( 1, 3 ) );
   tri.addPoint( QgsPoint( 2, 1 ) );
-  QCOMPARE( tri.pointsCount(), 4 );
+  QCOMPARE( tri.pointsCount(), 8 );
   QCOMPARE( tri.dimension(),  2 );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 1, 1, 2, 3 ) );
-  QCOMPARE( mesh.faces.count(), 2 );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {4, 5, 6, 7} ) );
+  QCOMPARE( mesh.faces.count(), 4 );
 
-  tri.removePoint( 2 );
-  QCOMPARE( tri.pointsCount(), 4 );
+  tri.removePoint( 6 );
+  QCOMPARE( tri.pointsCount(), 8 );
   QCOMPARE( tri.dimension(),  2 );
-  tri.removePoint( 1 );
-  QCOMPARE( tri.pointsCount(), 4 );
+  tri.removePoint( 5 );
+  QCOMPARE( tri.pointsCount(), 8 );
   QCOMPARE( tri.dimension(),  1 );
-  tri.removePoint( 3 );
-  QCOMPARE( tri.pointsCount(), 1 );
+  tri.removePoint( 7 );
+  QCOMPARE( tri.pointsCount(), 8 );
   QCOMPARE( tri.dimension(),  0 );
-  tri.removePoint( 0 );
-  QCOMPARE( tri.pointsCount(), 0 );
+  tri.removePoint( 4 );
+  QCOMPARE( tri.pointsCount(), 8 );
   QCOMPARE( tri.dimension(),  -1 );
   tri.endEditMode();
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 1, 1, 2, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {4, 5, 6, 7} ) );
   QCOMPARE( mesh.faces.count(), 0 );
 
   //more complex editing
@@ -487,18 +518,18 @@ void TestQgsInterpolator::dualEdgeEditing()
   tri.addPoint( QgsPoint( 6, 1 ) );
   tri.addPoint( QgsPoint( 3, 3 ) );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 6, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3, 4, 5, 6, 7} ) );
 
   tri.swapEdge( 1, 0.75 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 3, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 7} ) );
   tri.swapEdge( 3, 0.75 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 2, 0, 4, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {2, 3, 4, 7} ) );
   tri.swapEdge( 5, 0.9 );
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 3, 0.5, 6, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {4, 5, 6, 7} ) );
 
   QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( {1, 2, 7} ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( {3, 2, 1} ) ) );
@@ -511,16 +542,20 @@ void TestQgsInterpolator::dualEdgeEditing()
 
   tri.removePoint( 7 );
 
-  mesh = tri.editedTriangulationToMesh( changedExtent );
-  QCOMPARE( changedExtent, QgsRectangle( 0, 0, 6, 3 ) );
+  mesh = tri.editedTriangulationToMesh( changedVerticesIndex );
+  QCOMPARE( changedVerticesIndex, QSet<int>( {0, 1, 2, 3, 4, 5, 6, 7} ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 0 ), QgsMeshFace( {} ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 1 ), QgsMeshFace( {3, 2, 1} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {4, 5, 6 } ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {2, 3, 4 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 2 ), QgsMeshFace( {} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 3 ), QgsMeshFace( {} ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 4 ), QgsMeshFace( {5, 4, 3 } ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( {0, 2, 4 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 5 ), QgsMeshFace( {} ) ) );
   QVERIFY( QgsMesh::compareFaces( mesh.face( 6 ), QgsMeshFace( {} ) ) );
-  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( {0, 1, 2 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 7 ), QgsMeshFace( {} ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 8 ), QgsMeshFace( {0, 2, 4 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 9 ), QgsMeshFace( {0, 1, 2 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 10 ), QgsMeshFace( {2, 3, 4 } ) ) );
+  QVERIFY( QgsMesh::compareFaces( mesh.face( 11 ), QgsMeshFace( {4, 5, 6 } ) ) );
 
   tri.endEditMode();
 }

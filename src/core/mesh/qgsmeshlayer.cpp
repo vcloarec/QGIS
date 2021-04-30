@@ -302,11 +302,11 @@ void  QgsMeshLayer::updateTriangularMesh( const QgsCoordinateTransform &transfor
   else if ( mIsMeshNeedLocalUpdate )
   {
     mTriangularMeshes.resize( 1 );
-    mTriangularMeshes.at( 0 )->update( mNativeMesh.get(), mLocalChangedExtent );
+    mTriangularMeshes.at( 0 )->update( mNativeMesh.get(), mUpdatedVertices );
   }
 
   mIsMeshNeedLocalUpdate = false;
-  mLocalChangedExtent.setMinimal();
+  mUpdatedVertices.clear();
   createSimplifiedMeshes();
 }
 
@@ -713,11 +713,11 @@ void QgsMeshLayer::onMeshLocalyChanged()
     return;
   }
 
-  QgsRectangle updatedExtent;
-  if ( mDataProvider->updateMesh( mNativeMesh.get(), updatedExtent ) )
+  QList<int> updatedVertices;
+  if ( mDataProvider->updateMesh( mNativeMesh.get(), updatedVertices ) )
   {
     mIsMeshNeedLocalUpdate = true;
-    mLocalChangedExtent = updatedExtent;
+    mUpdatedVertices = updatedVertices;
   }
 }
 

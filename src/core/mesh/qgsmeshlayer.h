@@ -815,7 +815,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
     int mStaticVectorDatasetIndex = 0;
 
     bool mIsMeshNeedLocalUpdate = false;
-    QgsRectangle mLocalChangedExtent;
+    QList<int> mUpdatedVertices;
 
     int closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const;
 

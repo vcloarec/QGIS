@@ -172,6 +172,7 @@ void TestQgsTriangularMesh::test_centroids()
 
 void TestQgsTriangularMesh::test_update_mesh()
 {
+  //------------------------------------------
   // Construct a mesh of 100 x 100 square faces
 
   QgsMesh nativeMesh;
@@ -189,11 +190,10 @@ void TestQgsTriangularMesh::test_update_mesh()
 
   QgsPoint originInMap( xOrigin, yOrigin );
 
-
   for ( int i = 0; i < xVerticesCount; ++i )
     for ( int j = 0; j < yVerticesCount; ++j )
     {
-      nativeMesh.vertices.append( QgsPoint( xOrigin + i * 2.0, yOrigin + j * 2.0 ) );
+      nativeMesh.vertices.append( QgsMeshVertex( xOrigin + i * 2.0, yOrigin + j * 2.0 ) );
     }
 
   for ( int i = 0; i < xVerticesCount - 1; ++i )
@@ -215,24 +215,80 @@ void TestQgsTriangularMesh::test_update_mesh()
   QCOMPARE( triangularMesh.vertices().count(), xVerticesCount * yVerticesCount );
   QCOMPARE( triangularMesh.triangles().count(), 2 * ( xVerticesCount - 1 ) * ( yVerticesCount - 1 ) );
 
-  QgsRectangle changedExtent( xOrigin + 50, yOrigin + 50, xOrigin + 150, yOrigin + 150.5 );
-  for ( int i = 24; i < 75; ++i )
-    for ( int j = 24; j < 75; ++j )
+  //------------------------------------------
+  // Remove only faces in the native meshes
+
+  QSet<int> changedVertices;
+  for ( int i = 25; i < 75; ++i )
+    for ( int j = 25; j < 75; ++j )
     {
-      nativeMesh.faces[i + 100 * j] = QgsMeshFace();
+      for ( int v : nativeMesh.faces.at( i + ( xVerticesCount - 1 ) * j ) )
+        changedVertices.insert( v );
+      nativeMesh.faces[i + ( xVerticesCount - 1 ) * j] = QgsMeshFace();
+
     }
 
+  QgsRectangle changedExtent( xOrigin + 50, yOrigin + 50, xOrigin + 150, yOrigin + 150 );
   QgsRectangle changedExtentInMap = transform.transformBoundingBox( changedExtent );
-  changedExtentInMap.scale( 0.99 ); //
+  changedExtentInMap.scale( 0.99 ); // reduce a bit the extent to avoid capturing neighbor faces
 
   QList<int> facesInCenter = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
   QCOMPARE( facesInCenter.count(), 5000 );
 
-  triangularMesh.update( &nativeMesh, changedExtent );
+  triangularMesh.update( &nativeMesh, changedVertices.values() );
 
   facesInCenter = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
-  QCOMPARE( facesInCenter.count(), 5000 );
+  QCOMPARE( facesInCenter.count(), 0 );
 
+  changedExtent.setMinimal();
+
+  //------------------------------------------
+  // Add vertices and faces (100 square faces) in the native mesh where faces was removed
+  changedVertices.clear();
+  int vertCount = nativeMesh.vertexCount();
+  for ( int i = 0; i < 11; ++i )
+    for ( int j = 0; j < 11; ++j )
+    {
+      nativeMesh.vertices.append( QgsMeshVertex( xOrigin + 60 + i * 1.0, yOrigin + 60 + j * 1.0 ) );
+      changedExtent.include( nativeMesh.vertices.last() );
+      changedVertices.insert( nativeMesh.vertices.count() - 1 );
+    }
+
+  for ( int i = 0; i < 10; ++i )
+    for ( int j = 0; j < 10; ++j )
+    {
+      nativeMesh.faces.append( QgsMeshFace( {vertCount + i + 11 * j,
+                                             vertCount + i + 11 * j + 1,
+                                             vertCount + i + 11 * ( j + 1 ) + 1,
+                                             vertCount + i + 11 * ( j + 1 )} ) );
+    }
+
+  triangularMesh.update( &nativeMesh, changedVertices.values() );
+
+  facesInCenter = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
+  QCOMPARE( facesInCenter.count(), 200 );
+
+  //------------------------------------------
+  // Add vertices (100) and faces (100 triangle faces) on a side
+  changedVertices.clear();
+
+  changedExtent = QgsRectangle( xOrigin - 1.5, yOrigin - 1, xOrigin + 0.5, yOrigin + 200 );
+  changedExtentInMap = transform.transformBoundingBox( changedExtent );
+
+  QList<int> facesOnSide = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
+  QCOMPARE( facesOnSide.count(), 200 );
+
+  for ( int i = 0; i < 100; ++i )
+  {
+    nativeMesh.vertices.append( QgsMeshVertex( xOrigin - 1, yOrigin + 1 + i * 2 ) );
+    nativeMesh.faces.append( QgsMeshFace( {i, i + 1, nativeMesh.vertices.count() - 1} ) );
+    changedVertices.insert( nativeMesh.vertices.count() - 1 );
+  }
+
+  triangularMesh.update( &nativeMesh, changedVertices.values() );
+
+  facesOnSide = triangularMesh.faceIndexesForRectangle( changedExtentInMap );
+  QCOMPARE( facesOnSide.count(), 300 );
 }
 
 QGSTEST_MAIN( TestQgsTriangularMesh )

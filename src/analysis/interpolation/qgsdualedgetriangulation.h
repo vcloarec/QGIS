@@ -103,8 +103,16 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     //! Returns a QgsMesh from the triagulation. If not in edit mode, calling this method for the first time (after modification) leads to build a new mesh that can be a long task
     virtual QgsMesh triangulationToMesh( QgsFeedback *feedback = nullptr ) const override;
 
-    //! In edits mode, returns the modified mesh and the extent where changed have been made
-    virtual QgsMesh editedTriangulationToMesh( QgsRectangle &changedExtent ) const;
+    /**
+     *  In edits mode, returns the modified mesh and the extent where changed have been made
+     *
+     *  The returned mesh can have empty vertices and empty faces to keep the indexes consistent with the different mesh
+     *  returned between eiditing operation. New vertices can replace deleted vertices, but new faces are always appended,
+     *  that is the index of new faces are always greater or equal of the count of faces of former meshes.
+     *  By this way, caller of this method can knonw which extent has to be updated, and which faces are new.
+     *
+     */
+    virtual QgsMesh editedTriangulationToMesh( QSet<int> &changedPointsIndex ) const;
 
     /**
      *  Starts the edit mode.
@@ -198,9 +206,9 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     bool mIsEditing = false;
     mutable QgsMesh mCacheMesh;
     mutable QHash<int, int> mHalfEdgeToMeshFace;
-    mutable QStack<int> mAvailableFaceIndex;
+    mutable QList<int> mRemovedPoints;
     mutable QStack<int> mAvailableHalfEdges;
-    mutable QgsRectangle mChangedMeshExtent;
+    mutable QSet<int> mChangedPoint;
 
     //! Creates a new point and returns its index
     int createPoint( const QgsPoint &point );
@@ -226,7 +234,7 @@ class ANALYSIS_EXPORT QgsDualEdgeTriangulation: public QgsTriangulation
     //! Returns a edge inside the convex hull. This edge depends on the previous operation but will surely be in the hull
     int edgeInsideConvexHull();
 
-    mutable QStack<int> mAvailablePoints;
+
 
     friend class TestQgsInterpolator;
 };
