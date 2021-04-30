@@ -59,6 +59,11 @@ void TestQgsMssqlProvider::cleanupTestCase()
   QgsApplication::exitQgis();
 }
 
+void queryConnection( QString statement, QgsMssqlQuery query )
+{
+
+}
+
 void TestQgsMssqlProvider::threadSafeConnection()
 {
   QgsDataSourceUri uri;
@@ -68,9 +73,35 @@ void TestQgsMssqlProvider::threadSafeConnection()
   QVERIFY( dataBase.isValid() );
   QVERIFY( dataBase.open() );
 
-  QgsMssqlThreadSafeConnection threadSafeConnection( uri );
+  QgsMssqlSharableConnection threadSafeConnection( uri );
+  QVERIFY( !threadSafeConnection.isOpen() );
+  threadSafeConnection.initConnection();
+  QVERIFY( threadSafeConnection.isOpen() );
 
-  QgsMssqlThreadSafeConnection::Query query = threadSafeConnection.createQuery();
+  QgsMssqlQuery query = threadSafeConnection.createQuery();
+
+  QVERIFY( query.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
+
+  QStringList schemas;
+  while ( query.next() )
+    schemas << query.value( 0 ).toString();
+
+  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
+
+  QVERIFY( query.exec( QStringLiteral( "select name as schema_name from qgis_test.someData" ) ) );
+
+  QVariantList names;
+  while ( query.next() )
+    names << query.value( 0 );
+
 
 }
 

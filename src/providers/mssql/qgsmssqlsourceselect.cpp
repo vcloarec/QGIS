@@ -508,7 +508,7 @@ void QgsMssqlSourceSelect::btnConnect_clicked()
     mConnInfo += " service='" + service + '\'';
 
   QgsDebugMsg( QStringLiteral( "GetDatabase" ) );
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( service, host, database, username, password );
+  QSqlDatabase db = QgsMssqlConnection::getDatabaseConnection( service, host, database, username, password );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {

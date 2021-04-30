@@ -305,7 +305,7 @@ QSqlDatabase QgsMssqlNewConnection::getDatabase( const QString &name ) const
     database = item->text();
   }
 
-  return QgsMssqlConnection::getDatabase( txtService->text().trimmed(),
+  return QgsMssqlConnection::getDatabaseConnection( txtService->text().trimmed(),
                                           txtHost->text().trimmed(),
                                           database,
                                           txtUsername->text().trimmed(),
