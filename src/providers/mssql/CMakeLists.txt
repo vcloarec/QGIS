@@ -1,3 +1,5 @@
+add_subdirectory(odbcProxyDriver)
+
 set(MSSQL_SRCS
   qgsmssqlconnection.cpp
   qgsmssqlprovider.cpp
