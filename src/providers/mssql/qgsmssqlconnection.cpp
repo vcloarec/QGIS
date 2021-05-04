@@ -51,7 +51,7 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &
 
   if ( !QSqlDatabase::contains( threadSafeConnectionName ) )
   {
-    db = QSqlDatabase::addDatabase( QStringLiteral( "QODBC" ), threadSafeConnectionName );
+    db = QSqlDatabase::addDatabase( QStringLiteral( "QgsODBCProxy" ), threadSafeConnectionName );
     db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
     db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
 
@@ -138,9 +138,8 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &
   return db;
 }
 
-QgsMssqlDataBaseConnectionBase *QgsMssqlConnection::getDataBaseConnection_v2( const QgsDataSourceUri &uri )
+QSqlDatabase QgsMssqlConnection::getDataBaseConnection_v2( const QgsDataSourceUri &uri )
 {
-  QString connectionName = uri.connectionInfo( false );
 
 }
 
