@@ -15,6 +15,8 @@
  ***************************************************************************/
 
 
+#include <QSqlDatabase>
+
 #include "qgstest.h"
 
 
@@ -38,8 +40,7 @@ class TestQgsMssqlProvider : public QObject
     void init() {}// will be called before each testfunction is executed.
     void cleanup() {}// will be called after every testfunction.
 
-    void threadSafeConnection();
-
+    void connectionCreation();
   private:
 
 };
@@ -59,51 +60,21 @@ void TestQgsMssqlProvider::cleanupTestCase()
   QgsApplication::exitQgis();
 }
 
-void queryConnection( QString statement, QgsMssqlQuery query )
+void TestQgsMssqlProvider::connectionCreation()
 {
+  QSqlDatabase db = QSqlDatabase::addDatabase( QStringLiteral( "QgsODBCProxy" ) );
 
-}
-
-void TestQgsMssqlProvider::threadSafeConnection()
-{
   QgsDataSourceUri uri;
   uri.setConnection( "localhost", "", "qgis", "sa", "<YourStrong!Passw0rd>" );
-  QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, "simpleConnection" );
+  QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo() );
 
   QVERIFY( dataBase.isValid() );
   QVERIFY( dataBase.open() );
 
-  QgsMssqlSharableConnection threadSafeConnection( uri );
-  QVERIFY( !threadSafeConnection.isOpen() );
-  threadSafeConnection.initConnection();
-  QVERIFY( threadSafeConnection.isOpen() );
-
-  QgsMssqlQuery query = threadSafeConnection.createQuery();
-
-  QVERIFY( query.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
-
-  QStringList schemas;
-  while ( query.next() )
-    schemas << query.value( 0 ).toString();
-
-  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
-  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
-
-  QVERIFY( query.exec( QStringLiteral( "select name as schema_name from qgis_test.someData" ) ) );
-
-  QVariantList names;
-  while ( query.next() )
-    names << query.value( 0 );
-
 
 }
+
+
 
 QGSTEST_MAIN( TestQgsMssqlProvider )
 #include "testqgsmssqlprovider.moc"

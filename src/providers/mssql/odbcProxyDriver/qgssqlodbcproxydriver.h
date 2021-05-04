@@ -18,62 +18,80 @@
 
 #include <QSqlDriver>
 #include <QSqlResult>
+#include <QSqlDriverPlugin>
 #include <QThread>
+#include <QDebug>
+#include <QSqlDatabase>
+#include <QMutexLocker>
 
 #include "qgsdatasourceuri.h"
 
 
-class QgsSqlDatabaseConnection: public QObject
+class QgsSqlDatabaseTransaction: public QObject
 {
     Q_OBJECT
   public:
+    // ************** NOT IMPLEMENTED ***************
+    QgsSqlDatabaseTransaction( const QgsDataSourceUri &uri ) {}
+    bool hasFeature( QSqlDriver::DriverFeature f ) const {return false;}
 
-  public slots:
+    bool isOpen() {return true;}
+    bool commit()  {return true;}
+    bool rollBack() {return true;}
+
 };
-
 
 class QgsSqlOdbcProxyResult: public QSqlResult
 {
   public:
-
-    QVariant data( int i );
-    bool isNull( int i );
-    bool reset( const QString &sqlquery );
-    bool fetch( int i );
-    bool fetchFirst();
-    bool fetchLast();
-    int size();
-    int numRowsAffected();
+    // ************** NOT IMPLEMENTED ***************
+    QVariant data( int i ) {return QVariant();}
+    bool isNull( int i ) {return false;}
+    bool reset( const QString &sqlquery ) {return false;}
+    bool fetch( int i ) {return false;}
+    bool fetchFirst() {return false;}
+    bool fetchLast() {return false;}
+    int size() {return 0;}
+    int numRowsAffected() {return 0;}
 };
+
 
 class QgsSqlOdbcProxyDriver : public QSqlDriver
 {
   public:
-    QgsSqlOdbcProxyDriver( QObject *parent = nullptr ):
-      QSqlDriver( parent )
-      , mConnection( new QgsSqlDatabaseConnection )
-    {
-      mConnectionThread = new QThread( this );
-      mConnection->moveToThread( mConnectionThread );
-      connect( mConnectionThread, &QThread::finished, mConnection, &QgsSqlDatabaseConnection::deleteLater );
-    }
+// ************** PARTIALLY IMPLEMENTED ***************
+    QgsSqlOdbcProxyDriver( QObject *parent = nullptr );
+    ~QgsSqlOdbcProxyDriver();
 
-    bool hasFeature( DriverFeature f ) const;
-    void close();
-    QSqlResult *createResult() const;
-    bool open( const QString &db, const QString &user, const QString &password, const QString &host, int port, const QString &connOpts )
-    {
-      QgsDataSourceUri uri;
-      uri.setConnection( host, QString::number( port ), db, user, password );
+    bool hasFeature( DriverFeature f ) const override;
+    void close() {}
+    QSqlResult *createResult() const {return nullptr;}
+    bool open( const QString &db, const QString &user, const QString &password, const QString &host, int port, const QString &connOpts ) override;
 
-      QString connectionName = uri.connectionInfo();
-    }
+    bool beginTransaction() override;
+    bool commitTransaction() override;
+    bool rollbackTransaction() override;
 
   private:
-    QThread *mConnectionThread;
-    QgsSqlDatabaseConnection *mConnection;
+    QgsDataSourceUri mUri;
+    QString mConnectionOption;
+    QgsSqlDatabaseTransaction *mTransaction = nullptr;
+    QSqlDatabase mODBCDatabase;
 
-    static QMap<QString, QgsSqlOdbcProxyDriver *> sOpenedConnections;
+    static QMap<QString, QgsSqlDatabaseTransaction *> sOpenedTransaction;
+
+    static QString threadedConnectionName( const QString &name );
+    void initOdbcDatabase();
+};
+
+class QgsSqlOdbcProxyPlugin : public QSqlDriverPlugin
+{
+    Q_OBJECT
+    Q_PLUGIN_METADATA( IID "org.qt-project.Qt.QSqlDriverFactoryInterface" FILE "qgsodbcproxy.json" )
+
+  public:
+    QgsSqlOdbcProxyPlugin( QObject *parent = nullptr );
+    QSqlDriver *create( const QString &key ) override;
 };
 
 #endif // QGSSQLODBCPROXYDRIVER_H

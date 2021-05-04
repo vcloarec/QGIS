@@ -48,7 +48,7 @@ class QgsMssqlConnection
     static QSqlDatabase getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
     static QSqlDatabase getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName );
 
-    static QgsMssqlDataBaseConnectionBase *getDataBaseConnection_v2( const QgsDataSourceUri &uri );
+    static QSqlDatabase getDataBaseConnection_v2( const QgsDataSourceUri &uri );
 
     static bool openDatabase( QSqlDatabase &db );
 
