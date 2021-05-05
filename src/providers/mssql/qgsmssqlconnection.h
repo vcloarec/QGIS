@@ -46,7 +46,7 @@ class QgsMssqlConnection
      * ensure that it is ready for use.
      */
     static QSqlDatabase getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
-    static QSqlDatabase getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName );
+    static QSqlDatabase getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName, bool proxy = false );
 
     static QSqlDatabase getDataBaseConnection_v2( const QgsDataSourceUri &uri );
 

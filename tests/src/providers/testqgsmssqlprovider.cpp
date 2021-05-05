@@ -16,6 +16,7 @@
 
 
 #include <QSqlDatabase>
+#include <QSqlError>
 
 #include "qgstest.h"
 
@@ -62,14 +63,82 @@ void TestQgsMssqlProvider::cleanupTestCase()
 
 void TestQgsMssqlProvider::connectionCreation()
 {
-  QSqlDatabase db = QSqlDatabase::addDatabase( QStringLiteral( "QgsODBCProxy" ) );
-
   QgsDataSourceUri uri;
   uri.setConnection( "localhost", "", "qgis", "sa", "<YourStrong!Passw0rd>" );
-  QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo() );
+  QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), true );
+
+//  QSqlDatabase normalODBCdatabase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), false );
+//  QVERIFY( normalODBCdatabase.isValid() );
+//  QVERIFY( normalODBCdatabase.open() );
+//  QVERIFY( !normalODBCdatabase.isOpenError() );
+//  QVERIFY( normalODBCdatabase.isOpen() );
+//  QSqlQuery queryNormalODBC( normalODBCdatabase );
+
+//  QVERIFY( !queryNormalODBC.isValid() );
+//  QVERIFY( queryNormalODBC.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
+//  QStringList schemas;
+//  while ( queryNormalODBC.next() )
+//  {
+//    QVERIFY( queryNormalODBC.isValid() );
+//    schemas << queryNormalODBC.value( 0 ).toString();
+//  }
+
+//  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
+//  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
+
 
   QVERIFY( dataBase.isValid() );
   QVERIFY( dataBase.open() );
+  QVERIFY( !dataBase.isOpenError() );
+  QVERIFY( dataBase.isOpen() );
+
+  QSqlQuery query( dataBase );
+  QVERIFY( !query.isValid() );
+  QVERIFY( query.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
+  QStringList schemas;
+  while ( query.next() )
+  {
+    QVERIFY( query.isValid() );
+    schemas << query.value( 0 ).toString();
+  }
+
+  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
+
+  QVERIFY( dataBase.transaction() );
+  query = QSqlQuery( dataBase );
+  QVERIFY( !query.isValid() );
+  QVERIFY( query.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
+  schemas.clear();
+  while ( query.next() )
+  {
+    QVERIFY( query.isValid() );
+    schemas << query.value( 0 ).toString();
+  }
+
+  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
+  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
 
 
 }

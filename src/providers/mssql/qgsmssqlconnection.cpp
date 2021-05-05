@@ -36,7 +36,7 @@ QMutex QgsMssqlConnection::sMutex { QMutex::Recursive };
 QRecursiveMutex QgsMssqlConnection::sMutex;
 #endif
 
-QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName )
+QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName, bool proxy )
 {
   QSqlDatabase db;
 
@@ -46,12 +46,18 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &
   // that the connection cleanup on thread finalization happens in a predictable order
   QMutexLocker locker( &sMutex );
 
-  const QString threadSafeConnectionName = dbConnectionName( connectionName );
+  QString driver;
+  if ( proxy )
+    driver = QStringLiteral( "QgsODBCProxy" );
+  else
+    driver = QStringLiteral( "QODBC" );
+
+  const QString threadSafeConnectionName = dbConnectionName( connectionName + driver );
   //const QString threadSafeConnectionName = connectionName;
 
   if ( !QSqlDatabase::contains( threadSafeConnectionName ) )
   {
-    db = QSqlDatabase::addDatabase( QStringLiteral( "QgsODBCProxy" ), threadSafeConnectionName );
+    db = QSqlDatabase::addDatabase( driver, threadSafeConnectionName );
     db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
     db.setConnectOptions( QStringLiteral( "SQL_ATTR_CONNECTION_POOLING=SQL_CP_ONE_PER_HENV" ) );
 
