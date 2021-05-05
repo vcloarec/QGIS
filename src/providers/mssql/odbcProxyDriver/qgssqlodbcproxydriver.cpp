@@ -17,8 +17,9 @@
 #include "qgslogger.h"
 
 #include <QCoreApplication>
+#include <QSqlError>
 
-QMap<QString, QgsSqlDatabaseTransaction *> QgsSqlOdbcProxyDriver::sOpenedTransaction;
+QMap<QString, QgsSqlDatabaseTransaction *> QgsSqlDatabaseTransaction::sOpenedTransaction;
 
 QgsSqlOdbcProxyDriver::QgsSqlOdbcProxyDriver( QObject *parent ):
   QSqlDriver( parent )
@@ -31,10 +32,21 @@ bool QgsSqlOdbcProxyDriver::hasFeature( QSqlDriver::DriverFeature f ) const
 {
   if ( mTransaction )
     return mTransaction->hasFeature( f );
-  else if ( mODBCDatabase.driver() )
-    return mODBCDatabase.driver()->hasFeature( f );
+  else if ( mConnection && mConnection->driver() )
+    return mConnection->driver()->hasFeature( f );
   else
     return false;
+}
+
+QSqlResult *QgsSqlOdbcProxyDriver::createResult() const
+{
+  if ( mTransaction )
+    return mTransaction->createResult();
+  else if ( mConnection )
+  {
+    return mConnection->createResult( mConnection->driver() );
+  }
+  return nullptr;
 }
 
 bool QgsSqlOdbcProxyDriver::open( const QString &db, const QString &user, const QString &password, const QString &host, int port, const QString &connOpts )
@@ -42,15 +54,20 @@ bool QgsSqlOdbcProxyDriver::open( const QString &db, const QString &user, const 
   mUri.setConnection( host, QString::number( port ), db, user, password );
   mConnectionOption = connOpts;
 
-  QString connectionId = mUri.connectionInfo();
-  if ( sOpenedTransaction.contains( connectionId ) )
+  if ( QgsSqlDatabaseTransaction::transactionIsOpen( mUri ) )
   {
-    mTransaction = sOpenedTransaction.value( connectionId );
+    mTransaction.reset( QgsSqlDatabaseTransaction::getTransaction( this, mUri, mConnectionOption ) );
     return true;
   }
 
-  initOdbcDatabase();
-  return mODBCDatabase.open();
+  mConnection.reset( new QgsSqlODBCDatabaseConnection( mUri, mConnectionOption ) );
+  bool open =  mConnection->open();
+
+  setOpen( open );
+  setOpenError( !open );
+  setLastError( mConnection->lastError() );
+
+  return open;
 }
 
 bool QgsSqlOdbcProxyDriver::beginTransaction()
@@ -58,24 +75,16 @@ bool QgsSqlOdbcProxyDriver::beginTransaction()
   if ( mTransaction )
     return true;
 
-  QString connectionId = mUri.connectionInfo();
-  if ( sOpenedTransaction.contains( mUri.connectionInfo() ) )
+  mTransaction.reset( QgsSqlDatabaseTransaction::getTransaction( this, mUri, mConnectionOption ) );
+
+  if ( mTransaction->isOpen() )
   {
-    mTransaction = sOpenedTransaction.value( connectionId );
+    mConnection.reset();
     return true;
   }
 
-  mODBCDatabase.close();
-
-  std::unique_ptr<QgsSqlDatabaseTransaction> transaction = std::make_unique<QgsSqlDatabaseTransaction>( mUri );
-  if ( transaction->isOpen() )
-  {
-    mTransaction = transaction.release();
-    sOpenedTransaction.insert( connectionId, mTransaction );
-    return true;
-  }
-  else
-    return false;
+  mTransaction.reset();
+  return false;
 }
 
 bool QgsSqlOdbcProxyDriver::commitTransaction()
@@ -85,10 +94,9 @@ bool QgsSqlOdbcProxyDriver::commitTransaction()
 
   bool result = mTransaction->commit();
 
-  mTransaction->deleteLater();
-  mTransaction = nullptr;
+  mTransaction.reset();
 
-  initOdbcDatabase();
+  mConnection.reset( new QgsSqlODBCDatabaseConnection( mUri, mConnectionOption ) );
 
   return result;
 }
@@ -100,25 +108,25 @@ bool QgsSqlOdbcProxyDriver::rollbackTransaction()
 
   bool result = mTransaction->rollBack();
 
-  mTransaction->deleteLater();
-  mTransaction = nullptr;
+  mTransaction.reset();
 
-  initOdbcDatabase();
+  mConnection.reset( new QgsSqlODBCDatabaseConnection( mUri, mConnectionOption ) );
 
   return result;
 }
 
+QgsSqlOdbcProxyPlugin::QgsSqlOdbcProxyPlugin( QObject *parent ): QSqlDriverPlugin( parent )
+{}
 
-
-QString QgsSqlOdbcProxyDriver::threadedConnectionName( const QString &name )
+QSqlDriver *QgsSqlOdbcProxyPlugin::create( const QString &key )
 {
-  // Starting with Qt 5.11, sharing the same connection between threads is not allowed.
-  // We use a dedicated connection for each thread requiring access to the database,
-  // using the thread address as connection name.
-  return QStringLiteral( "%1:0x%2" ).arg( name ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
+  if ( key == QStringLiteral( "QgsODBCProxy" ) )
+    return new QgsSqlOdbcProxyDriver();
+
+  return nullptr;
 }
 
-void QgsSqlOdbcProxyDriver::initOdbcDatabase()
+bool QgsSqlODBCDatabaseConnection::open()
 {
   QString connectionId = mUri.connectionInfo();
   QString odbcConnectionName = threadedConnectionName( connectionId );
@@ -131,7 +139,92 @@ void QgsSqlOdbcProxyDriver::initOdbcDatabase()
     mODBCDatabase.setUserName( mUri.username() );
     mODBCDatabase.setPassword( mUri.password() );
     mODBCDatabase.setPort( mUri.port().toInt() );
-    mODBCDatabase.setConnectOptions( mConnectionOption );
+    mODBCDatabase.setConnectOptions( mConnectionOptions );
   }
 
+  return mODBCDatabase.open();
+}
+
+
+QgsSqlDatabaseTransaction::QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions ): mDriver( driver )
+{
+  mConnectionId = uri.connectionInfo();
+  d = new Data;
+  if ( sOpenedTransaction.contains( mConnectionId ) )
+  {
+    QgsSqlDatabaseTransaction *other = sOpenedTransaction.value( mConnectionId );
+    d = other->d;
+  }
+  else
+  {
+    d->ref = 1;
+    d->connection = new QgsSqlODBCDatabaseConnectionThreadSafe( uri, connectionOptions );
+    d->thread = new QThread;
+    d->connection->moveToThread( d->thread );
+    connect( d->thread, &QThread::started, d->connection, &QgsSqlODBCDatabaseConnection::open );
+    connect( d->thread, &QThread::finished, d->connection, &QgsSqlODBCDatabaseConnection::deleteLater );
+  }
+
+  d->ref.ref();
+}
+
+QgsSqlDatabaseTransaction::QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *driver, QgsSqlDatabaseTransaction *other ): mDriver( driver )
+{
+  d = other->d;
+  d->ref.ref();
+}
+
+QgsSqlDatabaseTransaction::~QgsSqlDatabaseTransaction()
+{
+  d->ref.deref();
+  if ( d->ref == 1 )
+  {
+    if ( d->thread )
+    {
+      d->thread->quit();
+      d->thread->wait();
+      d->thread->deleteLater();
+      d->thread = nullptr;
+    }
+
+    sOpenedTransaction.remove( mConnectionId );
+    delete d;
+  }
+}
+
+QSqlResult *QgsSqlDatabaseTransaction::createResult()
+{
+  if ( d && d->connection )
+    return  new QgsSqlOdbcThreadSafeResult( mDriver, d->connection );
+  else
+    return nullptr;
+}
+
+bool QgsSqlDatabaseTransaction::transactionIsOpen( const QgsDataSourceUri &uri )
+{
+  QString connectionId = uri.connectionInfo();
+  return sOpenedTransaction.contains( connectionId );
+}
+
+
+QgsSqlDatabaseTransaction *QgsSqlDatabaseTransaction::getTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions )
+{
+  QString connectionId = uri.connectionInfo();
+  if ( sOpenedTransaction.contains( connectionId ) )
+    return new QgsSqlDatabaseTransaction( driver, sOpenedTransaction.value( connectionId ) );
+  else
+    return new QgsSqlDatabaseTransaction( driver, uri, connectionOptions );
+}
+
+QgsSqlOdbcThreadSafeResult::QgsSqlOdbcThreadSafeResult( QSqlDriver *callerDriver, QgsSqlODBCDatabaseConnectionThreadSafe *connection ):
+  QSqlResult( callerDriver )
+  , mConnection( connection )
+{
+  if ( !mConnection.isNull() )
+  {
+
+    QString uuid;
+    QMetaObject::invokeMethod( mConnection, "createResultPrivate", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, uuid ) );
+    mUuid = uuid;
+  }
 }
