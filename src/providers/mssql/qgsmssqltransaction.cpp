@@ -29,7 +29,7 @@ QgsMssqlTransaction::QgsMssqlTransaction( const QString &connString ): QgsTransa
 {
   QgsDataSourceUri uri( connString );
 
-  mDataBase = QgsMssqlConnection::getDatabaseConnection( uri, connString + QStringLiteral( "-transaction" ) );
+  mDataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo() );
 }
 
 QgsMssqlTransaction::~QgsMssqlTransaction()

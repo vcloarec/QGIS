@@ -143,6 +143,8 @@ void TestQgsMssqlProvider::testMultipleQuery()
   QVERIFY( !dataBase.isOpenError() );
   QVERIFY( dataBase.isOpen() );
 
+  dataBase.transaction();
+
   QString statement_1 = QStringLiteral( "select s.name as schema_name from sys.schemas s" );
   QString statement_2 = QStringLiteral( "select * from qgis_test.someData" );
   QString statement_3 = QStringLiteral( "select * from qgis_test.someData" );
@@ -199,6 +201,8 @@ void TestQgsMssqlProvider::testMultipleQuery()
     QVERIFY( query_1.isActive() );
     QVERIFY( query_2.isActive() );
     QVERIFY( query_3.isActive() );
+
+    QVERIFY( query_2.value( "pk" ).toInt() != 0 );
 
     if ( query_2.value( "pk" ).toInt() != 5 )
       QCOMPARE( query_2.value( "pk" ).toInt() * 100, query_2.value( "cnt" ).toInt() );

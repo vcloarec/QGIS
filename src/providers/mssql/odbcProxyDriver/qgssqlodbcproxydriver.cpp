@@ -55,9 +55,8 @@ QSqlResult *QgsSqlOdbcProxyDriver::createResult() const
   if ( mTransaction )
     return mTransaction->createResult();
   else if ( mConnection )
-  {
     return mConnection->createResult( );
-  }
+
   return nullptr;
 }
 
@@ -107,6 +106,7 @@ bool QgsSqlOdbcProxyDriver::commitTransaction()
     return false;
 
   bool result = mTransaction->commit();
+  mTransaction->closeAll();
 
   mTransaction.reset();
 
@@ -119,7 +119,7 @@ bool QgsSqlOdbcProxyDriver::rollbackTransaction()
     return false;
 
   bool result = mTransaction->rollBack();
-
+  mTransaction->closeAll();
   mTransaction.reset();
 
   return result;
@@ -138,7 +138,9 @@ QSqlDriver *QgsSqlOdbcProxyPlugin::create( const QString &key )
 
 QgsSqlODBCDatabaseConnection::QgsSqlODBCDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionOptions ):
   mUri( uri ), mConnectionOptions( connectionOptions )
-{}
+{
+
+}
 
 QSqlError QgsSqlODBCDatabaseConnection::lastError() const
 {
@@ -298,12 +300,10 @@ bool QgsSqlDatabaseTransaction::isOpen()
   return ret &&  d->transactionIsStarted;
 }
 
-void QgsSqlDatabaseTransaction::close()
+
+void QgsSqlDatabaseTransaction::stopConnection()
 {
   if ( d )
-    d->ref.deref();
-
-  if ( d && d->ref == 1 )
   {
     if ( d->thread )
     {
@@ -315,9 +315,29 @@ void QgsSqlDatabaseTransaction::close()
 
     sOpenedTransaction.remove( mConnectionId );
     delete d;
+    d = nullptr;
   }
-  d = nullptr;
-  mConnectionId = QString();
+}
+
+
+void QgsSqlDatabaseTransaction::close()
+{
+  if ( d )
+    d->ref.deref();
+
+  if ( d && d->ref == 1 )
+    stopConnection();
+  else
+  {
+    d = nullptr;
+    mConnectionId = QString();
+  }
+
+}
+
+void QgsSqlDatabaseTransaction::closeAll()
+{
+  stopConnection();
 }
 
 
@@ -341,6 +361,7 @@ QSqlError QgsSqlDatabaseTransaction::lastError() const
 
 bool QgsSqlDatabaseTransaction::isTransactionExist( const QgsDataSourceUri &uri )
 {
+  qDebug() << "Available transation " << sOpenedTransaction.keys();
   QString connectionId = uri.connectionInfo();
   return sOpenedTransaction.contains( connectionId );
 }

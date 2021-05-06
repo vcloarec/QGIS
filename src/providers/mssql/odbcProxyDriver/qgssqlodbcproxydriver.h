@@ -183,8 +183,9 @@ class QgsSqlDatabaseTransaction : public QObject
 
     bool hasFeature( QSqlDriver::DriverFeature f ) const;
     bool isOpen();
-    //! Close the transaction is no more connection share the transaction
+
     void close();
+    void closeAll();
 
     bool commit();
     bool rollBack();
@@ -202,6 +203,7 @@ class QgsSqlDatabaseTransaction : public QObject
 
     void beginTransaction();
     bool connectionIsValid() const;
+    void stopConnection();
 
     QgsSqlOdbcProxyDriver *mDriver = nullptr;
     QString mConnectionId;
