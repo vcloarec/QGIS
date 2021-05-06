@@ -400,7 +400,5 @@ void TestQgsMssqlProvider::transaction()
 #endif
 }
 
-
-
 QGSTEST_MAIN( TestQgsMssqlProvider )
 #include "testqgsmssqlprovider.moc"
