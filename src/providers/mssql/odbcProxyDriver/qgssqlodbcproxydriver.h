@@ -18,6 +18,7 @@
 
 #include <QSqlDriver>
 #include <QSqlResult>
+#include <QSqlRecord>
 #include <QSqlDriverPlugin>
 #include <QThread>
 #include <QDebug>
@@ -28,21 +29,27 @@
 
 #include "qgsdatasourceuri.h"
 
-class QgsSqlODBCDatabaseThreadedConnection;
+class QgsSqlODBCDatabaseTransactionConnection;
 class QgsSqlDatabaseTransaction;
 class QgsSqlODBCDatabaseConnection;
 
-
+/**
+ *  Class that represent a proxy for ODBC database driver
+ *  This class handle connection throught an ODBC driver and
+ *  support transaction from multiple QsqlDatabase instances to the same database
+ *  When a transation begin from a QsqlDatabase instance,
+ *  all the next QsqlDatabase instance will share a unique connection embeded in its proper thread.
+ */
 class QgsSqlOdbcProxyDriver : public QSqlDriver
 {
   public:
 // ************** PARTIALLY IMPLEMENTED ***************
     QgsSqlOdbcProxyDriver( QObject *parent = nullptr );
     ~QgsSqlOdbcProxyDriver();
-    bool hasFeature( DriverFeature f ) const override;
-    void close() {}
-    QSqlResult *createResult() const override;
 
+    bool hasFeature( DriverFeature f ) const override;
+    void close() override;
+    QSqlResult *createResult() const override;
     bool open( const QString &db, const QString &user, const QString &password, const QString &host, int port, const QString &connOpts ) override;
     bool beginTransaction() override;
     bool commitTransaction() override;
@@ -56,38 +63,42 @@ class QgsSqlOdbcProxyDriver : public QSqlDriver
     void initOdbcDatabase();
 };
 
-class QgsSqlOdbcThreadSafeResult: public QSqlResult
+class QgsSqlOdbcTransactionResult: public QSqlResult
 {
   public:
-// ************** NOT IMPLEMENTED ***************
-
-// Here we need to find a way to path the information from the QsqlResult created by the connection in the other trhead to this instance
-// The problem is that all method of QsqlResult are protected, only QsqlQuery can have access (friend class)
+// ************** PARTIALLY IMPLEMENTED ***************
 
     /**
      * Contructor of result class that will work on the caller thread with the \a connection created in another thread
      *
      * Instance of this class will communicate with the \a connection to create and handle queries in this database
      * As this derived QsqlResult instance is create in the caller thread,
-     * it needs to have acces to the driver \a callerDriver created in the caller therad
+     * it needs to have acces to the driver \a callerDriver created in the caller thread
      *
      * All interaction between this instance and the connection is done by invoking slots method of the connection
      *
      */
-    QgsSqlOdbcThreadSafeResult( QSqlDriver *callerDriver, QgsSqlODBCDatabaseThreadedConnection *connection );
+    QgsSqlOdbcTransactionResult( QSqlDriver *callerDriver, QgsSqlODBCDatabaseTransactionConnection *connection, QThread *thread );
 
-    QVariant data( int i );
-    bool isNull( int i ) {return false;}
-    bool reset( const QString &sqlquery ) {return false;}
-    bool fetch( int i ) {return false;}
-    bool fetchFirst() {return false;}
-    bool fetchLast() {return false;}
-    int size() {return 0;}
-    int numRowsAffected() {return 0;}
+    QVariant data( int i ) override;
+    bool isNull( int i ) override;
+    bool reset( const QString &sqlquery ) override;
+    bool fetch( int i ) override;
+    bool fetchFirst() override;
+    bool fetchLast() override;
+    int size() override;
+    int numRowsAffected() override;
+    QSqlRecord record() const override;
 
   private:
     QString mUuid;
-    QPointer<QgsSqlODBCDatabaseThreadedConnection> mConnection;
+    QPointer<QgsSqlODBCDatabaseTransactionConnection> mConnection;
+    QPointer<QThread> mThread;
+
+    bool connectionIsValid() const;
+    bool isSelectPrivate() const;
+    bool isActivePrivate() const;
+    int atPrivate() const;
 };
 
 
@@ -97,60 +108,60 @@ class QgsSqlODBCDatabaseConnection: public QObject
 // ************** PARTIALLY IMPLEMENTED ***************
     Q_OBJECT
   public:
-    QgsSqlODBCDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionOptions ):
-      mUri( uri ), mConnectionOptions( connectionOptions )
-    {}
+    QgsSqlODBCDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionOptions );
 
-    QSqlError lastError() const
-    {
-      return mODBCDatabase.lastError();
-    }
-
-    QSqlResult *createResult()
-    {
-      if ( mODBCDatabase.driver() )
-        return mODBCDatabase.driver()->createResult();
-
-      return nullptr;
-    }
-
-    QSqlDriver *driver() const
-    {
-      return mODBCDatabase.driver();
-    }
+    QSqlError lastError() const;
+    QSqlResult *createResult();
+    QSqlDriver *driver() const;
 
   public slots:
-
     bool open();
+    bool isOpen() const;
+    bool hasFeature( QSqlDriver::DriverFeature f ) const;
+    void close();
+
+  protected:
+    QSqlDatabase mODBCDatabase;
 
   private:
     QgsDataSourceUri mUri;
     QString mConnectionOptions;
-    QSqlDatabase mODBCDatabase;
-
-    static QString threadedConnectionName( const QString &name )
-    {
-      return QStringLiteral( "%1:0x%2" ).arg( name ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
-    }
+    static QString threadedConnectionName( const QString &name );
 };
 
 //! Thread safe wrapper of a database with a ODBC driver
-class QgsSqlODBCDatabaseThreadedConnection : public QgsSqlODBCDatabaseConnection
+class QgsSqlODBCDatabaseTransactionConnection : public QgsSqlODBCDatabaseConnection
 {
     Q_OBJECT
+    // ************** PARTIALLY IMPLEMENTED ***************
   public:
-    QgsSqlODBCDatabaseThreadedConnection( const QgsDataSourceUri &uri, const QString &connectionOptions ):
+    QgsSqlODBCDatabaseTransactionConnection( const QgsDataSourceUri &uri, const QString &connectionOptions ):
       QgsSqlODBCDatabaseConnection( uri, connectionOptions )
     {}
 
-  private slots:
-    QMap<QString, QSharedPointer<QSqlResult>> mResults;
-
+  public slots:
     //! Creates a QsqlResult stored in the instance and associated with an UUId. Returns the UUId
-    QString createResultPrivate();
+    QString createTransactionResult();
+    QVariant data( const QString &uuid, int i ) const;
+    bool reset( const  QString &uuid, const QString &stringQuery );
+    bool fetch( const QString &uuid, int index );
+    bool fetchFirst( const QString &uuid );
+    bool fetchLast( const QString &uuid );
+    bool isSelect( const QString &uuid ) const;
+    bool isActive( const QString &uuid ) const;
+    bool isNull( const QString &uuid, int i ) const;
+    int at( const QString &uuid ) const;
+    int size( const QString &uuid ) const;
+    int numRowsAffected( const QString &uuid ) const;
+    QSqlRecord record( const QString &uuid ) const;
 
-    //! Returns the data for field \i in the current row for the result associated with \a uuid
-    QVariant data( QString uuid, int i );
+    bool beginTransaction();
+    bool commit();
+    bool rollBack();
+
+  private:
+    QMap<QString, QSharedPointer<QSqlQuery>> mQueries;
+
 };
 
 
@@ -163,39 +174,42 @@ class QgsSqlDatabaseTransaction : public QObject
 
     ~QgsSqlDatabaseTransaction();
 
-    bool hasFeature( QSqlDriver::DriverFeature f ) const
-    {
-      return false;
-    }
+    bool hasFeature( QSqlDriver::DriverFeature f ) const;
+    bool isOpen();
+    //! Close the transaction is no more connection share the transaction
+    void close();
 
-    bool isOpen() {return mIsOpen;}
-
-    bool beginTransaction();
-    bool commit()  {return true;}
-    bool rollBack() {return true;}
+    bool commit();
+    bool rollBack();
 
     QSqlResult *createResult();
 
-    static bool transactionIsOpen( const QgsDataSourceUri &uri );
+    QSqlError lastError() const { return QSqlError();}
+
+    static bool isTransactionExist( const QgsDataSourceUri &uri );
     static QgsSqlDatabaseTransaction *getTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions );
 
   private:
     QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions );
     QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *driver, QgsSqlDatabaseTransaction *other );
-    bool mIsOpen;
+
+    void beginTransaction();
+    bool connectionIsValid();
+
     QgsSqlOdbcProxyDriver *mDriver = nullptr;
     QString mConnectionId;
+
     struct Data
     {
-      QThread *thread;
-      QAtomicInt ref;
-      QgsSqlODBCDatabaseThreadedConnection *connection;
+      QPointer<QThread> thread = nullptr;
+      QAtomicInt ref = 0;
+      QPointer<QgsSqlODBCDatabaseTransactionConnection> connection = nullptr;
+      bool transactionIsStarted = false;
     };
 
     Data *d = nullptr;
 
     static QMap<QString, QgsSqlDatabaseTransaction *> sOpenedTransaction;
-
 };
 
 
