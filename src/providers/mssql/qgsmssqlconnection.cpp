@@ -47,10 +47,10 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &
   QMutexLocker locker( &sMutex );
 
   QString driver;
-  if ( proxy )
-    driver = QStringLiteral( "QgsODBCProxy" );
-  else
-    driver = QStringLiteral( "QODBC" );
+//  if ( proxy )
+  driver = QStringLiteral( "QgsODBCProxy" );
+//  else
+//    driver = QStringLiteral( "QODBC" );
 
   const QString threadSafeConnectionName = dbConnectionName( connectionName + driver );
   //const QString threadSafeConnectionName = connectionName;
@@ -78,14 +78,10 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QgsDataSourceUri &
         QSqlDatabase::removeDatabase( threadSafeConnectionName );
       }, Qt::DirectConnection );
     }
-
-    qDebug() << "*************************************";
-    qDebug() << " create connection id " << db.connectionName();
   }
   else
   {
     db = QSqlDatabase::database( threadSafeConnectionName );
-    qDebug() << " return connection id " << db.connectionName();
   }
   locker.unlock();
 
@@ -738,9 +734,5 @@ QString QgsMssqlConnection::dbConnectionName( const QString &name )
   // Starting with Qt 5.11, sharing the same connection between threads is not allowed.
   // We use a dedicated connection for each thread requiring access to the database,
   // using the thread address as connection name.
-  bool mainThread = QApplication::instance()->thread() == QThread::currentThread();
-  QString otherName = name;
-  if ( mainThread )
-    otherName = otherName + "******** Main Thread *********";
-  return QStringLiteral( "%1:0x%2" ).arg( otherName ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
+  return QStringLiteral( "%1:0x%2" ).arg( name ).arg( reinterpret_cast<quintptr>( QThread::currentThread() ), 2 * QT_POINTER_SIZE, 16, QLatin1Char( '0' ) );
 }

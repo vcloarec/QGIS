@@ -107,6 +107,7 @@ class QgsSqlOdbcTransactionResult: public QSqlResult
     ~QgsSqlOdbcTransactionResult();
 
     QVariant data( int i ) override;
+    void setForwardOnly( bool forward );
     bool isNull( int i ) override;
     bool reset( const QString &sqlquery ) override;
     bool fetch( int i ) override;
@@ -126,6 +127,7 @@ class QgsSqlOdbcTransactionResult: public QSqlResult
     bool isActivePrivate() const;
     int atPrivate() const;
     QSqlError lastErrorPrivate() const;
+
 };
 
 
@@ -146,6 +148,7 @@ class QgsSqlODBCDatabaseTransactionConnection : public QgsSqlODBCDatabaseConnect
 
     QVariant data( const QString &uuid, int i ) const;
     bool reset( const  QString &uuid, const QString &stringQuery );
+    void setForwardOnly( const  QString &uuid, bool forward );
     bool fetch( const QString &uuid, int index );
     bool fetchFirst( const QString &uuid );
     bool fetchLast( const QString &uuid );

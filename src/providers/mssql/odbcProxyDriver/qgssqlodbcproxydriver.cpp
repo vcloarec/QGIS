@@ -46,6 +46,8 @@ void QgsSqlOdbcProxyDriver::close()
 
   if ( mTransaction )
     mTransaction->close();
+
+  setOpen( false );
 }
 
 QSqlResult *QgsSqlOdbcProxyDriver::createResult() const
@@ -390,6 +392,14 @@ QVariant QgsSqlOdbcTransactionResult::data( int i )
   return ret;
 }
 
+void QgsSqlOdbcTransactionResult::setForwardOnly( bool forward )
+{
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "setForwardOnly", Qt::BlockingQueuedConnection,  Q_ARG( QString, mUuid ), Q_ARG( bool, forward ) );
+
+  setLastError( lastErrorPrivate() );
+}
+
 bool QgsSqlOdbcTransactionResult::isNull( int i )
 {
   bool ret = false;
@@ -547,6 +557,16 @@ bool QgsSqlODBCDatabaseTransactionConnection::reset( const QString &uuid, const 
     return query->exec( stringQuery );
 
   return false;
+}
+
+void QgsSqlODBCDatabaseTransactionConnection::setForwardOnly( const QString &uuid, bool forward )
+{
+  if ( !mQueries.contains( uuid ) )
+    return;
+  QSqlQuery *query = mQueries[uuid].get();
+
+  if ( query )
+    return query->setForwardOnly( forward );
 }
 
 bool QgsSqlODBCDatabaseTransactionConnection::fetch( const QString &uuid, int index )
