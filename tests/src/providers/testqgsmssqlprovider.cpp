@@ -68,6 +68,7 @@ void TestQgsMssqlProvider::cleanupTestCase()
 
 static void queryFromOtherThread( const QgsDataSourceUri &uri, const QString &queryString, QVariantList *result )
 {
+  result->clear();
   QSqlDatabase connection = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), true );
   QVERIFY( connection.isValid() );
   QVERIFY( connection.open() );
@@ -216,10 +217,18 @@ void TestQgsMssqlProvider::testMultipleQuery()
 void TestQgsMssqlProvider::transaction()
 {
   QgsDataSourceUri uri;
+  QSqlDatabase fakeDataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), true );
+  QVERIFY( fakeDataBase.isValid() );
+  QVERIFY( !fakeDataBase.open() );
+  QVERIFY( fakeDataBase.isOpenError() );
+  QVERIFY( !fakeDataBase.isOpen() );
+  QSqlError lastError = fakeDataBase.lastError();
+  QCOMPARE( lastError.type(), QSqlError::ConnectionError );
+
   uri.setConnection( "localhost", "", "qgis", "sa", "<YourStrong!Passw0rd>" );
   QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), true );
 
-#if 0 //used to test it is ok with non proxy driver
+#if 0 //for debuggong used to test it is ok with non proxy driver
   QSqlDatabase normalODBCdatabase = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), false );
   QVERIFY( normalODBCdatabase.isValid() );
   QVERIFY( normalODBCdatabase.open() );
@@ -290,6 +299,11 @@ void TestQgsMssqlProvider::transaction()
       QCOMPARE( query.value( "pk" ).toInt() * 100, query.value( "cnt" ).toInt() );
   }
 
+  // test lastError
+  query.exec( "xxxxxxx" );
+  lastError = query.lastError();
+  QCOMPARE( lastError.type(), QSqlError::StatementError );
+
   //----- Begin transaction
 
   // Read some general data
@@ -332,11 +346,16 @@ void TestQgsMssqlProvider::transaction()
       QCOMPARE( query.value( "pk" ).toInt() * 100, query.value( "cnt" ).toInt() );
   }
 
+  // test lastError
+  query.exec( "xxxxxxx" );
+  lastError = query.lastError();
+  QCOMPARE( lastError.type(), QSqlError::StatementError );
+
   //Edit the table
   QVERIFY( query.exec( "UPDATE qgis_test.someData SET cnt=123" ) );
 
   QVariantList result;
-  // Try read from another thread
+  // Read from another thread
   QFuture<void> future = QtConcurrent::run( queryFromOtherThread, uri, QStringLiteral( "select cnt from qgis_test.someData" ), &result );
   future.waitForFinished();
 
@@ -349,6 +368,36 @@ void TestQgsMssqlProvider::transaction()
   query.next();
   QCOMPARE( query.value( 0 ), 100 );
 
+#if 0 // test commit only for local test to preserve the test data for other tests
+
+  dataBase.transaction();
+  query.exec( "select cnt from qgis_test.someData" );
+  query.next();
+  QCOMPARE( query.value( 0 ), 100 );
+
+  QVERIFY( query.exec( "UPDATE qgis_test.someData SET cnt=123" ) );
+
+  future = QtConcurrent::run( queryFromOtherThread, uri, QStringLiteral( "select cnt from qgis_test.someData" ), &result );
+  future.waitForFinished();
+  QCOMPARE( result.count(), 1 );
+  QCOMPARE( result.at( 0 ), 123 );
+
+  query.exec( "select cnt from qgis_test.someData" );
+  query.next();
+  QCOMPARE( query.value( 0 ), 123 );
+
+
+  dataBase.commit();
+
+  future = QtConcurrent::run( queryFromOtherThread, uri, QStringLiteral( "select cnt from qgis_test.someData" ), &result );
+  future.waitForFinished();
+  QCOMPARE( result.count(), 1 );
+  QCOMPARE( result.at( 0 ), 123 );
+
+  query.exec( "select cnt from qgis_test.someData" );
+  query.next();
+  QCOMPARE( query.value( 0 ), 123 );
+#endif
 }
 
 

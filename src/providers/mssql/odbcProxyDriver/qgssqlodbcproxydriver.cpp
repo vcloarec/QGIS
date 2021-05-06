@@ -199,7 +199,7 @@ QString QgsSqlODBCDatabaseConnection::threadedConnectionName( const QString &nam
 QgsSqlDatabaseTransaction::QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions ): mDriver( driver )
 {
   mConnectionId = uri.connectionInfo();
-  d = new Data;
+
   if ( sOpenedTransaction.contains( mConnectionId ) )
   {
     QgsSqlDatabaseTransaction *other = sOpenedTransaction.value( mConnectionId );
@@ -208,6 +208,7 @@ QgsSqlDatabaseTransaction::QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *dri
   }
   else
   {
+    d = new Data;
     d->ref = 1;
     d->connection = new QgsSqlODBCDatabaseTransactionConnection( uri, connectionOptions );
     d->thread = new QThread;
@@ -227,10 +228,11 @@ QgsSqlDatabaseTransaction::QgsSqlDatabaseTransaction( QgsSqlOdbcProxyDriver *dri
 {
   d = other->d;
   d->ref.ref();
+  mConnectionId = other->mConnectionId;
 }
 
 
-bool QgsSqlDatabaseTransaction::connectionIsValid()
+bool QgsSqlDatabaseTransaction::connectionIsValid() const
 {
   return ( d && !d->connection.isNull() && !d->thread.isNull() && d->thread->isRunning() );
 }
@@ -298,6 +300,7 @@ void QgsSqlDatabaseTransaction::close()
 {
   if ( d )
     d->ref.deref();
+
   if ( d && d->ref == 1 )
   {
     if ( d->thread )
@@ -324,6 +327,16 @@ QSqlResult *QgsSqlDatabaseTransaction::createResult()
     return nullptr;
 }
 
+QSqlError QgsSqlDatabaseTransaction::lastError() const
+{
+  if ( !connectionIsValid() )
+    return QSqlError( QObject::tr( "ODBCTransactionProxy: Invalid Transaction Connection" ), QString(), QSqlError::ConnectionError );
+
+  QSqlError ret;
+  QMetaObject::invokeMethod( d->connection, "lastError", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QSqlError, ret ) );
+  return ret;
+}
+
 bool QgsSqlDatabaseTransaction::isTransactionExist( const QgsDataSourceUri &uri )
 {
   QString connectionId = uri.connectionInfo();
@@ -334,10 +347,10 @@ bool QgsSqlDatabaseTransaction::isTransactionExist( const QgsDataSourceUri &uri 
 QgsSqlDatabaseTransaction *QgsSqlDatabaseTransaction::getTransaction( QgsSqlOdbcProxyDriver *driver, const QgsDataSourceUri &uri, const QString &connectionOptions )
 {
   QString connectionId = uri.connectionInfo();
-  if ( sOpenedTransaction.contains( connectionId ) )
-    return new QgsSqlDatabaseTransaction( driver, sOpenedTransaction.value( connectionId ) );
-  else
-    return new QgsSqlDatabaseTransaction( driver, uri, connectionOptions );
+  if ( ! sOpenedTransaction.contains( connectionId ) )
+    sOpenedTransaction[connectionId] = new QgsSqlDatabaseTransaction( driver, uri, connectionOptions );
+
+  return new QgsSqlDatabaseTransaction( driver, sOpenedTransaction.value( connectionId ) );
 }
 
 bool QgsSqlOdbcTransactionResult::connectionIsValid() const
@@ -356,6 +369,15 @@ QgsSqlOdbcTransactionResult::QgsSqlOdbcTransactionResult( QSqlDriver *callerDriv
     QMetaObject::invokeMethod( mConnection, "createTransactionResult", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, uuid ) );
     mUuid = uuid;
   }
+  setLastError( lastErrorPrivate() );
+}
+
+QgsSqlOdbcTransactionResult::~QgsSqlOdbcTransactionResult()
+{
+  if ( connectionIsValid() )
+  {
+    QMetaObject::invokeMethod( mConnection, "removeTransactionResult", Qt::BlockingQueuedConnection, Q_ARG( QString, mUuid ) );
+  }
 }
 
 QVariant QgsSqlOdbcTransactionResult::data( int i )
@@ -364,6 +386,7 @@ QVariant QgsSqlOdbcTransactionResult::data( int i )
   if ( connectionIsValid() )
     QMetaObject::invokeMethod( mConnection, "data", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QVariant, ret ), Q_ARG( QString, mUuid ), Q_ARG( int, i ) );
 
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -373,6 +396,7 @@ bool QgsSqlOdbcTransactionResult::isNull( int i )
   if ( connectionIsValid() )
     QMetaObject::invokeMethod( mConnection, "isNull", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ), Q_ARG( int, i ) );
 
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -385,6 +409,7 @@ bool QgsSqlOdbcTransactionResult::reset( const QString &sqlquery )
   setSelect( isSelectPrivate() );
   setActive( isActivePrivate() );
   setAt( atPrivate() );
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -395,7 +420,7 @@ bool QgsSqlOdbcTransactionResult::fetch( int i )
     QMetaObject::invokeMethod( mConnection, "fetch", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ), Q_ARG( int, i ) );
 
   setAt( atPrivate() );
-
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -406,6 +431,7 @@ bool QgsSqlOdbcTransactionResult::fetchFirst()
     QMetaObject::invokeMethod( mConnection, "fetchFirst", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ) );
 
   setAt( atPrivate() );
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -416,6 +442,7 @@ bool QgsSqlOdbcTransactionResult::fetchLast()
     QMetaObject::invokeMethod( mConnection, "fetchLast", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ) );
 
   setAt( atPrivate() );
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -425,6 +452,7 @@ int QgsSqlOdbcTransactionResult::size()
   if ( connectionIsValid() )
     QMetaObject::invokeMethod( mConnection, "size", Qt::BlockingQueuedConnection, Q_RETURN_ARG( int, ret ), Q_ARG( QString, mUuid ) );
 
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -434,6 +462,7 @@ int QgsSqlOdbcTransactionResult::numRowsAffected()
   if ( connectionIsValid() )
     QMetaObject::invokeMethod( mConnection, "numRowsAffected", Qt::BlockingQueuedConnection, Q_RETURN_ARG( int, ret ), Q_ARG( QString, mUuid ) );
 
+  setLastError( lastErrorPrivate() );
   return ret;
 }
 
@@ -474,11 +503,27 @@ int QgsSqlOdbcTransactionResult::atPrivate() const
   return ret;
 }
 
+QSqlError QgsSqlOdbcTransactionResult::lastErrorPrivate() const
+{
+  QSqlError ret = QSqlError();
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "lastError", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QSqlError, ret ), Q_ARG( QString, mUuid ) );
+  else
+    ret = QSqlError( QObject::tr( "ODBCTransactionProxy: Invalid Transaction Connection" ), QString(), QSqlError::ConnectionError );
+
+  return ret;
+}
+
 QString QgsSqlODBCDatabaseTransactionConnection::createTransactionResult()
 {
   QString uid = QUuid::createUuid().toString();
   mQueries[uid] = QSharedPointer<QSqlQuery>( new QSqlQuery( createResult() ) );
   return uid;
+}
+
+void QgsSqlODBCDatabaseTransactionConnection::removeTransactionResult( const QString &uuid )
+{
+  mQueries.remove( uuid );
 }
 
 QVariant QgsSqlODBCDatabaseTransactionConnection::data( const QString &uuid, int i ) const
@@ -617,6 +662,23 @@ QSqlRecord QgsSqlODBCDatabaseTransactionConnection::record( const QString &uuid 
     return query->record();
   else
     return QSqlRecord();
+}
+
+QSqlError QgsSqlODBCDatabaseTransactionConnection::lastError( const QString &uuid ) const
+{
+  if ( !mQueries.contains( uuid ) )
+    return QSqlError();
+  QSqlQuery *query = mQueries[uuid].get();
+
+  if ( query )
+    return query->lastError();
+  else
+    return QSqlError();
+}
+
+QSqlError QgsSqlODBCDatabaseTransactionConnection::lastError() const
+{
+  return mODBCDatabase.lastError();
 }
 
 
