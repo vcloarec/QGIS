@@ -543,6 +543,51 @@ void QgsSqlOdbcTransactionResult::setAt( int index )
   QSqlResult::setAt( atTransactionResult() );
 }
 
+bool QgsSqlOdbcTransactionResult::exec()
+{
+  bool ret = false;
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "exec", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ) );
+
+  setSelect( isTransactionResultSelect() );
+  setActive( isTransactionResultActive() );
+  QSqlResult::setAt( atTransactionResult() );
+  setLastError( lastErrorTransactionResult() );
+  return ret;
+}
+
+bool QgsSqlOdbcTransactionResult::prepare( const QString &query )
+{
+  bool ret = false;
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "prepare", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( QString, mUuid ), Q_ARG( QString, query ) );
+
+  setLastError( lastErrorTransactionResult() );
+  return ret;
+}
+
+void QgsSqlOdbcTransactionResult::bindValue( const QString &placeHolder, const QVariant &val, QSql::ParamType paramType )
+{
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "bindValue",
+                               Qt::BlockingQueuedConnection,
+                               Q_ARG( QString, mUuid ),
+                               Q_ARG( QString, placeHolder ),
+                               Q_ARG( QVariant, val ),
+                               Q_ARG( QSql::ParamType, paramType ) );
+}
+
+void QgsSqlOdbcTransactionResult::bindValue( int pos, const QVariant &val, QSql::ParamType paramType )
+{
+  if ( connectionIsValid() )
+    QMetaObject::invokeMethod( mConnection, "bindValue",
+                               Qt::BlockingQueuedConnection,
+                               Q_ARG( QString, mUuid ),
+                               Q_ARG( int, pos ),
+                               Q_ARG( QVariant, val ),
+                               Q_ARG( QSql::ParamType, paramType ) );
+}
+
 bool QgsSqlOdbcTransactionResult::isTransactionResultSelect() const
 {
   bool ret = false;
@@ -700,6 +745,50 @@ void QgsSqlODBCDatabaseTransactionConnection::setAt( const QString &uuid, int in
     query->last();
     query->next();
   }
+}
+
+void QgsSqlODBCDatabaseTransactionConnection::bindValue( const QString &uuid, const QString &placeHolder, const QVariant &val, QSql::ParamType paramType )
+{
+  if ( !mQueries.contains( uuid ) )
+    return;
+  QSqlQuery *query = mQueries[uuid].get();
+  if ( !query )
+    return;
+
+  query->bindValue( placeHolder, val, paramType );
+}
+
+void QgsSqlODBCDatabaseTransactionConnection::bindValue( const QString &uuid, int pos, const QVariant &val, QSql::ParamType paramType )
+{
+  if ( !mQueries.contains( uuid ) )
+    return;
+  QSqlQuery *query = mQueries[uuid].get();
+  if ( !query )
+    return;
+
+  query->bindValue( pos, val, paramType );
+}
+
+bool QgsSqlODBCDatabaseTransactionConnection::exec( const QString &uuid )
+{
+  if ( !mQueries.contains( uuid ) )
+    return false;
+  QSqlQuery *query = mQueries[uuid].get();
+  if ( !query )
+    return false;
+
+  return query->exec();
+}
+
+bool QgsSqlODBCDatabaseTransactionConnection::prepare( const QString &uuid, const QString &stringQuery )
+{
+  if ( !mQueries.contains( uuid ) )
+    return false;
+  QSqlQuery *query = mQueries[uuid].get();
+  if ( !query )
+    return false;
+
+  return query->prepare( stringQuery );
 }
 
 bool QgsSqlODBCDatabaseTransactionConnection::isSelect( const QString &uuid ) const

@@ -122,6 +122,13 @@ class QgsSqlOdbcTransactionResult: public QSqlResult
     QSqlRecord record() const override;
     void setAt( int index ) override;
 
+    bool exec() override;
+    bool prepare( const QString &query ) override;
+
+    void bindValue( const QString &placeHolder, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
+    void bindValue( int pos, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
+
+
   private:
     QString mUuid;
     QPointer<QgsSqlODBCDatabaseTransactionConnection> mConnection;
@@ -159,6 +166,13 @@ class QgsSqlODBCDatabaseTransactionConnection : public QgsSqlODBCDatabaseConnect
     bool fetchLast( const QString &uuid );
     bool fetchNext( const QString &uuid );
     void setAt( const QString &uuid, int index );
+
+    void bindValue( const QString &uuid, const QString &placeHolder, const QVariant &val, QSql::ParamType paramType );
+    void bindValue( const QString &uuid, int pos, const QVariant &val, QSql::ParamType paramType );
+
+    bool exec( const QString &uuid );
+    bool prepare( const QString &uuid, const QString &stringQuery );
+
     bool isSelect( const QString &uuid ) const;
     bool isActive( const QString &uuid ) const;
     bool isNull( const QString &uuid, int i ) const;
