@@ -21,11 +21,13 @@
 #include <QStringList>
 #include <QMutex>
 
+#include "qgsmssqltransaction.h"
 #include "qgsdatasourceuri.h"
 #include "qgsvectordataprovider.h"
 
 class QString;
 class QSqlDatabase;
+class QgsMssqlDataBaseConnectionBase;
 
 /**
  * \class QgsMssqlProvider
@@ -43,7 +45,10 @@ class QgsMssqlConnection
      * The database may not be open -- openDatabase() should be called to
      * ensure that it is ready for use.
      */
-    static QSqlDatabase getDatabase( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
+    static QSqlDatabase getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
+    static QSqlDatabase getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName, bool proxy = false );
+
+    static QSqlDatabase getDataBaseConnection_v2( const QgsDataSourceUri &uri );
 
     static bool openDatabase( QSqlDatabase &db );
 
@@ -270,13 +275,13 @@ class QgsMssqlConnection
      */
     static QString dbConnectionName( const QString &name );
 
-    static int sConnectionId;
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
     static QMutex sMutex;
 #else
     static QRecursiveMutex sMutex;
 #endif
+
 };
 
 #endif // QGSMSSQLCONNECTION_H

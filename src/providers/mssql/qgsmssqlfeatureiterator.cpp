@@ -26,6 +26,7 @@
 #include <QObject>
 #include <QTextStream>
 #include <QSqlRecord>
+#include <QThread>
 
 
 QgsMssqlFeatureIterator::QgsMssqlFeatureIterator( QgsMssqlFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
@@ -142,7 +143,7 @@ void QgsMssqlFeatureIterator::BuildStatement( const QgsFeatureRequest &request )
 
   // note: 'SELECT ' is added later, to account for 'SELECT TOP...' type queries
   QString delim;
-  for ( auto idx : mSource->mPrimaryKeyAttrs )
+  for ( auto idx : std::as_const( mSource->mPrimaryKeyAttrs ) )
   {
     mStatement += QStringLiteral( "%1[%2]" ).arg( delim, mSource->mFields.at( idx ).name() );
     delim = ',';
@@ -420,11 +421,19 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
 {
   feature.setValid( false );
 
+
+
   if ( !mDatabase.isValid() )
   {
     // No existing connection, so set it up now. It's safe to do here as we're now in
     // the thread were iteration is actually occurring.
-    mDatabase = QgsMssqlConnection::getDatabase( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
+    QgsDataSourceUri uri;
+    mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mUri, mSource->mUri.connectionInfo() );
+
+    if ( !mDatabase.open() )
+      // No existing connection, so set it up now. It's safe to do here as we're now in
+      // the thread were iteration is actually occurring.
+      mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
 
     if ( !mDatabase.open() )
     {
@@ -440,6 +449,7 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
     if ( !rewind() )
       return false;
   }
+
 
   if ( !mQuery )
     return false;
@@ -649,6 +659,7 @@ QgsMssqlFeatureSource::QgsMssqlFeatureSource( const QgsMssqlProvider *p )
   , mIsGeography( p->mParser.mIsGeography )
   , mGeometryColName( p->mGeometryColName )
   , mGeometryColType( p->mGeometryColType )
+  , mUri( p->uri() )
   , mSchemaName( p->mSchemaName )
   , mTableName( p->mTableName )
   , mUserName( p->mUserName )

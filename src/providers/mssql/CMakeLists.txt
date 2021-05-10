@@ -1,3 +1,5 @@
+add_subdirectory(odbcProxyDriver)
+
 set(MSSQL_SRCS
   qgsmssqlconnection.cpp
   qgsmssqlprovider.cpp
@@ -8,6 +10,7 @@ set(MSSQL_SRCS
   qgsmssqlexpressioncompiler.cpp
   qgsmssqlfeatureiterator.cpp
   qgsmssqlgeomcolumntypethread.cpp
+  qgsmssqltransaction.cpp
 )
 
 if (WITH_GUI)
@@ -49,10 +52,34 @@ if (WITH_GUI)
   add_dependencies(mssqlprovider ui)
 endif()
 
+# static library
+add_library (mssqlprovider_a STATIC ${MSSQL_SRCS} ${MSSQL_HDRS})
+
+# require c++17
+target_compile_features(mssqlprovider_a PRIVATE cxx_std_17)
+
+target_link_libraries (mssqlprovider_a
+  qgis_core
+  ${POSTGRES_LIBRARY}
+  ${Qt5Xml_LIBRARIES}
+  ${Qt5Core_LIBRARIES}
+  ${Qt5Svg_LIBRARIES}
+  ${Qt5Network_LIBRARIES}
+  ${Qt5Sql_LIBRARIES}
+  ${Qt5Concurrent_LIBRARIES}
+)
+
+if (WITH_GUI)
+  target_link_libraries (mssqlprovider_a
+    qgis_gui
+  )
+  add_dependencies(mssqlprovider_a ui)
+endif()
+
 ########################################################
 # Install
 
-install (TARGETS mssqlprovider
+install (TARGETS mssqlprovider mssqlprovider_a
   RUNTIME DESTINATION ${QGIS_PLUGIN_DIR}
   LIBRARY DESTINATION ${QGIS_PLUGIN_DIR})
 
