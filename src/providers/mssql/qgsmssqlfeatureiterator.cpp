@@ -33,7 +33,6 @@
 QgsMssqlFeatureIterator::QgsMssqlFeatureIterator( QgsMssqlFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
   : QgsAbstractFeatureIteratorFromSource<QgsMssqlFeatureSource>( source, ownSource, request )
   , mDisableInvalidGeometryHandling( source->mDisableInvalidGeometryHandling )
-  , mTransaction( source->mTransaction )
 {
   mClosed = false;
 
@@ -161,7 +160,7 @@ void QgsMssqlFeatureIterator::BuildStatement( const QgsFeatureRequest &request )
 
   // note: 'SELECT ' is added later, to account for 'SELECT TOP...' type queries
   QString delim;
-  for ( auto idx : mSource->mPrimaryKeyAttrs )
+  for ( auto idx : std::as_const( mSource->mPrimaryKeyAttrs ) )
   {
     mStatement += QStringLiteral( "%1[%2]" ).arg( delim, mSource->mFields.at( idx ).name() );
     delim = ',';
@@ -441,21 +440,18 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
   feature.setValid( false );
 
 
-  if ( mTransaction && ( QCoreApplication::instance()->thread() == QThread::currentThread() ) )
-  {
-    if ( !mQuery )
-    {
-      mQuery.reset( new QSqlQuery( mTransaction->createQuery() ) );
-      // start selection
-      if ( !rewind() )
-        return false;
-    }
-  }
-  else if ( !mDatabase.isValid() )
+
+  if ( !mDatabase.isValid() )
   {
     // No existing connection, so set it up now. It's safe to do here as we're now in
     // the thread were iteration is actually occurring.
-    mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
+    QgsDataSourceUri uri;
+    mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mUri, mSource->mUri.connectionInfo() );
+
+    if ( !mDatabase.open() )
+      // No existing connection, so set it up now. It's safe to do here as we're now in
+      // the thread were iteration is actually occurring.
+      mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
 
     if ( !mDatabase.open() )
     {
@@ -686,6 +682,7 @@ QgsMssqlFeatureSource::QgsMssqlFeatureSource( const QgsMssqlProvider *p )
   , mIsGeography( p->mParser.mIsGeography )
   , mGeometryColName( p->mGeometryColName )
   , mGeometryColType( p->mGeometryColType )
+  , mUri( p->uri() )
   , mSchemaName( p->mSchemaName )
   , mTableName( p->mTableName )
   , mUserName( p->mUserName )
@@ -696,7 +693,6 @@ QgsMssqlFeatureSource::QgsMssqlFeatureSource( const QgsMssqlProvider *p )
   , mSqlWhereClause( p->mSqlWhereClause )
   , mDisableInvalidGeometryHandling( p->mDisableInvalidGeometryHandling )
   , mCrs( p->crs() )
-  , mTransaction( p->transaction() )
 {}
 
 QgsFeatureIterator QgsMssqlFeatureSource::getFeatures( const QgsFeatureRequest &request )
