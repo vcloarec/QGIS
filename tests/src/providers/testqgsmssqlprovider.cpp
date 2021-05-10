@@ -45,9 +45,10 @@ class TestQgsMssqlProvider : public QObject
     void init() {}// will be called before each testfunction is executed.
     void cleanup() {}// will be called after every testfunction.
 
+    void transaction();
     void testMultipleQuery();
     void testIsolationLevel();
-    void transaction();
+
   private:
 
 };
@@ -58,6 +59,7 @@ void TestQgsMssqlProvider::initTestCase()
   // init QGIS's paths - true means that all path will be inited from prefix
   QgsApplication::init();
   QgsApplication::initQgis();
+  QThread::sleep( 5 );
 }
 
 
@@ -461,6 +463,24 @@ void TestQgsMssqlProvider::transaction()
   query.next();
   QCOMPARE( query.value( 0 ), 123 );
 #endif
+
+  dataBase.transaction();
+
+  QString layerUri = uri.uri() + QStringLiteral( "sslmode=disable key=\'pk\' srid=4326 type=POINT table=\"qgis_test\".\"someData\" (geom) sql=" );
+  QgsDataProvider::ProviderOptions options;
+  QgsMssqlProvider provider( layerUri, options );
+  QVERIFY( provider.isValid() );
+
+  QgsFeature feat;
+  feat.setGeometry( std::make_unique<QgsPoint>( 5, 5 ) );
+  feat.setFields( provider.fields() );
+  feat.initAttributes( feat.fields().count() );
+  feat.setAttribute( "pk", 124 );
+
+  provider.addFeature( feat );
+
+  dataBase.rollback();
+
 }
 
 QGSTEST_MAIN( TestQgsMssqlProvider )
