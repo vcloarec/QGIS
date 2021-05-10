@@ -14,7 +14,6 @@
  *                                                                         *
  ***************************************************************************/
 
-
 #include <QSqlDatabase>
 #include <QSqlDriver>
 #include <QSqlError>
@@ -28,6 +27,8 @@
 #include <qgsapplication.h>
 #include <qgsmssqltransaction.h>
 #include <qgsmssqlconnection.h>
+#include <qgsmssqlfeatureiterator.h>
+#include <qgsmssqlprovider.h>
 #include <qtconcurrentrun.h>
 
 /**
@@ -83,6 +84,40 @@ static void queryFromOtherThread( const QgsDataSourceUri &uri, const QString &qu
 
   for ( int i = 0; i < record.count(); ++i )
     result->append( record.value( i ) );
+}
+
+static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QString &queryString, bool forwardOnly )
+{
+  QSqlDatabase connection = QgsMssqlConnection::getDatabaseConnection( uri, uri.connectionInfo(), true );
+  QVERIFY( connection.isValid() );
+  QVERIFY( connection.open() );
+  QVERIFY( !connection.isOpenError() );
+  QVERIFY( connection.isOpen() );
+
+  QSqlQuery query( connection );
+  query.setForwardOnly( forwardOnly );
+  query.exec( queryString );
+  bool r = query.next();
+  if ( !r )
+    qDebug() << query.lastError();
+  QVERIFY( r );
+
+  for ( int i = 0; i < 10; ++i )
+  {
+    if ( !query.isValid() )
+    {
+      if ( query.isForwardOnly() )
+      {
+        query.exec( queryString );
+        QVERIFY( query.next() );
+      }
+      else
+        QVERIFY( query.first() );
+    }
+    QVariant var = query.value( 0 );
+    QVERIFY( var.isValid() );
+    query.next();
+  }
 }
 
 void TestQgsMssqlProvider::testIsolationLevel()
@@ -169,15 +204,32 @@ void TestQgsMssqlProvider::testMultipleQuery()
   QVERIFY( query_2.isSelect() );
   QVERIFY( query_3.isSelect() );
 
+  QString layerUri = uri.uri() + QStringLiteral( "sslmode=disable key=\'pk\' srid=4326 type=POINT table=\"qgis_test\".\"someData\" (geom) sql=" );
+  QgsDataProvider::ProviderOptions options;
+  QgsMssqlProvider provider( layerUri, options );
+  QVERIFY( provider.isValid() );
+  QgsMssqlFeatureSource featureSource( &provider );
+  QgsMssqlFeatureIterator featIterator( &featureSource, false, QgsFeatureRequest() );
+  QVERIFY( featIterator.isValid() );
 
-  for ( int i = 0; i < 1000; i++ )
+  QgsFeature feat;
+  QVERIFY( featIterator.nextFeature( feat ) );
+
+  QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_1, false );
+  QFuture<void> future_2 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_2, true );
+  QFuture<void> future_3 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_3, false );
+  QFuture<void> future_4 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_1, true );
+  QFuture<void> future_5 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_2, false );
+  QFuture<void> future_6 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement_3, true );
+
+  for ( int i = 0; i < 10; i++ )
   {
     query_1.next();
-
     query_2.next();
+    query_3.next();
+    query_3.next();
 
-    query_3.next();
-    query_3.next();
+    featIterator.nextFeature( feat );
 
     if ( !query_1.isValid() )
     {
@@ -216,6 +268,13 @@ void TestQgsMssqlProvider::testMultipleQuery()
         QCOMPARE( query_2.value( c ), query_3.value( c ) );
     }
   }
+
+  future_1.waitForFinished();
+  future_2.waitForFinished();
+  future_3.waitForFinished();
+  future_4.waitForFinished();
+  future_5.waitForFinished();
+  future_6.waitForFinished();
 }
 
 void TestQgsMssqlProvider::transaction()
@@ -368,8 +427,9 @@ void TestQgsMssqlProvider::transaction()
 
   dataBase.rollback();
 
-  query.exec( "select cnt from qgis_test.someData" );
-  query.next();
+  query = QSqlQuery( dataBase );
+  query.exec( QStringLiteral( "select cnt from qgis_test.someData" ) );
+  QVERIFY( query.next() );
   QCOMPARE( query.value( 0 ), 100 );
 
 #if 0 // test commit only for local test to preserve the test data for other tests
@@ -389,7 +449,6 @@ void TestQgsMssqlProvider::transaction()
   query.exec( "select cnt from qgis_test.someData" );
   query.next();
   QCOMPARE( query.value( 0 ), 123 );
-
 
   dataBase.commit();
 

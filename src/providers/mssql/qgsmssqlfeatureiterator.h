@@ -49,6 +49,8 @@ class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
     QString mGeometryColName;
     QString mGeometryColType;
 
+    QgsDataSourceUri mUri;
+
     // current layer name
     QString mSchemaName;
     QString mTableName;
@@ -69,7 +71,6 @@ class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
 
     QgsCoordinateReferenceSystem mCrs;
 
-    QgsMssqlTransaction *mTransaction = nullptr;
 
     // Return True if this feature source has spatial attributes.
     bool isSpatial() { return !mGeometryColName.isEmpty() || !mGeometryColType.isEmpty(); }
@@ -124,8 +125,6 @@ class QgsMssqlFeatureIterator final: public QgsAbstractFeatureIteratorFromSource
     bool mExpressionCompiled = false;
     bool mOrderByCompiled = false;
     bool mDisableInvalidGeometryHandling = false;
-
-    QgsMssqlTransaction *mTransaction = nullptr;
 
     QgsCoordinateTransform mTransform;
     QgsRectangle mFilterRect;

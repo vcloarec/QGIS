@@ -61,6 +61,8 @@ class QgsSqlOdbcProxyDriver : public QSqlDriver
     std::unique_ptr<QgsSqlDatabaseTransaction> mTransaction;
     std::unique_ptr<QgsSqlODBCDatabaseConnection> mConnection;
     void initOdbcDatabase();
+
+    bool reopen();
 };
 
 //! Simple wrapper of a database with a ODBC driver
@@ -69,7 +71,7 @@ class QgsSqlODBCDatabaseConnection: public QObject
 // ************** PARTIALLY IMPLEMENTED ***************
     Q_OBJECT
   public:
-    QgsSqlODBCDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionOptions );
+    QgsSqlODBCDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionOptions, bool marsConnection = false );
 
     QSqlError lastError() const;
     QSqlResult *createResult();
@@ -88,6 +90,7 @@ class QgsSqlODBCDatabaseConnection: public QObject
     QgsDataSourceUri mUri;
     QString mConnectionOptions;
     static QString threadedConnectionName( const QString &name );
+    bool mIsMarsConnection = false;
 };
 
 class QgsSqlOdbcTransactionResult: public QSqlResult
@@ -107,15 +110,17 @@ class QgsSqlOdbcTransactionResult: public QSqlResult
     ~QgsSqlOdbcTransactionResult();
 
     QVariant data( int i ) override;
-    void setForwardOnly( bool forward );
+    void setForwardOnly( bool forward ) override;
     bool isNull( int i ) override;
     bool reset( const QString &sqlquery ) override;
+    bool fetchNext() override;
     bool fetch( int i ) override;
     bool fetchFirst() override;
     bool fetchLast() override;
     int size() override;
     int numRowsAffected() override;
     QSqlRecord record() const override;
+    void setAt( int index ) override;
 
   private:
     QString mUuid;
@@ -123,10 +128,10 @@ class QgsSqlOdbcTransactionResult: public QSqlResult
     QPointer<QThread> mThread;
 
     bool connectionIsValid() const;
-    bool isSelectPrivate() const;
-    bool isActivePrivate() const;
-    int atPrivate() const;
-    QSqlError lastErrorPrivate() const;
+    bool isTransactionResultSelect() const;
+    bool isTransactionResultActive() const;
+    int atTransactionResult() const;
+    QSqlError lastErrorTransactionResult() const;
 
 };
 
@@ -138,7 +143,7 @@ class QgsSqlODBCDatabaseTransactionConnection : public QgsSqlODBCDatabaseConnect
   public:
 
     QgsSqlODBCDatabaseTransactionConnection( const QgsDataSourceUri &uri, const QString &connectionOptions ):
-      QgsSqlODBCDatabaseConnection( uri, connectionOptions )
+      QgsSqlODBCDatabaseConnection( uri, connectionOptions, true )
     {}
 
   public slots:
@@ -152,6 +157,8 @@ class QgsSqlODBCDatabaseTransactionConnection : public QgsSqlODBCDatabaseConnect
     bool fetch( const QString &uuid, int index );
     bool fetchFirst( const QString &uuid );
     bool fetchLast( const QString &uuid );
+    bool fetchNext( const QString &uuid );
+    void setAt( const QString &uuid, int index );
     bool isSelect( const QString &uuid ) const;
     bool isActive( const QString &uuid ) const;
     bool isNull( const QString &uuid, int i ) const;
@@ -177,7 +184,6 @@ class QgsSqlDatabaseTransaction : public QObject
 {
     Q_OBJECT
   public:
-// ************** PARTIALLY IMPLEMENTED ***************
 
     ~QgsSqlDatabaseTransaction();
 
