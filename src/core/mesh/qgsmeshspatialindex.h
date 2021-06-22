@@ -100,9 +100,15 @@ class CORE_EXPORT QgsMeshSpatialIndex
      */
     QgsMesh::ElementType elementType() const;
 
+    void addFace( int faceIndex, const QgsMesh &mesh );
+
+    void removeFace( int faceIndex, const QgsMesh &mesh );
+
   private:
     QgsMesh::ElementType mElementType = QgsMesh::ElementType::Face;
     QSharedDataPointer<QgsMeshSpatialIndexData> d;
+
+    bool addElement( int index, const QgsRectangle &bounds );
 };
 
 #endif //QGSMESHSPATIALINDEX_H

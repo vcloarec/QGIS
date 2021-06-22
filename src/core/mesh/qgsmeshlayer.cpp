@@ -284,8 +284,17 @@ void  QgsMeshLayer::updateTriangularMesh( const QgsCoordinateTransform &transfor
   }
 
   if ( mTriangularMeshes[0].get()->update( mNativeMesh.get(), transform ) )
+  {
     mTriangularMeshes.resize( 1 ); //if the base triangular mesh is effectivly updated, remove simplified meshes
+  }
+  else if ( mIsMeshNeedLocalUpdate )
+  {
+    mTriangularMeshes.resize( 1 );
+    mTriangularMeshes.at( 0 )->update( mNativeMesh.get(), mUpdatedVertices );
+  }
 
+  mIsMeshNeedLocalUpdate = false;
+  mUpdatedVertices.clear();
   createSimplifiedMeshes();
 }
 
@@ -682,6 +691,25 @@ void QgsMeshLayer::onDatasetGroupsAdded( const QList<int> &datasetGroupIndexes )
 
   temporalProperties()->setIsActive( mDatasetGroupStore->hasTemporalCapabilities() );
   emit rendererChanged();
+}
+
+void QgsMeshLayer::onMeshLocalyChanged()
+{
+  if ( !mDataProvider )
+    return;
+
+  if ( !mNativeMesh )
+  {
+    fillNativeMesh();
+    return;
+  }
+
+  QList<int> updatedVertices;
+  if ( mDataProvider->updateMesh( mNativeMesh.get(), updatedVertices ) )
+  {
+    mIsMeshNeedLocalUpdate = true;
+    mUpdatedVertices = updatedVertices;
+  }
 }
 
 QgsMeshDatasetGroupTreeItem *QgsMeshLayer::datasetGroupTreeRootItem() const

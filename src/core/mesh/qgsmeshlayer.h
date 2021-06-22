@@ -783,6 +783,7 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
 
   private slots:
     void onDatasetGroupsAdded( const QList<int> &datasetGroupIndexes );
+    void onMeshLocalyChanged();
 
   private:
     //! Pointer to data provider derived from the abastract base class QgsMeshDataProvider
@@ -818,6 +819,9 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer
 
     int mStaticScalarDatasetIndex = 0;
     int mStaticVectorDatasetIndex = 0;
+
+    bool mIsMeshNeedLocalUpdate = false;
+    QList<int> mUpdatedVertices;
 
     int closestEdge( const QgsPointXY &point, double searchRadius, QgsPointXY &projectedPoint ) const;
 

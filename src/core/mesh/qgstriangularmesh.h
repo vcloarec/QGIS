@@ -24,6 +24,7 @@
 #include <QVector>
 #include <QVector3D>
 #include <QSet>
+#include <QStack>
 #include <QList>
 #include <memory>
 #include "qgis_core.h"
@@ -62,6 +63,8 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
      * \returns TRUE if the mesh is effectivly updated, and FALSE if not
     */
     bool update( QgsMesh *nativeMesh, const QgsCoordinateTransform &transform = QgsCoordinateTransform() );
+
+    bool update( QgsMesh *nativeMesh, const QList<int> changedPointIndex );
 
     /**
      * Returns vertices in map coordinate system
@@ -219,9 +222,13 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
      * with the given algorithm (e.g. only 2 vertices, polygon with holes)
      */
     void triangulate( const QgsMeshFace &face, int nativeIndex );
+    void triangulateWithAvailableIndex( const QgsMeshFace &face, int nativeIndex );
 
     // check clock wise and calculate average size of triangles
     void finalizeTriangles();
+
+    void insertVertex( int i, const QgsMeshVertex &nativeVertex );
+    void calculateCentroid( int i, const QgsMesh &nativeMesh );
 
     // vertices: map CRS; 0-N ... native vertices, N+1 - len ... extra vertices
     // faces are derived triangles
@@ -246,6 +253,8 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
     int mLod = 0;
 
     const QgsTriangularMesh *mBaseTriangularMesh = nullptr;
+
+    QStack<int> mAvailableFaceindex;
 
     friend class TestQgsTriangularMesh;
 };

@@ -104,6 +104,12 @@ void QgsMeshTriangulation::setCrs( const QgsCoordinateReferenceSystem &crs )
   mCrs = crs;
 }
 
+QgsRectangle QgsMeshTriangulation::addVertex( const QgsPoint &point )
+{
+  QgsRectangle *changedExtent;
+  mTriangulation->addPoint( point );
+}
+
 void QgsMeshTriangulation::addVerticesFromFeature( const QgsFeature &feature, int valueAttribute, const QgsCoordinateTransform &transform, QgsFeedback *feedback )
 {
   QgsGeometry geom = feature.geometry();

@@ -382,3 +382,37 @@ QgsMesh::ElementType QgsMeshSpatialIndex::elementType() const
 {
   return mElementType;
 }
+
+void QgsMeshSpatialIndex::addFace( int faceIndex, const QgsMesh &mesh )
+{
+  SpatialIndex::Region r( faceToRegion( mesh, faceIndex ) );
+
+  QMutexLocker locker( &d->mMutex );
+
+  // TODO: handle possible exceptions correctly
+  try
+  {
+    d->mRTree->insertData( 0, nullptr, r, faceIndex );
+  }
+  catch ( Tools::Exception &e )
+  {
+    Q_UNUSED( e )
+    QgsDebugMsg( QStringLiteral( "Tools::Exception caught: " ).arg( e.what().c_str() ) );
+  }
+  catch ( const std::exception &e )
+  {
+    Q_UNUSED( e )
+    QgsDebugMsg( QStringLiteral( "std::exception caught: " ).arg( e.what() ) );
+  }
+  catch ( ... )
+  {
+    QgsDebugMsg( QStringLiteral( "unknown spatial index exception caught" ) );
+  }
+}
+
+void QgsMeshSpatialIndex::removeFace( int faceIndex, const QgsMesh &mesh )
+{
+  QMutexLocker locker( &d->mMutex );
+
+  d->mRTree->deleteData( faceToRegion( mesh, faceIndex ), faceIndex );
+}
