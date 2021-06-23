@@ -1580,6 +1580,9 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! Create a new empty GeoPackage layer
     void newGeoPackageLayer();
 
+    //! Create a new empty mesh layer
+    void newMeshLayer();
+
     //! Create a new print layout
     void newPrintLayout();
 
@@ -2364,6 +2367,15 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
      */
     void pasteFeatures( QgsVectorLayer *pasteVectorLayer, int invalidGeometriesCount, int nTotalFeatures, QgsFeatureList &features );
 
+    /**
+     * Toggles editing for vector layer
+     */
+    bool toggleEditingVectorLayer( QgsMapLayer *vectorLayer, bool allowCancel );
+
+    /**
+     * Toggles editing for mesh layer
+     */
+    bool toggleEditingMeshLayer( QgsMapLayer *layer );
 
     QgisAppStyleSheet *mStyleSheetBuilder = nullptr;
 

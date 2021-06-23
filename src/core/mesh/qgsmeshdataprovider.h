@@ -168,6 +168,7 @@ class CORE_EXPORT QgsMeshDataSourceInterface SIP_ABSTRACT
      * \since QGIS 3.6
      */
     virtual void populateMesh( QgsMesh *mesh ) const = 0;
+
 };
 
 /**
