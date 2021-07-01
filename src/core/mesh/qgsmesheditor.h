@@ -73,6 +73,9 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     //! Initialize the mesh editor and return errors if the internal native mesh have topologic errors
     QgsMeshEditingError initialize();
 
+    //! Return whether a \a face can be added to the mesh
+    bool canFaceBeAdded( const QgsMeshFace &face );
+
     //! Adds faces \a faces to the mesh, returns topological errors if this operation fails (operation is not realized)
     QgsMeshEditingError addFaces( const QVector<QgsMeshFace> &faces ); SIP_SKIP
 
@@ -119,6 +122,25 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     //! Returns whether the mesh has been modified
     bool isModified() const;
 
+    //----------- access element methods
+
+    //! Returns all the free vertices indexes
+    QList<int> freeVerticesIndexes();
+
+    //! Returns whether the vertex with index \a vertexIndex is on a boundary
+    bool isVertexOnBoundary( int vertexIndex ) const;
+
+    //! Returns whether the vertex with index \a vertexIndex is a free vertex
+    bool isVertexFree( int vertexIndex ) const;
+
+    /**
+     *  Returns a vertex circulator linked to this mesh arround the vertex with index \a vertexIndex
+     *  If stopEditing() is called, circulator created before and new circulator are valid and must not be used.
+     *  It is recommanded to destruct all circulator created before calling any edit methods or stopEditing() to save memory usage.
+     *  Calling initialize() allow to create new circulator after stopEditing() is called.
+     */
+    QgsMeshVertexCirculator vertexCirculator( int vertexIndex ) const; SIP_SKIP
+
   signals:
     //! Emitted when the mesh is edited
     void meshEdited();
@@ -127,6 +149,7 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     QgsMesh *mMesh = nullptr;
     QgsTopologicalMesh mTopologicalMesh;
     QgsTriangularMesh *mTriangularMesh = nullptr;
+    int mMaximumVerticesPerFace = 0;
 
     QVector<QgsMeshFace> prepareFaces( const QVector<QgsMeshFace> &faces, QgsMeshEditingError &error );
 
@@ -142,11 +165,15 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     void reverseEdit( Edit &edit );
 
     void applyAddVertex( Edit &edit, const QgsMeshVertex &vertex );
-    void applyRemoveVertex( Edit &edit, int vertexIndex, bool fillHole );
+    void applyRemoveVertexFillHole( Edit &edit, int vertexIndex );
+    void applyRemoveVerticesWithoutFillHole( QgsMeshEditor::Edit &edit, const QList<int> &verticesIndexes );
     void applyAddFaces( Edit &edit, const QgsTopologicalMesh::TopologicalFaces &faces );
     void applyRemoveFaces( Edit &edit, const QList<int> faceToRemoveIndex );
 
     void applyEditOnTriangularMesh( Edit &edit, const QgsTopologicalMesh::Changes &topologicChanges );
+
+    //! method used for test and debug
+    bool checkConsistency() const;
 
     friend class TestQgsMeshEditor;
     friend class QgsMeshLayerUndoCommandMeshEdit;
@@ -154,6 +181,7 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     friend class QgsMeshLayerUndoCommandRemoveVertices;
     friend class QgsMeshLayerUndoCommandAddFaces;
     friend class QgsMeshLayerUndoCommandRemoveFaces;
+    friend class QgsMeshLayerUndoCommandSetZValue;
 };
 
 #ifndef SIP_RUN

@@ -432,6 +432,14 @@ int QgsTriangularMesh::nativeFaceIndexForPoint( const QgsPointXY &point ) const
   return -1;
 }
 
+QList<int> QgsTriangularMesh::nativeFaceIndexForRectangle( const QgsRectangle &rectangle ) const
+{
+  QSet<int> concernedFaceIndex = QgsMeshUtils::nativeFacesFromTriangles(
+                                   faceIndexesForRectangle( rectangle ),
+                                   trianglesToNativeFaces() );
+  return concernedFaceIndex.values();
+}
+
 int QgsTriangularMesh::faceIndexForPoint_v2( const QgsPointXY &point ) const
 {
   const QList<int> faceIndexes = mSpatialFaceIndex.intersects( QgsRectangle( point, point ) );
