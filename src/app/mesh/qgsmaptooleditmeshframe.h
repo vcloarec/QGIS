@@ -1,5 +1,5 @@
 /***************************************************************************
-  qgsmaptooleditmesh.h - QgsMapToolEditMesh
+  qgsmaptooleditmeshframe.h - QgsMapToolEditMeshFrame
 
  ---------------------
  begin                : 24.6.2021
@@ -13,8 +13,8 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-#ifndef QGSMAPTOOLEDITMESH_H
-#define QGSMAPTOOLEDITMESH_H
+#ifndef QGSMAPTOOLEDITMESHFRAME_H
+#define QGSMAPTOOLEDITMESHFRAME_H
 
 #include <QWidget>
 #include <QPointer>
@@ -148,11 +148,11 @@ class APP_EXPORT QgsMapToolEditMeshFrame : public QgsMapToolAdvancedDigitizing
     //! Rubber band used to highlight a face that is on mouse over and not dragging anything
     QgsRubberBand *mFaceRubberBand = nullptr;
     //! Rubber band used to highlight vertex of the face that is on mouse over and not dragging anything
-    QgsRubberBand *mFaceBandMarkers = nullptr;
+    QgsRubberBand *mFaceVerticesBand = nullptr;
     //! Rubber band used to highlight the vertex that is in mouse over and not dragging anything
     QgsRubberBand *mVertexBand = nullptr;
-    //! Marker used to propose to add a new face when a boundary vertex is higthlight
-    QgsVertexMarker *mNewFaceMarker = nullptr;
+    //! Marker used to propose to add a new face when a boundary vertex is highlight
+    std::unique_ptr<QgsVertexMarker> mNewFaceMarker;
     //! Rubber band used when adding a new face
     QgsRubberBand *mNewFaceBand = nullptr;
     QColor mInvalidFaceColor;
@@ -167,8 +167,6 @@ class APP_EXPORT QgsMapToolEditMeshFrame : public QgsMapToolAdvancedDigitizing
     //! Markers for selected vertices
     QList<QgsVertexMarker *> mSelectedVerticesMarker;
 
-    QgsVertexMarker *mEdgeCenterMarker = nullptr;
-
     QgsZValueWidget *mZValueWidget = nullptr;
 
     QAction *mActionRemoveVerticesFillingHole = nullptr;
@@ -177,4 +175,4 @@ class APP_EXPORT QgsMapToolEditMeshFrame : public QgsMapToolAdvancedDigitizing
     friend class TestQgsMapToolEditMesh;
 };
 
-#endif // QGSMAPTOOLEDITMESH_H
+#endif // QGSMAPTOOLEDITMESHFRAME_H

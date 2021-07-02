@@ -1,5 +1,5 @@
 /***************************************************************************
-  qgsmaptooleditmesh.cpp - QgsMapToolEditMesh
+  qgsmaptooleditmeshframe.cpp - QgsMapToolEditMeshFrame
 
  ---------------------
  begin                : 24.6.2021
@@ -91,13 +91,13 @@ QgsMapToolEditMeshFrame::QgsMapToolEditMeshFrame( QgsMapCanvas *canvas )
   mFaceRubberBand->setVisible( false );
 
   QColor color = digitizingStrokeColor();
-  mFaceBandMarkers = new QgsRubberBand( canvas );
-  mFaceBandMarkers->setIcon( QgsRubberBand::ICON_CIRCLE );
-  mFaceBandMarkers->setColor( color );
-  mFaceBandMarkers->setWidth( QgsGuiUtils::scaleIconSize( 2 ) );
-  mFaceBandMarkers->setBrushStyle( Qt::NoBrush );
-  mFaceBandMarkers->setIconSize( QgsGuiUtils::scaleIconSize( 6 ) );
-  mFaceBandMarkers->setVisible( false );
+  mFaceVerticesBand = new QgsRubberBand( canvas );
+  mFaceVerticesBand->setIcon( QgsRubberBand::ICON_CIRCLE );
+  mFaceVerticesBand->setColor( color );
+  mFaceVerticesBand->setWidth( QgsGuiUtils::scaleIconSize( 2 ) );
+  mFaceVerticesBand->setBrushStyle( Qt::NoBrush );
+  mFaceVerticesBand->setIconSize( QgsGuiUtils::scaleIconSize( 6 ) );
+  mFaceVerticesBand->setVisible( false );
 
   mVertexBand = new QgsRubberBand( canvas );
   mVertexBand->setIcon( QgsRubberBand::ICON_CIRCLE );
@@ -106,13 +106,6 @@ QgsMapToolEditMeshFrame::QgsMapToolEditMeshFrame( QgsMapCanvas *canvas )
   mVertexBand->setBrushStyle( Qt::NoBrush );
   mVertexBand->setIconSize( QgsGuiUtils::scaleIconSize( 15 ) );
   mVertexBand->setVisible( false );
-
-  mNewFaceMarker = new QgsVertexMarker( canvas );
-  mNewFaceMarker->setIconType( QgsVertexMarker::ICON_TRIANGLE );
-  mNewFaceMarker->setIconSize( QgsGuiUtils::scaleIconSize( 12 ) );
-  mNewFaceMarker->setColor( Qt::gray );
-  mNewFaceMarker->setVisible( false );
-  mNewFaceMarker->setPenWidth( 3 );
 
   mNewFaceBand = createRubberBand( QgsWkbTypes::PolygonGeometry );
   mInvalidFaceColor = QColor( 255, 0, 0, mNewFaceBand->fillColor().alpha() ); //override color and keep only the transparency
@@ -144,11 +137,20 @@ void QgsMapToolEditMeshFrame::deactivate()
   disconnect( canvas(), &QgsMapCanvas::currentLayerChanged, this, &QgsMapToolEditMeshFrame::setCurrentLayer );
   clear();
 
+  mNewFaceMarker.reset();
+
   QgsMapToolAdvancedDigitizing::deactivate();
 }
 
 void QgsMapToolEditMeshFrame::activate()
 {
+  mNewFaceMarker.reset( new QgsVertexMarker( canvas() ) );
+  mNewFaceMarker->setIconType( QgsVertexMarker::ICON_TRIANGLE );
+  mNewFaceMarker->setIconSize( QgsGuiUtils::scaleIconSize( 12 ) );
+  mNewFaceMarker->setColor( Qt::gray );
+  mNewFaceMarker->setVisible( false );
+  mNewFaceMarker->setPenWidth( 3 );
+
   connect( canvas(), &QgsMapCanvas::currentLayerChanged, this, &QgsMapToolEditMeshFrame::setCurrentLayer );
   setCurrentLayer( canvas()->currentLayer() );
   createZValueWidget();
@@ -509,7 +511,7 @@ void QgsMapToolEditMeshFrame::onEdit()
 QgsPointSequence QgsMapToolEditMeshFrame::nativeFaceGeometry( int faceIndex ) const
 {
   QgsPointSequence faceGeometry;
-  const QgsMeshFace face = mCurrentLayer->nativeMesh()->face( faceIndex );
+  const QgsMeshFace &face = mCurrentLayer->nativeMesh()->face( faceIndex );
 
   for ( const int index : face )
   {
@@ -575,7 +577,7 @@ bool QgsMapToolEditMeshFrame::testNewVertexInFaceCanditate( int vertexIndex )
   QgsMeshFace face = mNewFaceCandidate.toVector();
   if ( vertexIndex != -1 && !face.empty() && vertexIndex != mNewFaceCandidate.last() )
     face.append( vertexIndex );
-  return mCurrentEditor->canFaceBeAdded( face );
+  return mCurrentEditor->faceCanBeAdded( face );
 }
 
 void QgsMapToolEditMeshFrame::setSelectedVertex( const QList<int> newSelectedVertex, bool ctrl )
@@ -711,11 +713,11 @@ void QgsMapToolEditMeshFrame::highlightCurrentHoveredFace( const QgsPointXY &map
   QgsPointSequence faceGeometry = nativeFaceGeometry( faceIndex );
 
   mFaceRubberBand->reset( QgsWkbTypes::PolygonGeometry );
-  mFaceBandMarkers->reset( QgsWkbTypes::PointGeometry );
+  mFaceVerticesBand->reset( QgsWkbTypes::PointGeometry );
   for ( const QgsPoint &pt : faceGeometry )
   {
     mFaceRubberBand->addPoint( pt );
-    mFaceBandMarkers->addPoint( pt );
+    mFaceVerticesBand->addPoint( pt );
   }
 
   return;
@@ -808,9 +810,8 @@ void QgsMapToolEditMeshFrame::deleteZvalueWidget()
 void QgsMapToolEditMeshFrame::clear()
 {
   mFaceRubberBand->reset( QgsWkbTypes::PolygonGeometry );
-  mFaceBandMarkers->setVisible( false );
+  mFaceVerticesBand->setVisible( false );
   mVertexBand->reset( QgsWkbTypes::PointGeometry );
-  mNewFaceMarker->setVisible( false );
   mNewFaceBand->reset( QgsWkbTypes::PolygonGeometry );
   qDeleteAll( mFreeVertexMarker );
   mFreeVertexMarker.clear();

@@ -59,7 +59,7 @@ QgsMeshEditingError QgsMeshEditor::initialize()
 }
 
 
-bool QgsMeshEditor::canFaceBeAdded( const QgsMeshFace &face )
+bool QgsMeshEditor::faceCanBeAdded( const QgsMeshFace &face )
 {
   QgsMeshEditingError error;
 
@@ -78,12 +78,12 @@ bool QgsMeshEditor::canFaceBeAdded( const QgsMeshFace &face )
 
   // Check geometry compatibility
   // With the topological check, we know that the new face is not included in an existing one
-  // But maybe, the new face includes or intersecrs existing faces or free vertices, we need to check
+  // But maybe, the new face includes or intersects existing faces or free vertices, we need to check
   // First search for faces intersecting the bounding box of the new face.
 
   const QgsGeometry newFaceGeom = QgsMeshUtils::toGeometry( face, mTriangularMesh->vertices() );
   std::unique_ptr<QgsGeometryEngine> geomEngine( QgsGeometry::createGeometryEngine( newFaceGeom.constGet() ) );
-  //geomEngine->prepareGeometry();
+  geomEngine->prepareGeometry();
 
   QgsRectangle boundingBox = newFaceGeom.boundingBox();
   QList<int> newFaceVerticesIndexes( face.toList() );
@@ -331,29 +331,6 @@ QgsMeshEditingError QgsMeshEditor::removeVertices( const QList<int> &verticesToR
   QgsMeshEditingError error;
 
   QList<int> verticesIndexes = verticesToRemoveIndexes;
-
-//  if ( fillHoles )
-//  {
-//    // if boundary, removing vertex do not fill hole (while is not supported)
-//    // so if all vertices are boundary or free, change the flag to false, if some not boundary or free vertices, remove the boundary from the list
-//    QList<int> boundary;
-//    bool internalVerticesPresent = false;
-//    for ( const int vertexIndex : verticesToRemoveIndexes )
-//    {
-//      if ( mTopologicalMesh.isVertexOnBoundary( vertexIndex ) )
-//        boundary.append( vertexIndex );
-//      else if ( ! mTopologicalMesh.isVertexFree( vertexIndex ) )
-//        internalVerticesPresent = true;
-//    }
-
-//    if ( !internalVerticesPresent )
-//      fillHoles = false;
-//    else
-//    {
-//      for ( const int vertexIndex : boundary )
-//        verticesIndexes.removeOne( vertexIndex );
-//    }
-//  }
 
   if ( !fillHoles )
   {

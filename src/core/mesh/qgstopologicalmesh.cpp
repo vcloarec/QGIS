@@ -503,7 +503,11 @@ bool QgsTopologicalMesh::isVertexFree( int vertexIndex ) const
 
 QList<int> QgsTopologicalMesh::freeVerticesIndexes() const
 {
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+  return mFreeVertices.values();
+#else
   return QList<int>( mFreeVertices.begin(), mFreeVertices.end() );
+#endif
 }
 
 QgsMeshEditingError QgsTopologicalMesh::counterClockWiseFaces( QgsMeshFace &face, QgsMesh *mesh )

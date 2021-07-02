@@ -2809,7 +2809,7 @@ void QgisApp::createActions()
   connect( mActionDecreaseGamma, &QAction::triggered, this, &QgisApp::decreaseGamma );
 
   // Mesh toolbar items
-  connect( mActionEditMesh, &QAction::triggered, this, [ = ] {setMapTool( mMapTools->mapTool( QgsAppMapTools::EditMesh ) ); } );
+  connect( mActionEditMesh, &QAction::triggered, this, [ = ] {setMapTool( mMapTools->mapTool( QgsAppMapTools::EditMeshFrame ) ); } );
 
 #ifdef HAVE_GEOREFERENCER
   connect( mActionShowGeoreferencer, &QAction::triggered, this, &QgisApp::showGeoreferencer );
@@ -4373,7 +4373,7 @@ void QgisApp::setupCanvasTools()
   mMapTools->mapTool( QgsAppMapTools::MoveLabel )->setAction( mActionMoveLabel );
   mMapTools->mapTool( QgsAppMapTools::RotateLabel )->setAction( mActionRotateLabel );
   mMapTools->mapTool( QgsAppMapTools::ChangeLabelProperties )->setAction( mActionChangeLabelProperties );
-  mMapTools->mapTool( QgsAppMapTools::EditMesh )->setAction( mActionEditMesh );
+  mMapTools->mapTool( QgsAppMapTools::EditMeshFrame )->setAction( mActionEditMesh );
 
   //ensure that non edit tool is initialized or we will get crashes in some situations
   mNonEditMapTool = mMapTools->mapTool( QgsAppMapTools::Pan );

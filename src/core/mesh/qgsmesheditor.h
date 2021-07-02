@@ -74,7 +74,7 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     QgsMeshEditingError initialize();
 
     //! Return whether a \a face can be added to the mesh
-    bool canFaceBeAdded( const QgsMeshFace &face );
+    bool faceCanBeAdded( const QgsMeshFace &face );
 
     //! Adds faces \a faces to the mesh, returns topological errors if this operation fails (operation is not realized)
     QgsMeshEditingError addFaces( const QVector<QgsMeshFace> &faces ); SIP_SKIP
@@ -139,7 +139,8 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     bool isVertexFree( int vertexIndex ) const;
 
     /**
-     *  Returns a vertex circulator linked to this mesh arround the vertex with index \a vertexIndex
+     *  Returns a vertex circulator linked to this mesh arround the vertex with index \a vertexIndex.
+     *  If the vertex does not exist or is a free vertex, the cirxulator is invalid.
      *  If stopEditing() is called, circulator created before and new circulator are valid and must not be used.
      *  It is recommanded to destruct all circulator created before calling any edit methods or stopEditing() to save memory usage.
      *  Calling initialize() allow to create new circulator after stopEditing() is called.

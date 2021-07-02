@@ -718,22 +718,22 @@ void TestQgsMeshEditor::faceIntersection()
 
   QCOMPARE( editor->freeVerticesIndexes().count(), 9 );
 
-  QVERIFY( editor->canFaceBeAdded( {3, 8, 7} ) );
+  QVERIFY( editor->faceCanBeAdded( {3, 8, 7} ) );
   editor->addFace( {3, 8, 7} );
 
   QCOMPARE( editor->freeVerticesIndexes().count(), 8 );
   QCOMPARE( editor->mMesh->faceCount(), 6 );
 
-  QVERIFY( !editor->canFaceBeAdded( {2, 3, 11} ) );
-  QVERIFY( !editor->canFaceBeAdded( {7, 8, 9} ) );
-  QVERIFY( !editor->canFaceBeAdded( {7, 8, 9} ) );
-  QVERIFY( !editor->canFaceBeAdded( {10, 12, 9} ) );
-  QVERIFY( !editor->canFaceBeAdded( {13, 14, 15, 16} ) );
-  QVERIFY( !editor->canFaceBeAdded( {0, 9, 10} ) );
+  QVERIFY( !editor->faceCanBeAdded( {2, 3, 11} ) );
+  QVERIFY( !editor->faceCanBeAdded( {7, 8, 9} ) );
+  QVERIFY( !editor->faceCanBeAdded( {7, 8, 9} ) );
+  QVERIFY( !editor->faceCanBeAdded( {10, 12, 9} ) );
+  QVERIFY( !editor->faceCanBeAdded( {13, 14, 15, 16} ) );
+  QVERIFY( !editor->faceCanBeAdded( {0, 9, 10} ) );
 
-  QVERIFY( editor->canFaceBeAdded( {2, 3, 8} ) );
-  QVERIFY( editor->canFaceBeAdded( {2, 3, 10} ) );
-  QVERIFY( editor->canFaceBeAdded( {7, 11, 8} ) );
+  QVERIFY( editor->faceCanBeAdded( {2, 3, 8} ) );
+  QVERIFY( editor->faceCanBeAdded( {2, 3, 10} ) );
+  QVERIFY( editor->faceCanBeAdded( {7, 11, 8} ) );
 }
 
 void TestQgsMeshEditor::removeVerticesSpecialCases()
