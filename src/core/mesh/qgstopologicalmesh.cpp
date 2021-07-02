@@ -348,6 +348,12 @@ void QgsTopologicalMesh::applyChanges( const QgsTopologicalMesh::Changes &change
     if ( vertexToFaceChange.at( 1 ) == -1 && vertexToFaceChange.at( 2 ) != -1 )
       dereferenceAsFreeVertex( vertexIndex );
   }
+
+  for ( int i = 0; i < changes.mChangeCoordinateVerticesIndexes.count(); ++i )
+  {
+    int vertexIndex = changes.mChangeCoordinateVerticesIndexes.at( i );
+    mMesh->vertices[vertexIndex].setZ( changes.mNewZValues.at( i ) );
+  }
 }
 
 void QgsTopologicalMesh::reverseChanges( const QgsTopologicalMesh::Changes &changes )
@@ -408,6 +414,12 @@ void QgsTopologicalMesh::reverseChanges( const QgsTopologicalMesh::Changes &chan
 
     mMesh->vertices.resize( newSize );
     mVertexToFace.resize( newSize );
+  }
+
+  for ( int i = 0; i < changes.mChangeCoordinateVerticesIndexes.count(); ++i )
+  {
+    int vertexIndex = changes.mChangeCoordinateVerticesIndexes.at( i );
+    mMesh->vertices[vertexIndex].setZ( changes.mOldZValues.at( i ) );
   }
 }
 
@@ -626,6 +638,16 @@ QList<int> QgsTopologicalMesh::Changes::removedFaceIndexes() const
 QVector<QgsMeshVertex> QgsTopologicalMesh::Changes::addedVertices() const
 {
   return mVerticesToAdd;
+}
+
+QList<int> QgsTopologicalMesh::Changes::changedCoordinatesVerticesIndexes() const
+{
+  return mChangeCoordinateVerticesIndexes;
+}
+
+QList<double> QgsTopologicalMesh::Changes::newVerticesZValues() const
+{
+  return mNewZValues;
 }
 
 int QgsTopologicalMesh::Changes::addedFaceIndexInMesh( int internalIndex ) const
@@ -1328,3 +1350,22 @@ QgsTopologicalMesh::Changes QgsTopologicalMesh::addVertexInface( int includingFa
   return changes;
 }
 
+
+QgsTopologicalMesh::Changes QgsTopologicalMesh::changeZValue( const QList<int> &verticesIndexes, const QList<double> &newValues )
+{
+  Q_ASSERT( verticesIndexes.count() == newValues.count() );
+  Changes changes;
+  changes.mChangeCoordinateVerticesIndexes.reserve( verticesIndexes.count() );
+  changes.mNewZValues.reserve( verticesIndexes.count() );
+  changes.mOldZValues.reserve( verticesIndexes.count() );
+  for ( int i = 0; i < verticesIndexes.count(); ++i )
+  {
+    changes.mChangeCoordinateVerticesIndexes.append( verticesIndexes.at( i ) );
+    changes.mOldZValues.append( mMesh->vertices.at( verticesIndexes.at( i ) ).z() );
+    changes.mNewZValues.append( newValues.at( i ) );
+  }
+
+  applyChanges( changes );
+
+  return changes;
+}

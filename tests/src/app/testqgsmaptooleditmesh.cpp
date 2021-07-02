@@ -17,7 +17,7 @@
 #include "qgstest.h"
 #include "qgisapp.h"
 #include "testqgsmaptoolutils.h"
-#include "qgsmaptooleditmesh.h"
+#include "qgsmaptooleditmeshframe.h"
 #include "qgsmeshlayer.h"
 #include "qgsmesheditor.h"
 
@@ -40,7 +40,7 @@ class TestQgsMapToolEditMesh : public QObject
     std::unique_ptr<QgsMeshLayer> meshLayerQuadFlower;
     QString mDataDir;
     std::unique_ptr<QgsMapCanvas> canvas;
-    QgsMapToolEditMesh *editMeshMapTool;
+    QgsMapToolEditMeshFrame *editMeshMapTool;
 };
 
 
@@ -53,7 +53,7 @@ void TestQgsMapToolEditMesh::initTestCase()
   mDataDir = QString( TEST_DATA_DIR ); //defined in CmakeLists.txt
   mDataDir += "/mesh";
   canvas.reset( new QgsMapCanvas() );
-  editMeshMapTool = new QgsMapToolEditMesh( canvas.get() );
+  editMeshMapTool = new QgsMapToolEditMeshFrame( canvas.get() );
 }
 
 void TestQgsMapToolEditMesh::init()
@@ -84,7 +84,7 @@ void TestQgsMapToolEditMesh::editVertex()
   QCOMPARE( meshLayerQuadFlower->meshVertexCount(), 8 );
   QCOMPARE( meshLayerQuadFlower->meshEditor()->freeVerticesIndexes().count(), 0 );
 
-  tool.mouseDoubleClick( 1500, 2800, Qt::LeftButton );
+  tool.mouseDoubleClick( 1500, 2800, Qt::LeftButton ); //add a vertex on the face 0
   QCOMPARE( meshLayerQuadFlower->meshFaceCount(), 9 );
   QCOMPARE( meshLayerQuadFlower->meshVertexCount(), 9 );
   QCOMPARE( meshLayerQuadFlower->meshEditor()->freeVerticesIndexes().count(), 0 );
@@ -101,6 +101,7 @@ void TestQgsMapToolEditMesh::editVertex()
 
   QVERIFY( meshLayerQuadFlower->meshEditor() );
 
+  // redo
   tool.mouseDoubleClick( 1500, 2800, Qt::LeftButton );
   QCOMPARE( meshLayerQuadFlower->meshFaceCount(), 9 );
   QCOMPARE( meshLayerQuadFlower->meshVertexCount(), 9 );
@@ -113,7 +114,7 @@ void TestQgsMapToolEditMesh::editVertex()
   QCOMPARE( meshLayerQuadFlower->meshEditor()->freeVerticesIndexes().count(), 0 );
 
   // add a free vertex
-  tool.mouseDoubleClick( 2500, 3500, Qt::LeftButton );
+  tool.mouseDoubleClick( 2500, 3500, Qt::LeftButton );  // 9
   QCOMPARE( meshLayerQuadFlower->meshFaceCount(), 9 );
   QCOMPARE( meshLayerQuadFlower->meshVertexCount(), 10 );
   QCOMPARE( meshLayerQuadFlower->meshEditor()->freeVerticesIndexes().count(), 1 );
@@ -131,17 +132,63 @@ void TestQgsMapToolEditMesh::editVertex()
 
   QCOMPARE( meshLayerQuadFlower->meshFaceCount(), 10 );
 
-  // Remove vertex 7 and 10
+  // Remove vertex 7 and 9
   tool.mouseMove( 1500, 3250 );
   tool.mouseMove( 1500, 3498 );
   tool.mouseClick( 1501, 3501, Qt::LeftButton );
   tool.mouseMove( 1500, 3250 );
   tool.mouseMove( 2500, 3500 );
   tool.mouseClick( 2500, 3500, Qt::LeftButton, Qt::ControlModifier );
-  tool.keyClick( Qt::Key_Delete );
+  tool.keyClick( Qt::Key_Delete, Qt::ControlModifier | Qt::ShiftModifier ); //remove without filling hole
 
   QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 7 ), QgsMeshVertex() );
-  QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 10 ), QgsMeshVertex() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 9 ), QgsMeshVertex() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->face( 4 ), QgsMeshFace() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->face( 9 ), QgsMeshFace() );
+
+  meshLayerQuadFlower->undoStack()->undo();
+
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->vertex( 7 ) != QgsMeshVertex() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->vertex( 9 ) != QgsMeshVertex() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->face( 4 ) != QgsMeshFace() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->face( 9 ) != QgsMeshFace() );
+
+  //Same but with dragging and fill with hole (even there is no hole)
+  tool.mouseMove( 1000, 3600 );
+  tool.mousePress( 1000, 3600, Qt::LeftButton );
+  tool.mouseMove( 2600, 3250 );
+  tool.mouseRelease( 2600, 3250, Qt::LeftButton );
+  tool.keyClick( Qt::Key_Delete, Qt::ControlModifier ); //remove without filling hole
+
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 7 ), QgsMeshVertex() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 9 ), QgsMeshVertex() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->face( 4 ), QgsMeshFace() );
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->face( 9 ), QgsMeshFace() );
+
+  meshLayerQuadFlower->undoStack()->undo();
+
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->vertex( 7 ) != QgsMeshVertex() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->vertex( 9 ) != QgsMeshVertex() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->face( 4 ) != QgsMeshFace() );
+  QVERIFY( meshLayerQuadFlower->nativeMesh()->face( 9 ) != QgsMeshFace() );
+
+  //Change Z value selecting one vertex
+  tool.mouseMove( 1000, 3000 );
+  tool.mouseClick( 1000, 3000, Qt::LeftButton );
+  editMeshMapTool->mZValueWidget->setZValue( 1600 );
+  tool.keyClick( Qt::Key_Enter );
+
+  QCOMPARE( meshLayerQuadFlower->nativeMesh()->vertex( 4 ).z(), 1600 );
+
+  //Change Z value dragging rectangle
+  tool.mouseMove( 1200, 3600 );
+  tool.mousePress( 1200, 3600, Qt::LeftButton );
+  tool.mouseMove( 2700, 2250 );
+  tool.mouseRelease( 2700, 2250, Qt::LeftButton );
+  editMeshMapTool->mZValueWidget->setZValue( 1500 );
+  tool.keyClick( Qt::Key_Enter );
+
+  QCOMPARE( meshLayerQuadFlower->datasetValue( QgsMeshDatasetIndex( 0, 0 ), QgsPointXY( 2500, 3250 ) ).x(), 1500 );
 }
 
 

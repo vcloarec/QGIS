@@ -188,9 +188,14 @@ void QgsMeshEditor::applyAddFaces( QgsMeshEditor::Edit &edit, const QgsTopologic
   applyEditOnTriangularMesh( edit,  mTopologicalMesh.addFaces( faces ) );
 }
 
-void QgsMeshEditor::applyRemoveFaces( QgsMeshEditor::Edit &edit, const QList<int> faceToRemoveIndex )
+void QgsMeshEditor::applyRemoveFaces( QgsMeshEditor::Edit &edit, const QList<int> &faceToRemoveIndex )
 {
   applyEditOnTriangularMesh( edit, mTopologicalMesh.removeFaces( faceToRemoveIndex ) );
+}
+
+void QgsMeshEditor::applyChangeZValue( QgsMeshEditor::Edit &edit, const QList<int> &verticesIndexes, const QList<double> &newValues )
+{
+  applyEditOnTriangularMesh( edit, mTopologicalMesh.changeZValue( verticesIndexes, newValues ) );
 }
 
 void QgsMeshEditor::applyEditOnTriangularMesh( QgsMeshEditor::Edit &edit, const QgsTopologicalMesh::Changes &topologicChanges )
@@ -366,6 +371,11 @@ QgsMeshEditingError QgsMeshEditor::removeVertices( const QList<int> &verticesToR
   return error;
 }
 
+void QgsMeshEditor::changeZValues( const QList<int> &verticesIndexes, const QList<double> &newZValues )
+{
+  mUndoStack->push( new QgsMeshLayerUndoCommandChangeZValue( this, verticesIndexes, newZValues ) );
+}
+
 void QgsMeshEditor::stopEditing()
 {
   mTopologicalMesh.reindex();
@@ -537,4 +547,27 @@ bool QgsMeshEditor::isVertexFree( int vertexIndex ) const
 QgsMeshVertexCirculator QgsMeshEditor::vertexCirculator( int vertexIndex ) const
 {
   return mTopologicalMesh.vertexCirculator( vertexIndex );
+}
+
+QgsMeshLayerUndoCommandChangeZValue::QgsMeshLayerUndoCommandChangeZValue( QgsMeshEditor *meshEditor, const QList<int> &verticesIndexes, const QList<double> &newValues )
+  : QgsMeshLayerUndoCommandMeshEdit( meshEditor )
+  , mVerticesIndexes( verticesIndexes )
+  , mNewValue( newValues )
+{
+
+}
+
+void QgsMeshLayerUndoCommandChangeZValue::redo()
+{
+  if ( !mVerticesIndexes.isEmpty() )
+  {
+    QgsMeshEditor::Edit edit;
+    mMeshEditor->applyChangeZValue( edit, mVerticesIndexes, mNewValue );
+    mEdits.append( edit );
+  }
+  else
+  {
+    for ( QgsMeshEditor::Edit &edit : mEdits )
+      mMeshEditor->applyEdit( edit );
+  }
 }

@@ -1239,6 +1239,9 @@ void TestQgsMeshEditor::meshEditorFromMeshLayer_quadFlower()
   centroid = meshLayerQuadFlower->snapOnElement( QgsMesh::Face, QgsPoint( 1300, 1800, 0 ), 10 );
   QVERIFY( centroid.compare( QgsPointXY( 1200.0, 1816.6666 ), 1e-2 ) );
 
+  editor->changeZValues( {6, 13, 12}, {-200.0, -200.0, -200.0} );
+  QCOMPARE( meshLayerQuadFlower->datasetValue( QgsMeshDatasetIndex( 0, 0 ), QgsPoint( 1300, 1800 ), 10 ).x(), -200 );
+
   QCOMPARE( editor->addVertices( {QgsMeshVertex( 750, 2500, 550 )}, 10 ), 1 );
   QCOMPARE( editor->addVertices( {QgsMeshVertex( 1200, 2500, 700 )}, 10 ), 1 );
 
@@ -1294,7 +1297,7 @@ void TestQgsMeshEditor::meshEditorFromMeshLayer_quadFlower()
   meshLayerQuadFlower->commitFrameEditing( transform, false );
 
   QVERIFY( meshLayerQuadFlower->meshEditor() == nullptr );
-  ;
+
   QCOMPARE( meshLayerQuadFlower->meshFaceCount(), 4 );
   QCOMPARE( meshLayerQuadFlower->meshVertexCount(), 10 );
 

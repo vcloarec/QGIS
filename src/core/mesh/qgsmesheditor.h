@@ -113,6 +113,11 @@ class CORE_EXPORT QgsMeshEditor : public QObject
      */
     QgsMeshEditingError removeVertices( const QList<int> &verticesToRemoveIndexes, bool fillHoles = false );
 
+    /**
+     * Changes the Z values of the vertices with indexes in \a vertices indexes with the values in \a newValues
+     */
+    void changeZValues( const QList<int> &verticesIndexes, const QList<double> &newValues );
+
     //! Stops editing
     void stopEditing();
 
@@ -168,7 +173,8 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     void applyRemoveVertexFillHole( Edit &edit, int vertexIndex );
     void applyRemoveVerticesWithoutFillHole( QgsMeshEditor::Edit &edit, const QList<int> &verticesIndexes );
     void applyAddFaces( Edit &edit, const QgsTopologicalMesh::TopologicalFaces &faces );
-    void applyRemoveFaces( Edit &edit, const QList<int> faceToRemoveIndex );
+    void applyRemoveFaces( Edit &edit, const QList<int> &faceToRemoveIndex );
+    void applyChangeZValue( Edit &edit, const QList<int> &verticesIndexes, const QList<double> &newValues );
 
     void applyEditOnTriangularMesh( Edit &edit, const QgsTopologicalMesh::Changes &topologicChanges );
 
@@ -182,6 +188,7 @@ class CORE_EXPORT QgsMeshEditor : public QObject
     friend class QgsMeshLayerUndoCommandAddFaces;
     friend class QgsMeshLayerUndoCommandRemoveFaces;
     friend class QgsMeshLayerUndoCommandSetZValue;
+    friend class QgsMeshLayerUndoCommandChangeZValue;
 };
 
 #ifndef SIP_RUN
@@ -282,6 +289,27 @@ class QgsMeshLayerUndoCommandRemoveFaces : public QgsMeshLayerUndoCommandMeshEdi
     void redo() override;
   private:
     QList<int> mfacesToRemoveIndexes;
+};
+
+/**
+ * \ingroup core
+ *
+ * \brief  Class for undo/redo command for changing Z value of vertices
+ *
+ * \since QGIS 3.22
+ */
+class QgsMeshLayerUndoCommandChangeZValue : public QgsMeshLayerUndoCommandMeshEdit
+{
+  public:
+
+    //! Constructor with the associated \a meshEditor and indexes \a verticesIndexes of the vertices that will have
+    //! the Z value changes with \a newValues
+    QgsMeshLayerUndoCommandChangeZValue( QgsMeshEditor *meshEditor, const QList<int> &verticesIndexes, const QList<double> &newValues );
+    void redo() override;
+
+  private:
+    QList<int> mVerticesIndexes;
+    QList<double> mNewValue;
 };
 
 #endif //SIP_RUN

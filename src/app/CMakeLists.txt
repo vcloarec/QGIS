@@ -244,7 +244,7 @@ set(QGIS_APP_SRCS
   qgscrashhandler.cpp
 
   mesh/qgsmeshcalculatordialog.cpp
-  mesh/qgsmaptooleditmesh.cpp
+  mesh/qgsmaptooleditmeshframe.cpp
 )
 
 if (WITH_SPATIALITE)

@@ -15591,8 +15591,6 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionOpenFieldCalc->setEnabled( false );
       mActionSaveLayerEdits->setEnabled( false );
       mUndoDock->widget()->setEnabled( false );
-      mActionUndo->setEnabled( false );
-      mActionRedo->setEnabled( false );
       mActionSaveLayerDefinition->setEnabled( true );
       mActionLayerSaveAs->setEnabled( false );
       mActionAddFeature->setEnabled( false );
@@ -15630,6 +15628,9 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionToggleEditing->setEnabled( canSupportEditing );
       mActionToggleEditing->setChecked( canSupportEditing && isEditable );
       mActionEditMesh->setEnabled( isEditable );
+      mActionUndo->setEnabled( canSupportEditing && isEditable );
+      mActionRedo->setEnabled( canSupportEditing && isEditable );
+      updateUndoActions();
     }
 
     break;
@@ -16356,21 +16357,10 @@ void QgisApp::updateUndoActions()
 {
   bool canUndo = false, canRedo = false;
   QgsMapLayer *layer = activeLayer();
-  if ( layer )
+  if ( layer  && layer->isEditable() )
   {
-    QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer );
-    if ( vlayer && vlayer->isEditable() )
-    {
-      canUndo = vlayer->undoStack()->canUndo();
-      canRedo = vlayer->undoStack()->canRedo();
-    }
-
-    QgsMeshLayer *meshLayer = qobject_cast<QgsMeshLayer *>( layer );
-    if ( meshLayer && meshLayer->meshEditor() )
-    {
-      canUndo = meshLayer->undoStack()->canUndo();
-      canRedo = meshLayer->undoStack()->canRedo();
-    }
+    canUndo = layer->undoStack()->canUndo();
+    canRedo = layer->undoStack()->canRedo();
   }
   mActionUndo->setEnabled( canUndo );
   mActionRedo->setEnabled( canRedo );

@@ -32,29 +32,48 @@ class QgsDoubleSpinBox;
 class QgsSnapIndicator;
 
 
-class QgsZValueWidget : public QWidget
+class APP_EXPORT QgsZValueWidget : public QWidget
 {
     Q_OBJECT
   public:
+    //! Constructor
     QgsZValueWidget( const QString &label, QWidget *parent = nullptr );
+
+    //! Returns the current \a z value
     double zValue() const;
 
-    QWidget *spinBox() const;
+    //! Sets the current value \a z of the widget
+    void setZValue( double z );
+
+    /**
+     *  Sets the current value of the widget and set it as the default one ,
+     *  that is the value that is retrieve if the z value spin box is cleared
+     */
+    void setDefaultValue( double z );
+
+    /**
+     *  Installs an event filter (see QObject::eventFilter()) on the Z value spin box.
+     *  This \a filter can be used to control keyboard entry when the focus is on the Z value spin box.
+     */
+    void setEventFilterOnValueSpinbox( QObject *filter );
 
   private:
     QgsDoubleSpinBox *mZValueSpinBox = nullptr;
-
+    double mValue;
 };
 
-class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
+class APP_EXPORT QgsMapToolEditMeshFrame : public QgsMapToolAdvancedDigitizing
 {
     Q_OBJECT
   public:
-    QgsMapToolEditMesh( QgsMapCanvas *canvas );
-    ~QgsMapToolEditMesh();
+    //! Constructor
+    QgsMapToolEditMeshFrame( QgsMapCanvas *canvas );
+    ~QgsMapToolEditMeshFrame();
 
     void deactivate() override;
     void activate() override;
+    bool populateContextMenuWithEvent( QMenu *menu, QgsMapMouseEvent *event ) override;
+    Flags flags() const override;
 
   protected:
     bool eventFilter( QObject *obj, QEvent *ev ) override;
@@ -87,6 +106,9 @@ class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
     void addVertex( const QgsPointXY &mapPoint, const QgsPointLocator::Match &mapPointMatch );
     void updateFreeVertices();
 
+    //! Checks if we are closed to a vertex, if yes return the index of the vertex;
+    int closeVertex( const QgsPointXY &point ) const;
+
     QgsPointSequence nativeFaceGeometry( int faceIndex ) const;
 
     QgsPointXY newFaceMarkerPosition( int vertexIndex );
@@ -98,17 +120,20 @@ class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
     void setSelectedVertex( const QList<int> newSelectedVertex, bool ctrl );
     void clearSelectedvertex();
     void removeSelectedVerticesFromMesh();
+    void removeSelectedVerticesFromMesh( bool fillHole );
     void selectVerticesInGeometry( const QgsGeometry &geometry, bool ctrl );
+
+    void applyZValueOnSelectedVertices();
 
     // members
     enum State
     {
-      None,
+      Default,
       AddingNewFace,
       Selecting,
     };
 
-    State mCurrentState = None;
+    State mCurrentState = Default;
 
     QPointer<QgsMeshLayer> mCurrentLayer = nullptr;
     QPointer<QgsMeshEditor> mCurrentEditor = nullptr;
@@ -118,19 +143,7 @@ class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
     QList<int> mNewFaceCandidate;
     QList<int> mSelectedVertex;
     bool mDoubleClick = false;
-    bool mCtrlPressed = false;
-
-//    QgsVertexMarker *mEdgeCenterMarker = nullptr;
-//    //! rubber band for highlight of a whole feature on mouse over and not dragging anything
-//    QgsRubberBand *mFeatureBand = nullptr;
-//    //! rubber band for highlight of all vertices of a feature on mouse over and not dragging anything
-//
-//    //! source layer for mFeatureBand (null if mFeatureBand is null)
-//    const QgsVectorLayer *mFaceBandLayer = nullptr;
-//    //! highlight of a vertex while mouse pointer is close to a vertex and not dragging anything
-//
-//    //! highlight of an edge while mouse pointer is close to an edge and not dragging anything
-//    QgsRubberBand *mEdgeBand = nullptr;
+    double mCurrentZValue = 0;
 
     //! Rubber band used to highlight a face that is on mouse over and not dragging anything
     QgsRubberBand *mFaceRubberBand = nullptr;
@@ -148,7 +161,6 @@ class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
     QgsRubberBand *mSelectionBand = nullptr;
     QPoint mStartSelectionPos;
 
-
     //! Markers that makes visible free vertices
     QList<QgsVertexMarker *> mFreeVertexMarker;
 
@@ -157,11 +169,12 @@ class APP_EXPORT QgsMapToolEditMesh : public QgsMapToolAdvancedDigitizing
 
     QgsVertexMarker *mEdgeCenterMarker = nullptr;
 
-    //! Checks if we are closed to a vertex, if yes return the index of the vertex;
-    int closeVertex( const QgsPointXY &point ) const;
-
     QgsZValueWidget *mZValueWidget = nullptr;
 
+    QAction *mActionRemoveVerticesFillingHole = nullptr;
+    QAction *mActionRemoveVerticesWithoutFillingHole = nullptr;
+
+    friend class TestQgsMapToolEditMesh;
 };
 
 #endif // QGSMAPTOOLEDITMESH_H

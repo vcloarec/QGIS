@@ -95,6 +95,12 @@ class CORE_EXPORT QgsTopologicalMesh
         //! Returns the added vertices with this changes
         QVector<QgsMeshVertex> addedVertices() const;
 
+        //! Returns the indexes of vertices that have changed coordinates
+        QList<int> changedCoordinatesVerticesIndexes() const;
+
+        //! Returns the new Z values of vertices that have changed their coordinates
+        QList<double> newVerticesZValues() const;
+
       private:
         int mAddedFacesFirstIndex = 0;
         QList<int> mFaceIndexesToRemove; // the removed faces indexes in the mesh
@@ -110,6 +116,10 @@ class CORE_EXPORT QgsTopologicalMesh
         QList<QgsMeshVertex> mRemovedVertices;
         QList<int> mVerticesToFaceRemoved;
         QList<std::array<int, 3>> mVerticesToFaceChanges; // {index of concerned vertex, previous value, changed value}
+
+        QList<int> mChangeCoordinateVerticesIndexes;
+        QList<double> mNewZValues;
+        QList<double> mOldZValues;
 
         int addedFaceIndexInMesh( int internalIndex ) const;
         int removedFaceIndexInmesh( int internalIndex ) const;
@@ -197,6 +207,11 @@ class CORE_EXPORT QgsTopologicalMesh
      * The method returns a instance of the class QgsTopologicalMesh::Change that can be used to reverse or reapply the operation.
      */
     Changes removeVertices( const QList<int> &vertices );
+
+    /**
+     * Changes the Z values of the vertices with indexes in \a vertices indexes with the values in \a newValues
+     */
+    Changes changeZValue( const QList<int> &verticesIndexes, const QList<double> &newValues );
 
     //! Applies the changes
     void applyChanges( const Changes &changes );

@@ -69,7 +69,7 @@
 #include "qgsmaptoolchangelabelproperties.h"
 #include "qgsmaptoolpinlabels.h"
 #include "qgsmaptooloffsetpointsymbol.h"
-#include "qgsmaptooleditmesh.h"
+#include "qgsmaptooleditmeshframe.h"
 #include "qgsspinbox.h"
 #include "qgssettingsregistrycore.h"
 
@@ -177,7 +177,7 @@ QgsAppMapTools::QgsAppMapTools( QgsMapCanvas *canvas, QgsAdvancedDigitizingDockW
   mTools.insert( Tool::MoveLabel, new QgsMapToolMoveLabel( canvas, cadDock ) );
   mTools.insert( Tool::RotateLabel, new QgsMapToolRotateLabel( canvas, cadDock ) );
   mTools.insert( Tool::ChangeLabelProperties, new QgsMapToolChangeLabelProperties( canvas, cadDock ) );
-  mTools.insert( Tool::EditMesh, new QgsMapToolEditMesh( canvas ) );
+  mTools.insert( Tool::EditMesh, new QgsMapToolEditMeshFrame( canvas ) );
 
   mStreamDigitizingSettingsAction = new QgsStreamDigitizingSettingsAction();
 }

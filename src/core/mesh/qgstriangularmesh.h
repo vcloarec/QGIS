@@ -261,7 +261,9 @@ class CORE_EXPORT QgsTriangularMesh // TODO rename to QgsRendererMesh in QGIS 4
       private:
         // triangular mesh elements that can be changed if the triangular mesh is updated, are not stored and have to be retrieve
         QVector<QgsMeshVertex> mAddedVertices;
-        //QList<int> mRemovedVertices;
+        QList<int> mChangedVerticesCoordinates;
+        mutable QList<double> mOldZValue;
+        QList<double> mNewZValue;
 
         QVector<QgsMeshFace> mNativeFacesToAdd;
         QList<int> mNativeFaceIndexesToRemove;
