@@ -2808,6 +2808,9 @@ void QgisApp::createActions()
   connect( mActionIncreaseGamma, &QAction::triggered, this, &QgisApp::increaseGamma );
   connect( mActionDecreaseGamma, &QAction::triggered, this, &QgisApp::decreaseGamma );
 
+  // Mesh toolbar items
+  connect( mActionEditMesh, &QAction::triggered, this, [ = ] {setMapTool( mMapTools->mapTool( QgsAppMapTools::EditMeshFrame ) ); } );
+
 #ifdef HAVE_GEOREFERENCER
   connect( mActionShowGeoreferencer, &QAction::triggered, this, &QgisApp::showGeoreferencer );
 #else
@@ -3001,6 +3004,7 @@ void QgisApp::createActionGroups()
   mMapToolGroup->addAction( mActionChangeLabelProperties );
   mMapToolGroup->addAction( mActionReverseLine );
   mMapToolGroup->addAction( mActionTrimExtendFeature );
+  mMapToolGroup->addAction( mActionEditMesh );
 
   //
   // Preview Modes Group
@@ -4369,6 +4373,7 @@ void QgisApp::setupCanvasTools()
   mMapTools->mapTool( QgsAppMapTools::MoveLabel )->setAction( mActionMoveLabel );
   mMapTools->mapTool( QgsAppMapTools::RotateLabel )->setAction( mActionRotateLabel );
   mMapTools->mapTool( QgsAppMapTools::ChangeLabelProperties )->setAction( mActionChangeLabelProperties );
+  mMapTools->mapTool( QgsAppMapTools::EditMeshFrame )->setAction( mActionEditMesh );
 
   //ensure that non edit tool is initialized or we will get crashes in some situations
   mNonEditMapTool = mMapTools->mapTool( QgsAppMapTools::Pan );
@@ -15144,6 +15149,8 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
     mActionZoomToLayers->setEnabled( false );
     mActionZoomToLayer->setEnabled( false );
 
+    mActionEditMesh->setEnabled( false );
+
     enableDigitizeTechniqueActions( false );
 
     return;
@@ -15192,6 +15199,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionDiagramProperties->setEnabled( isSpatial );
       mActionReverseLine->setEnabled( false );
       mActionTrimExtendFeature->setEnabled( false );
+      mActionEditMesh->setEnabled( false );
 
       mActionSelectFeatures->setEnabled( isSpatial );
       mActionSelectPolygon->setEnabled( isSpatial );
@@ -15519,6 +15527,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionSplitParts->setEnabled( false );
       mActionLabeling->setEnabled( false );
       mActionDiagramProperties->setEnabled( false );
+      mActionEditMesh->setEnabled( false );
 
       enableDigitizeTechniqueActions( false );
 
@@ -15582,8 +15591,6 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionOpenFieldCalc->setEnabled( false );
       mActionSaveLayerEdits->setEnabled( false );
       mUndoDock->widget()->setEnabled( false );
-      mActionUndo->setEnabled( false );
-      mActionRedo->setEnabled( false );
       mActionSaveLayerDefinition->setEnabled( true );
       mActionLayerSaveAs->setEnabled( false );
       mActionAddFeature->setEnabled( false );
@@ -15620,6 +15627,10 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       bool isEditable = mlayer->isEditable();
       mActionToggleEditing->setEnabled( canSupportEditing );
       mActionToggleEditing->setChecked( canSupportEditing && isEditable );
+      mActionEditMesh->setEnabled( isEditable );
+      mActionUndo->setEnabled( canSupportEditing && isEditable );
+      mActionRedo->setEnabled( canSupportEditing && isEditable );
+      updateUndoActions();
     }
 
     break;
@@ -16346,21 +16357,10 @@ void QgisApp::updateUndoActions()
 {
   bool canUndo = false, canRedo = false;
   QgsMapLayer *layer = activeLayer();
-  if ( layer )
+  if ( layer  && layer->isEditable() )
   {
-    QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer );
-    if ( vlayer && vlayer->isEditable() )
-    {
-      canUndo = vlayer->undoStack()->canUndo();
-      canRedo = vlayer->undoStack()->canRedo();
-    }
-
-    QgsMeshLayer *meshLayer = qobject_cast<QgsMeshLayer *>( layer );
-    if ( meshLayer && meshLayer->meshEditor() )
-    {
-      canUndo = meshLayer->undoStack()->canUndo();
-      canRedo = meshLayer->undoStack()->canRedo();
-    }
+    canUndo = layer->undoStack()->canUndo();
+    canRedo = layer->undoStack()->canRedo();
   }
   mActionUndo->setEnabled( canUndo );
   mActionRedo->setEnabled( canRedo );
