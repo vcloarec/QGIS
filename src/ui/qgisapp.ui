@@ -788,7 +788,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="mActionEditMesh"/>
   </widget>
   <action name="mActionNewProject">
    <property name="icon">
@@ -3558,18 +3557,6 @@ Shows placeholders for labels which could not be placed, e.g. due to overlaps wi
    </property>
    <property name="toolTip">
     <string>Measure Bearing</string>
-   </property>
-  </action>
-  <action name="mActionEditMesh">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../../images/images.qrc">
-     <normaloff>:/images/themes/default/mActionMeshEditTool.svg</normaloff>:/images/themes/default/mActionMeshEditTool.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Edit Mesh</string>
    </property>
   </action>
  </widget>

@@ -463,6 +463,7 @@ Q_GUI_EXPORT extern int qt_defaultDpiX();
 #include "qgsmaptooldigitizefeature.h"
 #include "qgsmaptooloffsetpointsymbol.h"
 #include "vertextool/qgsvertextool.h"
+#include "qgsmaptooleditmeshframe.h"
 
 #include "qgsgeometryvalidationmodel.h"
 #include "qgsgeometryvalidationdock.h"
@@ -2808,9 +2809,6 @@ void QgisApp::createActions()
   connect( mActionIncreaseGamma, &QAction::triggered, this, &QgisApp::increaseGamma );
   connect( mActionDecreaseGamma, &QAction::triggered, this, &QgisApp::decreaseGamma );
 
-  // Mesh toolbar items
-  connect( mActionEditMesh, &QAction::triggered, this, [ = ] {setMapTool( mMapTools->mapTool( QgsAppMapTools::EditMeshFrame ) ); } );
-
 #ifdef HAVE_GEOREFERENCER
   connect( mActionShowGeoreferencer, &QAction::triggered, this, &QgisApp::showGeoreferencer );
 #else
@@ -3004,7 +3002,6 @@ void QgisApp::createActionGroups()
   mMapToolGroup->addAction( mActionChangeLabelProperties );
   mMapToolGroup->addAction( mActionReverseLine );
   mMapToolGroup->addAction( mActionTrimExtendFeature );
-  mMapToolGroup->addAction( mActionEditMesh );
 
   //
   // Preview Modes Group
@@ -3737,6 +3734,13 @@ void QgisApp::createToolBars()
   pointSymbolAction->setObjectName( QStringLiteral( "ActionPointSymbolTools" ) );
   connect( bt, &QToolButton::triggered, this, &QgisApp::toolButtonActionTriggered );
 
+  QgsMapToolEditMeshFrame *editMeshMapTool = qobject_cast<QgsMapToolEditMeshFrame *>( mMapTools->mapTool( QgsAppMapTools::EditMeshFrame ) );
+  if ( editMeshMapTool )
+  {
+    mMeshToolBar->addActions( editMeshMapTool->actions() );
+    for ( QAction *mapToolAction : editMeshMapTool->mapToolActions() )
+      mMapToolGroup->addAction( mapToolAction );
+  }
 }
 
 void QgisApp::createStatusBar()
@@ -4373,7 +4377,6 @@ void QgisApp::setupCanvasTools()
   mMapTools->mapTool( QgsAppMapTools::MoveLabel )->setAction( mActionMoveLabel );
   mMapTools->mapTool( QgsAppMapTools::RotateLabel )->setAction( mActionRotateLabel );
   mMapTools->mapTool( QgsAppMapTools::ChangeLabelProperties )->setAction( mActionChangeLabelProperties );
-  mMapTools->mapTool( QgsAppMapTools::EditMeshFrame )->setAction( mActionEditMesh );
 
   //ensure that non edit tool is initialized or we will get crashes in some situations
   mNonEditMapTool = mMapTools->mapTool( QgsAppMapTools::Pan );
@@ -11563,6 +11566,16 @@ void QgisApp::cancelMeshLayerEdits( QgsMapLayer *layer, bool leaveEditable, bool
   }
 }
 
+void QgisApp::enableMeshEditingTools( bool enable )
+{
+  QgsMapToolEditMeshFrame *editMeshMapTool = qobject_cast<QgsMapToolEditMeshFrame *>( mMapTools->mapTool( QgsAppMapTools::EditMeshFrame ) );
+  if ( editMeshMapTool )
+  {
+    for ( QAction *action : editMeshMapTool->actions() )
+      action->setEnabled( enable );
+  }
+}
+
 void QgisApp::saveEdits()
 {
   const auto constSelectedLayers = mLayerTreeView->selectedLayers();
@@ -15149,8 +15162,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
     mActionZoomToLayers->setEnabled( false );
     mActionZoomToLayer->setEnabled( false );
 
-    mActionEditMesh->setEnabled( false );
-
+    enableMeshEditingTools( false );
     enableDigitizeTechniqueActions( false );
 
     return;
@@ -15199,7 +15211,8 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionDiagramProperties->setEnabled( isSpatial );
       mActionReverseLine->setEnabled( false );
       mActionTrimExtendFeature->setEnabled( false );
-      mActionEditMesh->setEnabled( false );
+
+      enableMeshEditingTools( false );
 
       mActionSelectFeatures->setEnabled( isSpatial );
       mActionSelectPolygon->setEnabled( isSpatial );
@@ -15527,8 +15540,8 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionSplitParts->setEnabled( false );
       mActionLabeling->setEnabled( false );
       mActionDiagramProperties->setEnabled( false );
-      mActionEditMesh->setEnabled( false );
 
+      enableMeshEditingTools( false );
       enableDigitizeTechniqueActions( false );
 
       //NOTE: This check does not really add any protection, as it is called on load not on layer select/activate
@@ -15627,7 +15640,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       bool isEditable = mlayer->isEditable();
       mActionToggleEditing->setEnabled( canSupportEditing );
       mActionToggleEditing->setChecked( canSupportEditing && isEditable );
-      mActionEditMesh->setEnabled( isEditable );
+      enableMeshEditingTools( isEditable );
       mActionUndo->setEnabled( canSupportEditing && isEditable );
       mActionRedo->setEnabled( canSupportEditing && isEditable );
       updateUndoActions();
@@ -15702,6 +15715,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionDiagramProperties->setEnabled( false );
       mActionIdentify->setEnabled( true );
       enableDigitizeTechniqueActions( false );
+      enableMeshEditingTools( false );
       break;
 
     case QgsMapLayerType::PointCloudLayer:
@@ -15771,6 +15785,7 @@ void QgisApp::activateDeactivateLayerRelatedActions( QgsMapLayer *layer )
       mActionDiagramProperties->setEnabled( false );
       mActionIdentify->setEnabled( true );
       enableDigitizeTechniqueActions( false );
+      enableMeshEditingTools( false );
       break;
 
     case QgsMapLayerType::PluginLayer:
