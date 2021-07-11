@@ -32,6 +32,7 @@
 #include "qgssnapindicator.h"
 #include "qgsvertexmarker.h"
 #include "qgsguiutils.h"
+#include "qgsmesheditingdelaunaytriangulation.h"
 
 
 QgsZValueWidget::QgsZValueWidget( const QString &label, QWidget *parent ): QWidget( parent )
@@ -96,6 +97,17 @@ QgsMapToolEditMeshFrame::QgsMapToolEditMeshFrame( QgsMapCanvas *canvas )
   mActionRemoveVerticesWithoutFillingHole = new QAction( this );
   mActionRemoveFaces = new QAction( this );
   mActionSplitFaces = new QAction( this );
+
+  mActionDelaunayTriangulation = new QAction( tr( "Delaunay triangulation with selected vertices" ) );
+
+  connect( mActionDelaunayTriangulation, &QAction::triggered, this, [this]
+  {
+
+    QgsMeshEditingDelaunayTriangulation delaunayTriangulation;
+    delaunayTriangulation.setInputVertices( mSelectedVertices.keys() );
+    mCurrentEditor->advancedEdit( &delaunayTriangulation );
+
+  } );
 
   connect( mActionRemoveVerticesFillingHole, &QAction::triggered, this, [this] {removeSelectedVerticesFromMesh( true );} );
   connect( mActionRemoveVerticesWithoutFillingHole, &QAction::triggered, this, [this] {removeSelectedVerticesFromMesh( false );} );
@@ -335,7 +347,10 @@ bool QgsMapToolEditMeshFrame::populateContextMenuWithEvent( QMenu *menu, QgsMapM
       QList<QAction * >  newActions;
 
       if ( !mSelectedVertices.isEmpty() )
+      {
+        newActions << mActionDelaunayTriangulation;
         newActions << mActionRemoveVerticesFillingHole << mActionRemoveVerticesWithoutFillingHole;
+      }
 
       if ( !mSelectedFaces.isEmpty() )
         newActions << mActionRemoveFaces;
@@ -457,7 +472,7 @@ void QgsMapToolEditMeshFrame::cadCanvasReleaseEvent( QgsMapMouseEvent *e )
           mCurrentState = AddingNewFace;
           mNewFaceMarker->setVisible( false );
           mNewFaceBand->setVisible( true );
-          mNewFaceBand->reset();
+          mNewFaceBand->reset( QgsWkbTypes::PolygonGeometry );
           addVertexToFaceCanditate( mCurrentVertexIndex );
           const QgsPointXY &currentPoint = mapVertexXY( mCurrentVertexIndex );
           cadDockWidget()->setPoints( QList<QgsPointXY>() << currentPoint << currentPoint );
@@ -1029,9 +1044,9 @@ QgsPointXY QgsMapToolEditMeshFrame::newFaceMarkerPosition( int vertexIndex )
   {
     QgsMeshVertexCirculator circulator = mCurrentEditor->vertexCirculator( vertexIndex );
     circulator.goBoundaryClockwise();
-    int indexPt1 = circulator.oppositeVertexClockWise();
+    int indexPt1 = circulator.oppositeVertexClockwise();
     circulator.goBoundaryCounterClockwise();
-    int indexPt2 = circulator.oppositeVertexCounterClockWise();
+    int indexPt2 = circulator.oppositeVertexCounterClockwise();
 
     const QgsMeshVertex &v1 = mapVertex( indexPt1 );
     const QgsMeshVertex &v2 = mapVertex( indexPt2 );
@@ -1152,9 +1167,7 @@ void QgsMapToolEditMeshFrame::removeSelectedVerticesFromMesh( bool fillHole )
   else
   {
     clearSelection();
-    mFaceRubberBand->reset( QgsWkbTypes::PolygonGeometry );
-    mFaceVerticesBand->reset( QgsWkbTypes::PointGeometry );
-    mSelectedFacesRubberband->reset( QgsWkbTypes::PolygonGeometry );
+    clearCanvasHelpers();
   }
 }
 
@@ -1170,9 +1183,8 @@ void QgsMapToolEditMeshFrame::removeFacesFromMesh()
   else
   {
     clearSelectedvertex();
-    mFaceRubberBand->reset( QgsWkbTypes::PolygonGeometry );
-    mFaceVerticesBand->reset( QgsWkbTypes::PointGeometry );
-    mSelectedFacesRubberband->reset( QgsWkbTypes::PolygonGeometry );
+    clearCanvasHelpers();
+    updateFreeVertices();
   }
 }
 
@@ -1266,7 +1278,7 @@ void QgsMapToolEditMeshFrame::prepareSelection()
     int firstface = circulator.currentFaceIndex();
     do
     {
-      int oppositeVertex = circulator.oppositeVertexClockWise();
+      int oppositeVertex = circulator.oppositeVertexClockwise();
       if ( mSelectedVertices.contains( oppositeVertex ) )
         vertexData.selectedEdges.append( {circulator.currentFaceIndex(), oppositeVertex} );
       else
@@ -1282,7 +1294,7 @@ void QgsMapToolEditMeshFrame::prepareSelection()
     if ( circulator.currentFaceIndex() == -1 )
     {
       circulator.turnClockwise();
-      int oppositeVertex = circulator.oppositeVertexCounterClockWise();
+      int oppositeVertex = circulator.oppositeVertexCounterClockwise();
       if ( mSelectedVertices.contains( oppositeVertex ) )
         vertexData.selectedEdges.append( {-1, oppositeVertex} );
       else
@@ -1632,6 +1644,8 @@ void QgsMapToolEditMeshFrame::clearSelection()
 
 void QgsMapToolEditMeshFrame::clearCanvasHelpers()
 {
+  mCurrentFaceIndex = -1;
+  mCurrentVertexIndex = -1;
   mFaceRubberBand->reset();
   mFaceVerticesBand->reset();
   mVertexBand->reset();
@@ -1646,6 +1660,7 @@ void QgsMapToolEditMeshFrame::clearCanvasHelpers()
 
 void QgsMapToolEditMeshFrame::clearEdgeHelpers()
 {
+  mCurrentEdge = {-1, -1};
   mEdgeBand->reset();
   mSelectEdgeMarker->setVisible( false );
   mFlipEdgeMarker->setVisible( false );
