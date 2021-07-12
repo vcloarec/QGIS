@@ -309,7 +309,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     //! Open the message log dock widget
     void openMessageLog();
 
-    //! Adds a widget to the user input tool bar.
+    //! Adds a widget to the user input tool bar
     void addUserInputWidget( QWidget *widget );
 
     //! Sets theme (icons)
@@ -2402,7 +2402,7 @@ class APP_EXPORT QgisApp : public QMainWindow, private Ui::MainWindow
     void cancelMeshLayerEdits( QgsMapLayer *layer, bool leaveEditable = true, bool triggerRepaint = true );
 
     /**
-     * Enable/disable mesh frame editing tools
+     * Enables/Disables mesh frame editing tools
      */
     void enableMeshEditingTools( bool enable );
 
