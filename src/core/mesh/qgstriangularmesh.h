@@ -376,6 +376,9 @@ namespace QgsMeshUtils
   //! Returns face as polygon geometry
   CORE_EXPORT QgsGeometry toGeometry( const QgsMeshFace &face, const QVector<QgsMeshVertex> &vertices );
 
+  //! Returns the centroid of the \a face
+  CORE_EXPORT QgsMeshVertex centroid( const QgsMeshFace &face, const QVector<QgsMeshVertex> &vertices );
+
   //! Returns face as polygon geometry, caller is responsible for delete
   CORE_EXPORT std::unique_ptr< QgsPolygon > toPolygon( const QgsMeshFace &face, const QVector<QgsMeshVertex> &vertices );
 

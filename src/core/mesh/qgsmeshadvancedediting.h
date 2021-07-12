@@ -22,14 +22,15 @@
 #include "qgstriangularmesh.h"
 
 class QgsMeshEditor;
+class QgsProcessingFeedback;
 
 
-class CORE_EXPORT QgsMeshAdvancedEditing// : protected QgsTopologicalMesh::Changes
+class CORE_EXPORT QgsMeshAdvancedEditing : protected QgsTopologicalMesh::Changes
 {
   public:
     QgsMeshAdvancedEditing();
     virtual ~QgsMeshAdvancedEditing();
-    virtual QgsTopologicalMesh::Changes apply( QgsMeshEditor *meshEditor ); SIP_SKIP
+    virtual QgsTopologicalMesh::Changes apply( QgsMeshEditor *meshEditor ) = 0; SIP_SKIP
 
     void setInputVertices( const QList<int> verticesIndexes );
 
@@ -37,11 +38,28 @@ class CORE_EXPORT QgsMeshAdvancedEditing// : protected QgsTopologicalMesh::Chang
 
     bool isFinished() const {return mIsFinished;}
 
+    QString message() const;
+
   protected:
     bool mIsFinished = false;
     QList<int> mInputVertices;
     QList<int> mInputFaces;
+    QString mMessage;
 
+};
+
+class CORE_EXPORT QgsMeshEditRefineFaces : public QgsMeshAdvancedEditing
+{
+  public:
+    QgsTopologicalMesh::Changes apply( QgsMeshEditor *meshEditor );
+
+  private:
+
+    struct FaceRefinement
+    {
+      QList<int> newBorderVertexIndexes; // new vertices in the same order of the vertex index (ccw)
+      int newCenterVertexIndex;
+    };
 };
 
 

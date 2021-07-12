@@ -32,6 +32,7 @@
 #include "qgssnapindicator.h"
 #include "qgsvertexmarker.h"
 #include "qgsguiutils.h"
+#include "qgsmesheditingdelaunaytriangulation.h"
 
 
 QgsZValueWidget::QgsZValueWidget( const QString &label, QWidget *parent ): QWidget( parent )
@@ -91,6 +92,7 @@ QgsMapToolEditMeshFrame::QgsMapToolEditMeshFrame( QgsMapCanvas *canvas )
   mActionDigitizing->setCheckable( true );
 
   mActionRemoveVerticesFillingHole = new QAction( this );
+  mActionDelaunayTriangulation = new QAction( tr( "Delaunay triangulation with selected vertices" ), this );
   mActionRemoveVerticesWithoutFillingHole = new QAction( this );
   mActionRemoveFaces = new QAction( tr( "Remove current face" ), this );
   mActionSplitFaces = new QAction( tr( "Split current face" ), this );
@@ -104,6 +106,19 @@ QgsMapToolEditMeshFrame::QgsMapToolEditMeshFrame( QgsMapCanvas *canvas )
   {
     if ( checked )
       activateWithState( Digitizing );
+  } );
+
+  connect( mActionDelaunayTriangulation, &QAction::triggered, this, [this]
+  {
+    if ( mCurrentEditor && mSelectedVertices.count() > 3 )
+    {
+      QgsMeshEditingDelaunayTriangulation triangulation;
+      triangulation.setInputVertices( mSelectedVertices.keys() );
+      mCurrentEditor->advancedEdit( &triangulation );
+
+      if ( !triangulation.message().isEmpty() )
+        QgisApp::instance()->messageBar()->pushInfo( tr( "Delaunay triangulation" ), triangulation.message() );
+    }
   } );
 
   setAutoSnapEnabled( true );
@@ -326,6 +341,9 @@ bool QgsMapToolEditMeshFrame::populateContextMenuWithEvent( QMenu *menu, QgsMapM
 
       if ( !mSelectedVertices.isEmpty() )
       {
+        if ( mSelectedVertices.count() >= 3 )
+          newActions << mActionDelaunayTriangulation;
+
         newActions << mActionRemoveVerticesFillingHole << mActionRemoveVerticesWithoutFillingHole;
       }
 

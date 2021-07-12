@@ -28,15 +28,21 @@ QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshE
   //use only vertices that are on boundary or free, if boundary
   QList<int> vertexIndextoTriangulate;
 
+  QList<int> removedVerticesFromTriangulation;
+
   for ( const int vertexIndex : std::as_const( mInputVertices ) )
   {
     if ( meshEditor->isVertexFree( vertexIndex ) || meshEditor->isVertexOnBoundary( vertexIndex ) )
       vertexIndextoTriangulate.append( vertexIndex );
+    else
+      removedVerticesFromTriangulation.append( vertexIndex );
   }
 
   bool triangulationReady = false;
   bool giveUp = false;
   QgsTopologicalMesh::TopologicalFaces topologicFaces;
+
+
 
   while ( !triangulationReady )
   {
@@ -99,7 +105,10 @@ QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshE
         case Qgis::MeshEditingErrorType::UniqueSharedVertex:
           facesReady = true;
           if ( error.elementIndex != -1 )
+          {
+            removedVerticesFromTriangulation.append( error.elementIndex );
             vertexIndextoTriangulate.removeOne( error.elementIndex );
+          }
           else
             giveUp = true; //we don't know what happens, better to give up
           break;
@@ -110,6 +119,8 @@ QgsTopologicalMesh::Changes QgsMeshEditingDelaunayTriangulation::apply( QgsMeshE
   mIsFinished = true;
 
   Q_ASSERT( meshEditor->topologicalMesh()->checkConsistency() == QgsMeshEditingError() );
+
+  mMessage = QObject::tr( "%1 vertices have not been included in the triangulation" ).arg( removedVerticesFromTriangulation.count() );
 
   if ( triangulationReady && !giveUp )
     return meshEditor->topologicalMesh()->addFaces( topologicFaces );

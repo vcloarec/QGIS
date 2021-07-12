@@ -81,7 +81,6 @@ static void ENP_centroid( const QPolygonF &pX, double &cx, double &cy )
   cy = cy + pt0.y();
 }
 
-
 static void triangulateFaces( const QgsMeshFace &face,
                               int nativeIndex,
                               QVector<QgsMeshFace> &destinationFaces,
@@ -144,17 +143,7 @@ QgsMeshVertex QgsTriangularMesh::transformVertex( const QgsMeshVertex &vertex, Q
 
 QgsMeshVertex QgsTriangularMesh::calculateCentroid( const QgsMeshFace &nativeFace )
 {
-  QVector<QPointF> points( nativeFace.size() );
-  for ( int j = 0; j < nativeFace.size(); ++j )
-  {
-    int index = nativeFace.at( j );
-    const QgsMeshVertex &vertex = mTriangularMesh.vertices.at( index ); // we need vertices in map coordinate
-    points[j] = vertex.toQPointF();
-  }
-  QPolygonF poly( points );
-  double cx, cy;
-  ENP_centroid( poly, cx, cy );
-  return QgsMeshVertex( cx, cy );
+  return QgsMeshUtils::centroid( nativeFace, mTriangularMesh.vertices );
 }
 
 double QgsTriangularMesh::averageTriangleSize() const
@@ -922,4 +911,19 @@ QgsTriangularMesh::Changes::Changes( const QgsTopologicalMesh::Changes &topologi
   mNativeFacesGeometryChanged.resize( mNativeFaceIndexesGeometryChanged.count() );
   for ( int i = 0; i < mNativeFaceIndexesGeometryChanged.count(); ++i )
     mNativeFacesGeometryChanged[i] = nativeMesh.face( mNativeFaceIndexesGeometryChanged.at( i ) );
+}
+
+QgsMeshVertex QgsMeshUtils::centroid( const QgsMeshFace &face, const QVector<QgsMeshVertex> &vertices )
+{
+  QVector<QPointF> points( face.size() );
+  for ( int j = 0; j < face.size(); ++j )
+  {
+    int index = face.at( j );
+    const QgsMeshVertex &vertex = vertices.at( index ); // we need vertices in map coordinate
+    points[j] = vertex.toQPointF();
+  }
+  QPolygonF poly( points );
+  double cx, cy;
+  ENP_centroid( poly, cx, cy );
+  return QgsMeshVertex( cx, cy );
 }

@@ -190,10 +190,7 @@ class CORE_EXPORT QgsMeshEditor : public QObject
      */
     QgsMeshVertexCirculator vertexCirculator( int vertexIndex ) const; SIP_SKIP
 
-    QgsTopologicalMesh *topologicalMesh() SIP_SKIP
-    {
-      return &mTopologicalMesh;
-    }
+    QgsTopologicalMesh *topologicalMesh();
 
     //! Return TRUE if the edited mesh is consistent
     bool checkConsistency() const;

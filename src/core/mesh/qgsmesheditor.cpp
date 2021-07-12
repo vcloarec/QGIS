@@ -637,6 +637,11 @@ QgsMeshVertexCirculator QgsMeshEditor::vertexCirculator( int vertexIndex ) const
   return mTopologicalMesh.vertexCirculator( vertexIndex );
 }
 
+QgsTopologicalMesh *QgsMeshEditor::topologicalMesh() SIP_SKIP
+{
+  return &mTopologicalMesh;
+}
+
 QgsMeshLayerUndoCommandChangeZValue::QgsMeshLayerUndoCommandChangeZValue( QgsMeshEditor *meshEditor, const QList<int> &verticesIndexes, const QList<double> &newValues )
   : QgsMeshLayerUndoCommandMeshEdit( meshEditor )
   , mVerticesIndexes( verticesIndexes )
