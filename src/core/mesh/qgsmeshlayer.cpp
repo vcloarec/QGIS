@@ -934,6 +934,9 @@ bool QgsMeshLayer::startFrameEditing( const QgsCoordinateTransform &transform )
 
 bool QgsMeshLayer::commitFrameEditing( const QgsCoordinateTransform &transform, bool continueEditing )
 {
+  if ( !mMeshEditor->checkConsistency() )
+    return false;
+
   stopFrameEditing( transform );
 
   if ( !mDataProvider )
