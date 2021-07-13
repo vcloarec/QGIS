@@ -241,7 +241,7 @@ void QgsMeshEditRefineFaces::createNewBorderFaces( QgsMeshEditor *meshEditor,
     }
   }
 
-  // now link border face each other if needed
+  // now link border with neighbor
   for ( QHash<int, BorderFace>::iterator it = borderFaces.begin(); it != borderFaces.end(); ++it )
   {
     int faceIndex = it.key();
@@ -254,14 +254,36 @@ void QgsMeshEditRefineFaces::createNewBorderFaces( QgsMeshEditor *meshEditor,
     for ( int posInFace = 0; posInFace < faceSize; ++posInFace )
     {
       int neighborIndex = neighbors.at( posInFace );
+      const QgsMeshFace &neighborFace = mesh.face( neighborIndex );
+      int neighborFaceSize = neighborFace.size();
+      int posInNeighbor = vertexPositionInFace( mesh, face.at( posInFace ), neighborIndex );
+      posInNeighbor = ( posInNeighbor - 1 + neighborFaceSize ) % neighborFaceSize;
 
-      if ( neighborIndex != -1 && facesToRefine.contains( neighborIndex ) )
+      QHash<int, FaceRefinement>::iterator itRefinement = facesRefinement.find( neighborIndex );
+      if ( itRefinement != facesRefinement.end() )
       {
-
+        FaceRefinement &neighborRefinement = itRefinement.value();
+        neighborRefinement.borderFaceNeighbor[posInNeighbor] = true;
+        borderFace.refinedFacesNeighbor[posInFace] = true;
       }
-      else if ( neighborIndex != -1 )
+      else
       {
-        QHash<int, BorderFace>::iterator itNeighbor;
+        if ( neighborIndex != -1 )
+        {
+          QHash<int, BorderFace>::iterator itNeighborBorder = borderFaces.find( neighborIndex );
+          if ( itNeighborBorder == borderFaces.end() )
+            borderFace.unchangeFacesNeighbor[posInFace] = true;
+          else
+          {
+            BorderFace &neighborBorderFace = itNeighborBorder.value();
+            neighborBorderFace.borderFacesNeighbor[posInNeighbor] = true;
+            borderFace.borderFacesNeighbor[posInFace] = true;
+          }
+        }
+        else
+        {
+          borderFace.unchangeFacesNeighbor[posInFace] = true;
+        }
       }
 
     }
