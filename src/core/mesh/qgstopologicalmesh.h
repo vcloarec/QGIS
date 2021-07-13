@@ -284,7 +284,7 @@ class CORE_EXPORT QgsTopologicalMesh
     void reindex();
 
     //! Checks the consistency of the topological mesh and return FALSE if there is a consistency issue
-    bool checkConsistency() const;
+    QgsMeshEditingError checkConsistency() const;
 
   private:
 

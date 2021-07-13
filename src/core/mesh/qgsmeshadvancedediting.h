@@ -57,9 +57,35 @@ class CORE_EXPORT QgsMeshEditRefineFaces : public QgsMeshAdvancedEditing
 
     struct FaceRefinement
     {
-      QList<int> newBorderVertexIndexes; // new vertices in the same order of the vertex index (ccw)
+      QList<int> newVerticesLocalIndex; // new vertices in the same order of the vertex index (ccw)
+      QList<bool> refinedFaceNeighbor;
+      QList<bool> borderFaceNeighbor;
       int newCenterVertexIndex;
+      QList<int> newFacesLocalIndex;
     };
+
+    struct BorderFace
+    {
+      QList<bool> refinedFacesNeighbor;
+      QList<bool> borderFacesNeighbor;
+      QList<bool> unchangeFacesNeighbor;
+      QList<int> newVerticesLocalIndex;
+    };
+
+    //! Create new vertices of the refinement and populate helper containers
+    void createNewVerticesAndRefinedFaces( QgsMeshEditor *meshEditor,
+                                           QVector<QgsMeshVertex> &newVertices,
+                                           QSet<int> &facesToRefine,
+                                           QHash<int, FaceRefinement> &facesRefinement, QVector<QgsMeshFace> &newFaces );
+
+    void createNewBorderFaces( QgsMeshEditor *meshEditor,
+                               const QSet<int> &facesToRefine,
+                               QHash<int, FaceRefinement> &facesRefinement,
+                               QHash<int, BorderFace> &borderFaces );
+
+
+
+    friend class TestQgsMeshEditor;
 };
 
 

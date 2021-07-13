@@ -20,6 +20,7 @@
 #include "qgstriangularmesh.h"
 #include "qgsmeshlayer.h"
 #include "qgsmesheditor.h"
+#include "qgsmeshadvancedediting.h"
 
 
 class TestQgsMeshEditor : public QObject
@@ -48,12 +49,13 @@ class TestQgsMeshEditor : public QObject
     void badTopologicMesh();
     void meshEditorSimpleEdition();
     void faceIntersection();
-    void particularCases();
 
     void meshEditorFromMeshLayer_quadTriangle();
     void meshEditorFromMeshLayer_quadFlower();
 
-    void advancedEditing();
+    void refineMesh();
+
+    void particularCases();
 };
 
 
@@ -944,7 +946,6 @@ void TestQgsMeshEditor::particularCases()
     QVERIFY( !meshEditor.isFaceGeometricallyCompatible( {1, 3, 2} ) );
   }
 
-  return;
   {
     // massive remove
     QgsMesh mesh;
@@ -1515,8 +1516,103 @@ void TestQgsMeshEditor::meshEditorFromMeshLayer_quadFlower()
   streamAltered << streamOriginal.readAll();
 }
 
-void TestQgsMeshEditor::advancedEditing()
+void TestQgsMeshEditor::refineMesh()
 {
+  QgsMesh mesh;
+  QgsTriangularMesh triangularMesh;
+  QgsMeshEditor meshEditor( &mesh, &triangularMesh );
+
+  int sideSize = 20;
+
+  for ( int i = 0; i < sideSize; ++i )
+    for ( int j = 0; j < sideSize; ++j )
+      mesh.vertices.append( QgsMeshVertex( i, j, 0 ) );
+
+  for ( int i = 0; i < sideSize - 1; ++i )
+    for ( int j = 0; j < sideSize - 1; ++j )
+    {
+      if ( j % 3 == 0 )
+      {
+        // add a quad
+        mesh.faces.append( QgsMeshFace(
+        {
+          i * sideSize + j,
+          ( i + 1 ) * sideSize + j,
+          ( i + 1 ) * sideSize + j + 1,
+          ( i ) * sideSize + j + 1} ) );
+      }
+      else
+      {
+        // add two triangles
+        mesh.faces.append( QgsMeshFace( {i * sideSize + j,
+                                         ( i + 1 ) * sideSize + j,
+                                         ( i + 1 ) * sideSize + j + 1} ) );
+        mesh.faces.append( QgsMeshFace( {i * sideSize + j,
+                                         i  * sideSize + j + 1,
+                                         ( i + 1 ) * sideSize + j + 1} ) );
+      }
+    }
+
+  QgsCoordinateTransform transform;
+  triangularMesh.update( &mesh, transform );
+  QVERIFY( meshEditor.initialize() == QgsMeshEditingError() );
+
+  QgsMeshEditRefineFaces refineEditing;
+  QList<int> facesList;
+  for ( int i = 10; i < 20; ++i )
+    facesList.append( i );
+
+  refineEditing.setInputFaces( facesList );
+
+  QVector<QgsMeshVertex> newVertices;
+  QVector<QgsMeshFace> newFaces;
+  QSet<int> facesToRefine;
+  QHash<int, QgsMeshEditRefineFaces::FaceRefinement> facesRefinement;
+  QHash<int, QgsMeshEditRefineFaces::BorderFace> borderFaces;
+
+  facesToRefine = facesList.toSet();
+
+  refineEditing.createNewVerticesAndRefinedFaces( &meshEditor, newVertices, facesToRefine, facesRefinement, newFaces );
+  refineEditing.createNewBorderFaces( &meshEditor, facesToRefine, facesRefinement, borderFaces );
+
+  QCOMPARE( facesRefinement.count(), 10 );
+  QCOMPARE( newVertices.count(), 25 );
+  QCOMPARE( newFaces.count(), 40 );
+  QCOMPARE( facesRefinement.count(), 10 );
+  QCOMPARE( facesRefinement.count(), 10 );
+  QCOMPARE( borderFaces.count(), 8 );
+
+  auto checkRefinedFace = [ = ]( int faceIndex,
+                                 int refinedNeighborCount,
+                                 int centerVertexIndex,
+                                 int newBorderVertexCount,
+                                 int newFaceCount )
+  {
+    const QgsMeshEditRefineFaces::FaceRefinement &refinement = facesRefinement.value( faceIndex );
+    int refinedNeighbor = 0;
+    for ( int j = 0; j < mesh.face( faceIndex ).count(); ++j )
+    {
+      if ( refinement.refinedFaceNeighbor.at( j ) )
+        refinedNeighbor++;
+    }
+    QCOMPARE( refinedNeighbor, refinedNeighborCount );
+    QCOMPARE( refinement.newCenterVertexIndex, centerVertexIndex );
+    QCOMPARE( refinement.newVerticesLocalIndex.count(), newBorderVertexCount );
+    QCOMPARE( refinement.newFacesLocalIndex.count(), newFaceCount );
+  };
+
+  for ( int i = 10; i < 20; ++i )
+  {
+    if ( i == 10 ) // first quad face
+      checkRefinedFace( i, 1, 4, 4, 4 );
+    else if ( i == 15 ) //middle quad face
+      checkRefinedFace( i, 2, 16, 4, 4 );
+    else if ( i == 19 ) //last triangle face
+      checkRefinedFace( i, 1, -1, 3, 4 );
+    else
+      checkRefinedFace( i, 2, -1, 3, 4 );
+  }
+
 
 }
 
