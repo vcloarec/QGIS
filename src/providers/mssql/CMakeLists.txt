@@ -9,7 +9,8 @@ set(MSSQL_SRCS
   qgsmssqlfeatureiterator.cpp
   qgsmssqlgeomcolumntypethread.cpp
   qgsmssqltransaction.cpp
-)
+  qgsmssqldatabase.cpp
+  )
 
 if (WITH_GUI)
   set(MSSQL_SRCS ${MSSQL_SRCS}
@@ -51,12 +52,12 @@ if (WITH_GUI)
 endif()
 
 # static library
-add_library (mssqlprovider_a STATIC ${MSSQL_SRCS} ${MSSQL_HDRS})
+add_library (provider_mssql_a STATIC ${MSSQL_SRCS} ${MSSQL_HDRS})
 
 # require c++17
-target_compile_features(mssqlprovider_a PRIVATE cxx_std_17)
+target_compile_features(provider_mssql_a PRIVATE cxx_std_17)
 
-target_link_libraries (mssqlprovider_a
+target_link_libraries (provider_mssql_a
   qgis_core
   ${POSTGRES_LIBRARY}
   ${Qt5Xml_LIBRARIES}
@@ -68,16 +69,16 @@ target_link_libraries (mssqlprovider_a
 )
 
 if (WITH_GUI)
-  target_link_libraries (mssqlprovider_a
+  target_link_libraries (provider_mssql_a
     qgis_gui
   )
-  add_dependencies(mssqlprovider_a ui)
+  add_dependencies(provider_mssql_a ui)
 endif()
 
 ########################################################
 # Install
 
-install (TARGETS mssqlprovider mssqlprovider_a
+install (TARGETS provider_mssql
   RUNTIME DESTINATION ${QGIS_PLUGIN_DIR}
   LIBRARY DESTINATION ${QGIS_PLUGIN_DIR})
 

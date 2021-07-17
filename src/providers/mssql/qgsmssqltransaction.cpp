@@ -29,13 +29,13 @@ QgsMssqlTransaction::QgsMssqlTransaction( const QString &connString ): QgsTransa
 {
   QgsDataSourceUri uri( connString );
 
-  mDataBase = QgsMssqlConnection::getDatabaseConnection( uri, connString + QStringLiteral( "-transaction" ) );
+  mDataBase = QgsMssqlDatabase::database( uri );
 }
 
 QgsMssqlTransaction::~QgsMssqlTransaction()
 {
-  if ( QSqlDatabase::contains( mDataBase.connectionName() ) )
-    QSqlDatabase::removeDatabase( mDataBase.connectionName() );
+//  if ( QSqlDatabase::contains( mDataBase.connectionName() ) )
+//    QSqlDatabase::removeDatabase( mDataBase.connectionName() );
 }
 
 bool QgsMssqlTransaction::executeSql( const QString &sql, QString &error, bool isDirty, const QString &name )
@@ -58,7 +58,7 @@ bool QgsMssqlTransaction::executeSql( const QString &sql, QString &error, bool i
     }
   }
 
-  QSqlQuery query( mDataBase );
+  QgsMssqlQuery query( mDataBase );
   if ( !query.exec( sql ) )
   {
     if ( isDirty )
@@ -99,22 +99,22 @@ QString QgsMssqlTransaction::createSavepoint( const QString &savePointId, QStrin
   return savePointId;
 }
 
-QSqlQuery QgsMssqlTransaction::createQuery()
+QgsMssqlQuery QgsMssqlTransaction::createQuery()
 {
   if ( !mDataBase.isOpen() )
   {
     if ( !QgsMssqlConnection::openDatabase( mDataBase ) )
     {
       QgsDataSourceUri uri = mConnString;
-      mDataBase = QgsMssqlConnection::getDatabaseConnection( uri, mConnString );
+      mDataBase = QgsMssqlDatabase::database( uri );
     }
 
     QgsMssqlConnection::openDatabase( mDataBase );
     if ( !mDataBase.isOpen() )
-      return QSqlQuery();
+      return QgsMssqlQuery();
   }
 
-  return QSqlQuery( mDataBase );
+  return QgsMssqlQuery( mDataBase );
 }
 
 bool QgsMssqlTransaction::transactionCommand( const QString command, QString &error )
@@ -151,8 +151,8 @@ bool QgsMssqlTransaction::beginTransaction( QString &error, int )
     if ( mDataBase.isOpen() )
     {
 
-      if ( !mDataBase.driver()->hasFeature( QSqlDriver::Transactions ) )
-        return false;
+//      if ( !mDataBase.driver()->hasFeature( QSqlDriver::Transactions ) )
+//        return false;
 
       if ( mDataBase.transaction() )
       {
@@ -168,7 +168,7 @@ bool QgsMssqlTransaction::commitTransaction( QString &error )
 {
   if ( mDataBase.isValid() && mDataBase.isOpen() )
   {
-    mDataBase.commit();
+    //mDataBase.commit();
     return true;
   }
 
@@ -179,7 +179,7 @@ bool QgsMssqlTransaction::rollbackTransaction( QString &error )
 {
   if ( mDataBase.isValid() && mDataBase.isOpen() )
   {
-    mDataBase.rollback();
+    //mDataBase.rollback();
     return true;
   }
 
@@ -192,9 +192,9 @@ QgsMssqlDataBaseConnectionBase::QgsMssqlDataBaseConnectionBase( QObject *parent 
   QObject( parent )
 {}
 
-QgsMssqlQuery QgsMssqlDataBaseConnectionBase::createQuery()
+QgsMssqlQuery_oldVersion QgsMssqlDataBaseConnectionBase::createQuery()
 {
-  return QgsMssqlQuery( this );
+  return QgsMssqlQuery_oldVersion( this );
 }
 
 QString QgsMssqlDataBaseConnection::createQueryPrivate()
@@ -390,41 +390,41 @@ QVariant QgsMssqlSharableConnection::queryValue( const QString &queryId, int ind
   return value;
 }
 
-QgsMssqlQuery::QgsMssqlQuery( QgsMssqlDataBaseConnectionBase *connection ):
+QgsMssqlQuery_oldVersion::QgsMssqlQuery_oldVersion( QgsMssqlDataBaseConnectionBase *connection ):
   mConnection( connection )
 {
   if ( !mConnection.isNull() )
     mUid = mConnection->createQueryPrivate();
 }
 
-QgsMssqlQuery::~QgsMssqlQuery()
+QgsMssqlQuery_oldVersion::~QgsMssqlQuery_oldVersion()
 {
   if ( !mConnection.isNull() )
     mConnection->removeQuery( mUid );
 }
 
-bool QgsMssqlQuery::exec( const QString &query )
+bool QgsMssqlQuery_oldVersion::exec( const QString &query )
 {
   if ( mConnection.isNull() )
     return false;
   return mConnection->executeQuery( mUid, query );
 }
 
-bool QgsMssqlQuery::next()
+bool QgsMssqlQuery_oldVersion::next()
 {
   if ( mConnection.isNull() )
     return false;
   return mConnection->queryNext( mUid );
 }
 
-bool QgsMssqlQuery::isActive()
+bool QgsMssqlQuery_oldVersion::isActive()
 {
   if ( mConnection.isNull() )
     return false;
   return mConnection->isQueryActive( mUid );
 }
 
-QVariant QgsMssqlQuery::value( int index )
+QVariant QgsMssqlQuery_oldVersion::value( int index )
 {
   if ( !mConnection.isNull() )
     return mConnection->queryValue( mUid, index );

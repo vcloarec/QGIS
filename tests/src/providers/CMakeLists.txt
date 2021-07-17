@@ -38,8 +38,8 @@ add_qgis_test(testqgswmsprovider.cpp MODULE provider LINKEDLIBRARIES provider_wm
 add_qgis_test(testqgspostgresprovider.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core)
 add_qgis_test(testqgspostgresconn.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core LABELS "POSTGRES")
 
-ADD_QGIS_TEST(mssqlprovidertest testqgsmssqlprovider.cpp)
-target_link_libraries(qgis_mssqlprovidertest mssqlprovider_a qgis_core)
+add_qgis_test(testqgsmssqlprovider.cpp MODULE provider LINKEDLIBRARIES provider_mssql_a qgis_core LABELS "MSSQL")
+
 
 if (NOT FORCE_STATIC_PROVIDERS)
   add_qgis_test(testqgsmdalprovider.cpp MODULE provider LINKEDLIBRARIES qgis_core)

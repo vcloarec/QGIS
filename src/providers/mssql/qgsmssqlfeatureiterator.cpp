@@ -427,7 +427,7 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
   {
     if ( !mQuery )
     {
-      mQuery.reset( new QSqlQuery( mTransaction->createQuery() ) );
+      mQuery.reset( new QgsMssqlQuery( mTransaction->createQuery() ) );
       // start selection
       if ( !rewind() )
         return false;
@@ -437,7 +437,11 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
   {
     // No existing connection, so set it up now. It's safe to do here as we're now in
     // the thread were iteration is actually occurring.
-    mDatabase = QgsMssqlConnection::getDatabaseConnection( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
+    mDatabase = QgsMssqlDatabase::database( mSource->mService,
+                                            mSource->mHost,
+                                            mSource->mDatabaseName,
+                                            mSource->mUserName,
+                                            mSource->mPassword );
 
     if ( !mDatabase.open() )
     {
@@ -447,7 +451,7 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
     }
 
     // create sql query
-    mQuery.reset( new QSqlQuery( mDatabase ) );
+    mQuery.reset( new QgsMssqlQuery( mDatabase ) );
 
     // start selection
     if ( !rewind() )

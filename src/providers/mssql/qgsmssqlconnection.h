@@ -21,6 +21,7 @@
 #include <QStringList>
 #include <QMutex>
 
+#include "qgsmssqldatabase.h"
 #include "qgsmssqltransaction.h"
 #include "qgsdatasourceuri.h"
 #include "qgsvectordataprovider.h"
@@ -50,7 +51,7 @@ class QgsMssqlConnection
 
     static QgsMssqlDataBaseConnectionBase *getDataBaseConnection_v2( const QgsDataSourceUri &uri );
 
-    static bool openDatabase( QSqlDatabase &db );
+    static bool openDatabase( QgsMssqlDatabase &db );
 
     /**
      * Returns true if the connection with matching \a name should
@@ -202,7 +203,7 @@ class QgsMssqlConnection
      * Returns a list of all schemas on the \a dataBase.
      * \since QGIS 3.18
      */
-    static QStringList schemas( QSqlDatabase &dataBase, QString *errorMessage );
+    static QStringList schemas( QgsMssqlDatabase &dataBase, QString *errorMessage );
 
     /**
      * Returns true if the given \a schema is a system schema.

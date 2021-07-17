@@ -16,6 +16,7 @@
  ***************************************************************************/
 
 #include "qgsmssqlconnection.h"
+#include "qgsmssqldatabase.h"
 #include "qgsmssqlprovider.h"
 #include "qgslogger.h"
 #include "qgssettings.h"
@@ -28,6 +29,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QApplication>
+#include <QDebug>
 
 //int QgsMssqlConnection::sConnectionId = 0;
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
@@ -275,12 +277,13 @@ QSqlDatabase QgsMssqlConnection::getDatabaseConnection( const QString &service, 
 //  return db;
 //}
 
-bool QgsMssqlConnection::openDatabase( QSqlDatabase &db )
+bool QgsMssqlConnection::openDatabase( QgsMssqlDatabase &db )
 {
   if ( !db.isOpen() )
   {
     if ( !db.open() )
     {
+      QString lastError = db.lastError().text();
       return false;
     }
   }
@@ -364,7 +367,7 @@ bool QgsMssqlConnection::dropView( const QString &uri, QString *errorMessage )
   QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -375,7 +378,7 @@ bool QgsMssqlConnection::dropView( const QString &uri, QString *errorMessage )
     return false;
   }
 
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   if ( !q.exec( QString( "DROP VIEW [%1].[%2]" ).arg( schema, table ) ) )
   {
     if ( errorMessage )
@@ -391,7 +394,7 @@ bool QgsMssqlConnection::dropTable( const QString &uri, QString *errorMessage )
   QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -402,7 +405,7 @@ bool QgsMssqlConnection::dropTable( const QString &uri, QString *errorMessage )
     return false;
   }
 
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
   const QString sql = QString( "IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[%1].[%2]') AND type in (N'U')) DROP TABLE [%1].[%2]\n"
                                "DELETE FROM geometry_columns WHERE f_table_schema = '%1' AND f_table_name = '%2'" )
@@ -423,7 +426,7 @@ bool QgsMssqlConnection::truncateTable( const QString &uri, QString *errorMessag
   QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
   const QString schema = dsUri.schema();
   const QString table = dsUri.table();
 
@@ -434,7 +437,7 @@ bool QgsMssqlConnection::truncateTable( const QString &uri, QString *errorMessag
     return false;
   }
 
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
   const QString sql = QStringLiteral( "TRUNCATE TABLE [%1].[%2]" ).arg( schema, table );
   if ( !q.exec( sql ) )
@@ -452,7 +455,7 @@ bool QgsMssqlConnection::createSchema( const QString &uri, const QString &schema
   QgsDataSourceUri dsUri( uri );
 
   // connect to database
-  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
 
   if ( !openDatabase( db ) )
   {
@@ -461,7 +464,7 @@ bool QgsMssqlConnection::createSchema( const QString &uri, const QString &schema
     return false;
   }
 
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
   const QString sql = QStringLiteral( "CREATE SCHEMA [%1]" ).arg( schemaName );
   if ( !q.exec( sql ) )
@@ -479,12 +482,12 @@ QStringList QgsMssqlConnection::schemas( const QString &uri, QString *errorMessa
   QgsDataSourceUri dsUri( uri );
 
 // connect to database
-  QSqlDatabase db = getDatabaseConnection( dsUri, dsUri.connectionInfo() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
 
   return schemas( db, errorMessage );
 }
 
-QStringList QgsMssqlConnection::schemas( QSqlDatabase &dataBase, QString *errorMessage )
+QStringList QgsMssqlConnection::schemas( QgsMssqlDatabase &dataBase, QString *errorMessage )
 {
   if ( !openDatabase( dataBase ) )
   {
@@ -495,7 +498,7 @@ QStringList QgsMssqlConnection::schemas( QSqlDatabase &dataBase, QString *errorM
 
   const QString sql = QStringLiteral( "select s.name as schema_name from sys.schemas s" );
 
-  QSqlQuery q = QSqlQuery( dataBase );
+  QgsMssqlQuery q = QgsMssqlQuery( dataBase );
   q.setForwardOnly( true );
   if ( !q.exec( sql ) )
   {

@@ -27,6 +27,7 @@
 #include "qgstransaction.h"
 #include "qgsdatasourceuri.h"
 #include "qgis_sip.h"
+#include "qgsmssqldatabase.h"
 
 ///@cond PRIVATE
 #define SIP_NO_FILE
@@ -43,7 +44,7 @@
  * The option READ_COMMITTED_SNAPSHOT is a database setting, so QGIS could not change this option.
  *
  * In the worth case, if the main thread use a connection to access to a database with a transaction opened, QGIS freezes until this transaction finished.
- * If this transaction is also handle in he main trhead, this freezing never finishes
+ * If this transaction is also handle in the main trhead, this freezing never finishes
  *
  * In the better case, the other connection is not in the main thread and will not freez QGIS. But his job is blocked until the transaction is finished
  * (never if the transaction is handle in the same thread).
@@ -91,14 +92,14 @@ class QgsMssqlTransaction : public QgsTransaction
     bool executeSql( const QString &sql, QString &error, bool isDirty = false, const QString &name = QString() ) override;
     QString createSavepoint( const QString &savePointId, QString &error ) override;
 
-    QSqlQuery createQuery();
+    QgsMssqlQuery createQuery();
 
   private:
     bool beginTransaction( QString &error, int ) override;
     bool commitTransaction( QString &error ) override;
     bool rollbackTransaction( QString &error ) override;
 
-    QSqlDatabase mDataBase;
+    QgsMssqlDatabase mDataBase;
     bool transactionCommand( const QString command, QString &error );
 
 };
@@ -106,18 +107,15 @@ class QgsMssqlTransaction : public QgsTransaction
 
 class QgsMssqlDataBaseConnectionBase;
 
-class QgsMssqlQuery
+class QgsMssqlQuery_oldVersion
 {
   public:
-    QgsMssqlQuery( QgsMssqlDataBaseConnectionBase *connection );
-    ~QgsMssqlQuery();
+    QgsMssqlQuery_oldVersion( QgsMssqlDataBaseConnectionBase *connection );
+    ~QgsMssqlQuery_oldVersion();
 
     bool exec( const QString &query );
-
     bool next();
-
     bool isActive();
-
     QVariant value( int index );
 
   private:
@@ -150,7 +148,7 @@ class QgsMssqlDataBaseConnectionBase : public QObject
     virtual bool rollbackTransaction() = 0;
 
     //! Creates a query associated to the connection
-    QgsMssqlQuery createQuery();
+    QgsMssqlQuery_oldVersion createQuery();
 
   protected slots:
     //! Create a query and return an unique id associated to this query, this unique id can be used for operation on this query
@@ -174,7 +172,7 @@ class QgsMssqlDataBaseConnectionBase : public QObject
     //! Returns whether the query is active, same behavior than QSqlQuery::isActive() except if the query does not exist anymore, return false
     virtual bool isQueryActive( const QString &uid ) const = 0;
 
-    friend class QgsMssqlQuery;
+    friend class QgsMssqlQuery_oldVersion;
 
 };
 
@@ -208,7 +206,8 @@ class QgsMssqlDataBaseConnection : public QgsMssqlDataBaseConnectionBase
 };
 
 /**
- * This class embed a connection wrapper in another thread. All the acces to the wrapped connection is done by blocking queued slot connections
+ * This class embed a connection wrapper in another thread.
+ * All the access to the wrapped connection is done by blocking queued slot connections
  */
 
 class QgsMssqlSharableConnection : public QgsMssqlDataBaseConnectionBase
