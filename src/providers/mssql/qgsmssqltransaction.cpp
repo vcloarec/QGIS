@@ -242,7 +242,7 @@ bool QgsMssqlDataBaseConnection::queryNext( const QString &uid )
 
 void QgsMssqlDataBaseConnection::initConnection()
 {
-  mDatabaseConnection = QgsMssqlConnection::getDatabaseConnection( mUri, mUri.connectionInfo() );
+  //mDatabaseConnection = QgsMssqlConnection::getDatabaseConnection( mUri, mUri.connectionInfo() );
   mDatabaseConnection.open();
 }
 

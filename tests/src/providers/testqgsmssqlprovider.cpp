@@ -25,6 +25,7 @@
 #include <qgsmssqltransaction.h>
 #include <qgsmssqlconnection.h>
 #include <qgsvectorlayer.h>
+#include <qtconcurrentrun.h>
 
 #include "qgsmssqldatabase.h"
 
@@ -42,13 +43,15 @@ class TestQgsMssqlProvider : public QObject
     void init() {}// will be called before each testfunction is executed.
     void cleanup() {}// will be called after every testfunction.
 
+    void concurentQueryDuringTransaction();
     void createConnection();
+
     void transaction();
     void openLayer();
 
     void threadSafeConnection();
 
-    void concurentQueryDuringTransaction();
+
 
   private:
 
@@ -74,6 +77,8 @@ void TestQgsMssqlProvider::createConnection()
 {
   QgsMssqlDatabase database1 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
   QgsMssqlDatabase database2;
+
+  QgsMssqlDatabase database3 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
 
   QVERIFY( database1.isValid() );
   QVERIFY( database1.open() );
@@ -125,7 +130,7 @@ void TestQgsMssqlProvider::createConnection()
 
   QVERIFY( otherQuery.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
   while ( otherQuery.next() )
-    schemas << query.value( 0 ).toString();
+    schemas << otherQuery.value( 0 ).toString();
   QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
   QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
   QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
@@ -145,6 +150,8 @@ void TestQgsMssqlProvider::transaction()
 //  QVERIFY( database.isValid() );
 //  QVERIFY( database.open() );
 //  QVERIFY( database.isOpen() );
+
+  //QVERIFY( database.transaction() );
 }
 
 void TestQgsMssqlProvider::openLayer()
@@ -154,8 +161,10 @@ void TestQgsMssqlProvider::openLayer()
 
   QgsVectorLayer vl( uri, QStringLiteral( "point_layer" ), QStringLiteral( "mssql" ) );
 
-  QVERIFY( vl.isValid() );
-  QCOMPARE( vl.featureCount(), 5 );
+  QgsMssqlDatabase database3 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
+
+//  QVERIFY( vl.isValid() );
+//  QCOMPARE( vl.featureCount(), 5 );
 }
 
 
@@ -198,36 +207,87 @@ void TestQgsMssqlProvider::threadSafeConnection()
 //    names << query.value( 0 );
 }
 
+static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QString &queryString, bool forwardOnly )
+{
+  QgsMssqlDatabase connection = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
+  QVERIFY( connection.isValid() );
+  QVERIFY( connection.open() );
+  QVERIFY( connection.isOpen() );
+
+  QThread::msleep( 0 );
+
+  QgsMssqlQuery query( connection );
+  query.setForwardOnly( forwardOnly );
+  query.exec( queryString );
+  bool r = query.next();
+  if ( !r )
+    qDebug() << query.lastError();
+
+
+  for ( int i = 0; i < 10; ++i )
+  {
+    if ( !query.isValid() )
+    {
+      if ( query.isForwardOnly() )
+      {
+        query.exec( queryString );
+        query.next();
+      }
+      else
+        query.first();
+    }
+
+    QVariant var = query.value( 0 );
+    if ( !var.isValid() )
+    {
+      query.first();
+      qDebug() << "query " << i << " Invalid ";
+    }
+    else
+      qDebug() << "query " << i << " value: " << var;
+    query.next();
+
+    QThread::msleep( 100 );
+  }
+
+  qDebug() << "concurrent query end";
+}
+
+
 void TestQgsMssqlProvider::concurentQueryDuringTransaction()
 {
-//  QgsDataSourceUri uri;
-//  uri.setConnection( "localhost", "", "qgis", "sa", "<YourStrong!Passw0rd>" );
-//  QSqlDatabase dataBase_1 = QgsMssqlConnection::getDatabaseConnection( uri, "simpleConnection_1" );
-//  QSqlDatabase dataBase_2 = QgsMssqlConnection::getDatabaseConnection( uri, "simpleConnection_2" );
+  for ( int i = 0; i < 1; ++i )
+  {
+    QgsMssqlDatabase database_1 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
+    QgsMssqlDatabase dataBase_2 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
 
-//  QVERIFY( dataBase_1.isValid() );
-//  QVERIFY( dataBase_1.open() );
+    const QgsDataSourceUri uri;
+    QString statement = QStringLiteral( "select * from qgis_test.someData" );
+    QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement, false );
 
-//  qDebug() << "Myyyyyyyyyy connection name _1:" << dataBase_1.connectionName();
+    // let them the concurrent query starting and working a bit
+    QThread::msleep( 0 );
 
-//  QVERIFY( dataBase_1.transaction() );
+    QVERIFY( database_1.isValid() );
+    QVERIFY( database_1.open() );
 
-//  QSqlQuery query_1( dataBase_1 );
-//  QVERIFY( query_1.exec( QStringLiteral( "INSERT INTO  qgis_test.someData(pk,name) VALUES(100,'a name')" ) ) );
+    //qDebug() << "Myyyyyyyyyy connection name _1:" << database_1.connectionName();
 
-//  qDebug() << query_1.lastError().text();
+    QVERIFY( database_1.transaction() );
+    //QVERIFY( !dataBase_2.isValid() );
 
-//  QVERIFY( dataBase_2.isValid() );
-//  QVERIFY( dataBase_2.open() );
+    QgsMssqlQuery query_1( database_1 );
+    QVERIFY( query_1.exec( QStringLiteral( "INSERT INTO  qgis_test.someData(pk,name) VALUES(100,'a name')" ) ) );
 
-//  qDebug() << "Myyyyyyyyyy connection name _2:" << dataBase_2.connectionName();
-
-//  QSqlQuery query_2( dataBase_2 );
+//  QgsMssqlQuery query_2( dataBase_2 );
 //  QVERIFY( query_2.exec( QStringLiteral( "select * from qgis_test.someData" ) ) );
 //  query_2.next();
 
+    future_1.waitForFinished();
+  }
 
-//  QVERIFY( dataBase_1.rollback() );
+
+//  ( dataBase_1.rollback() );
 }
 
 
