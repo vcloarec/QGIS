@@ -71,13 +71,14 @@ class QgsMssqlQuery
       std::weak_ptr<QSqlQuery> mSqlQueryWeakRef;
     };
 
-    struct ValidityChecker
+    class QueryValidity
     {
-      ValidityChecker( Data *d );
-      ~ValidityChecker();
-      bool isValid() const;
+      public:
+        QueryValidity( Data *d );
+        ~QueryValidity();
+        bool isValid() const;
 
-      Data *md;
+        Data *md;
     };
 
     std::shared_ptr<QSqlQuery> sqlQuery() const
@@ -90,7 +91,9 @@ class QgsMssqlQuery
     bool isValidPrivate() const;
 
     friend class QgsMssqlDatabase;
+    friend class QgsMssqlDatabaseConnection;
     friend class QgsMssqlDatabaseConnectionClassic;
+    friend class QgsMssqlDatabaseConnectionTransaction;
 };
 
 /**
@@ -140,10 +143,8 @@ class QgsMssqlDatabase
 
     static std::shared_ptr<QgsMssqlDatabaseConnection> getConnection( const QgsDataSourceUri &uri, bool transaction );
     static void dereferenceConnection( std::weak_ptr<QgsMssqlDatabaseConnection> mDatabaseConnectionRef );
-    static void invalidateConnection( QgsMssqlDatabaseConnection *mDatabaseConnection );
-    static void purgeConnections();
 
-    static QMap<QString, std::shared_ptr<QgsMssqlDatabaseConnection>> sConnectionsThread;
+    static QMap<QString, std::shared_ptr<QgsMssqlDatabaseConnection>> sExistingConnections;
 
     static QString threadConnectionName( const QgsDataSourceUri &uri, bool transaction );
     static QString threadString();
@@ -197,41 +198,54 @@ class QgsMssqlDatabaseConnection : public QObject
     QString connectionName() const;
 
   signals:
-    void invalidated() const;
+    void isStopped() const;
 
   protected:
     QgsDataSourceUri mUri;
     QString mConnectionName;
     QAtomicInt mRef;
-    bool mIsInvalidated = false;
-    bool mIsInvalidationAsked = false;
+    std::atomic<bool> mIsInvalidated = false;
+    std::atomic<bool> mIsWorking = false;
+    std::atomic<bool> mIsStopped = true;
+
+    void confirmInvalidation()
+    {
+      mIsStopped = true;
+      emit isStopped();
+    }
+
 
   private:
-    virtual void addBindValue( QgsMssqlQuery::ValidityChecker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) = 0;
-    virtual void clear( std::weak_ptr<QSqlQuery> queryRef ) = 0;
-    virtual bool exec( std::weak_ptr<QSqlQuery> queryRef, const QString &queryString ) = 0;
 
-    virtual bool exec( std::weak_ptr<QSqlQuery> queryRef ) = 0;
-    virtual void finish( std::weak_ptr<QSqlQuery> queryRef ) = 0;
-    virtual bool first( std::weak_ptr<QSqlQuery> queryRef ) = 0;
-    virtual bool isActive( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual bool isValid( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual bool isForwardOnly( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual QSqlError lastError( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual QString lastQuery( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual bool next( std::weak_ptr<QSqlQuery> queryRef ) = 0;
-    virtual int numRowsAffected( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual bool prepare( std::weak_ptr<QSqlQuery> queryRef, const QString &queryString ) = 0;
-    virtual QSqlRecord record( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
-    virtual void setForwardOnly( std::weak_ptr<QSqlQuery> queryRef, bool forward ) = 0;
-    virtual int size( std::weak_ptr<QSqlQuery> queryRef ) const = 0;
+    using Checker = QgsMssqlQuery::QueryValidity;
 
-    virtual QVariant value( std::weak_ptr<QSqlQuery> queryRef, int index ) const = 0;
-    virtual QVariant value( std::weak_ptr<QSqlQuery> queryRef, const QString &name ) const = 0;
+    virtual void addBindValue( Checker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) = 0;
+    virtual void clear( Checker &checker ) = 0;
+    virtual bool exec( Checker &checker, const QString &queryString ) = 0;
+
+    virtual bool exec( Checker &checker ) = 0;
+    virtual void finish( Checker &checker ) = 0;
+    virtual bool first( Checker &checker ) = 0;
+    virtual bool isActive( Checker &checker ) const = 0;
+    virtual bool isValid( Checker &checker ) const = 0;
+    virtual bool isForwardOnly( Checker &checker ) const = 0;
+    virtual QSqlError lastError( Checker &checker ) const = 0;
+    virtual QString lastQuery( Checker &checker ) const = 0;
+    virtual bool next( Checker &checker ) = 0;
+    virtual int numRowsAffected( Checker &checker ) const = 0;
+    virtual bool prepare( Checker &checker, const QString &queryString ) = 0;
+    virtual QSqlRecord record( Checker &checker ) const = 0;
+    virtual void setForwardOnly( Checker &checker, bool forward ) = 0;
+    virtual int size( Checker &checker ) const = 0;
+
+    virtual QVariant value( Checker &checker, int index ) const = 0;
+    virtual QVariant value( Checker &checker, const QString &name ) const = 0;
 
     virtual void removeSqlQuery( std::weak_ptr<QSqlQuery> queryRef ) = 0;
 
+
     friend class QgsMssqlQuery;
+    friend class QgsMssqlQuery::QueryValidity;
 
 };
 
@@ -258,34 +272,33 @@ class QgsMssqlDatabaseConnectionClassic : public QgsMssqlDatabaseConnection
       return mDatabase.transaction();
     }
 
-  private slots:
-    void confirmInvalidation();
-
   private:
     QSqlDatabase mDatabase;
     QList<std::shared_ptr<QSqlQuery>> mSqlQueries;
 
-    void addBindValue( QgsMssqlQuery::ValidityChecker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
-    void clear( std::weak_ptr<QSqlQuery> queryRef ) override;
-    bool exec( std::weak_ptr<QSqlQuery> queryRef, const QString &queryString ) override;
+    using Checker = QgsMssqlQuery::QueryValidity;
 
-    bool exec( std::weak_ptr<QSqlQuery> queryRef ) override;
-    void finish( std::weak_ptr<QSqlQuery> queryRef ) override;
-    bool first( std::weak_ptr<QSqlQuery> queryRef ) override;
-    bool isActive( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    bool isValid( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    bool isForwardOnly( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    QSqlError lastError( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    QString lastQuery( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    bool next( std::weak_ptr<QSqlQuery> queryRef ) override;
-    int numRowsAffected( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    bool prepare( std::weak_ptr<QSqlQuery> queryRef, const QString &queryString ) override;
-    QSqlRecord record( std::weak_ptr<QSqlQuery> queryRef ) const override;
-    void setForwardOnly( std::weak_ptr<QSqlQuery> queryRef, bool forward ) override;
-    int size( std::weak_ptr<QSqlQuery> queryRef ) const override;
+    void addBindValue( Checker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
+    void clear( Checker &checker ) override;
+    bool exec( Checker &checker, const QString &queryString ) override;
 
-    QVariant value( std::weak_ptr<QSqlQuery> queryRef, int index ) const override;
-    QVariant value( std::weak_ptr<QSqlQuery> queryRef, const QString &name ) const override;
+    bool exec( Checker &checker ) override;
+    void finish( Checker &checker ) override;
+    bool first( Checker &checker ) override;
+    bool isActive( Checker &checker ) const override;
+    bool isValid( Checker &checker ) const override;
+    bool isForwardOnly( Checker &checker ) const override;
+    QSqlError lastError( Checker &checker ) const override;
+    QString lastQuery( Checker &checker ) const override;
+    bool next( Checker &checker ) override;
+    int numRowsAffected( Checker &checker ) const override;
+    bool prepare( Checker &checker, const QString &queryString ) override;
+    QSqlRecord record( Checker &checker ) const override;
+    void setForwardOnly( Checker &checker, bool forward ) override;
+    int size( Checker &checker ) const override;
+
+    QVariant value( Checker &checker, int index ) const override;
+    QVariant value( Checker &checker, const QString &name ) const override;
 
     void removeSqlQuery( std::weak_ptr<QSqlQuery> queryRef ) override;
 
@@ -293,8 +306,18 @@ class QgsMssqlDatabaseConnectionClassic : public QgsMssqlDatabaseConnection
 
 class QgsMssqlDatabaseConnectionTransaction : public QgsMssqlDatabaseConnection
 {
+    Q_OBJECT
   public:
-    bool isTransaction() const {return true;}
+
+    bool isTransaction() const override;
+
+
+  private:
+    QgsMssqlDatabaseConnectionClassic *mTreadedConnection;
+
+
+    using Checker = QgsMssqlQuery::QueryValidity;
+
 };
 
 

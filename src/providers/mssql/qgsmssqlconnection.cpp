@@ -283,7 +283,6 @@ bool QgsMssqlConnection::openDatabase( QgsMssqlDatabase &db )
   {
     if ( !db.open() )
     {
-      QString lastError = db.lastError().text();
       return false;
     }
   }

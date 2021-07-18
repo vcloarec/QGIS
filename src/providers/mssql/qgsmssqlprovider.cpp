@@ -338,8 +338,11 @@ QgsMssqlQuery QgsMssqlProvider::createQuery() const
 {
   if ( mTransaction.isNull() )
   {
+    QgsMssqlConnection::openDatabase( mDatabase );
+
     if ( !mDatabase.isOpen() )
       mDatabase = QgsMssqlDatabase::database( mService, mHost, mDatabaseName, mUserName, mPassword );
+
     return QgsMssqlQuery( mDatabase );
   }
 

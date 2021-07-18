@@ -43,11 +43,12 @@ class TestQgsMssqlProvider : public QObject
     void init() {}// will be called before each testfunction is executed.
     void cleanup() {}// will be called after every testfunction.
 
-    void concurentQueryDuringTransaction();
+    void openLayer();
     void createConnection();
+    void concurentQueryDuringTransaction();
 
     void transaction();
-    void openLayer();
+
 
     void threadSafeConnection();
 
@@ -159,12 +160,13 @@ void TestQgsMssqlProvider::openLayer()
   QString uri( QStringLiteral( "host=\"localhost\" dbname=\"qgis\" user=\"sa\" password=\"<YourStrong!Passw0rd>\" key = \"pk\" srid=4326 type=POINT schema=\"qgis_test\" table=\"someData\""
                                " (geom) sql=" ) );
 
+
   QgsVectorLayer vl( uri, QStringLiteral( "point_layer" ), QStringLiteral( "mssql" ) );
 
-  QgsMssqlDatabase database3 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
+  QVERIFY( vl.isValid() );
+  QCOMPARE( vl.featureCount(), 5 );
 
-//  QVERIFY( vl.isValid() );
-//  QCOMPARE( vl.featureCount(), 5 );
+  QVERIFY( vl.isValid() );
 }
 
 
@@ -247,7 +249,7 @@ static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QSt
       qDebug() << "query " << i << " value: " << var;
     query.next();
 
-    QThread::msleep( 100 );
+    QThread::msleep( 10 );
   }
 
   qDebug() << "concurrent query end";
@@ -266,7 +268,7 @@ void TestQgsMssqlProvider::concurentQueryDuringTransaction()
     QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement, false );
 
     // let them the concurrent query starting and working a bit
-    QThread::msleep( 0 );
+    QThread::msleep( 100 );
 
     QVERIFY( database_1.isValid() );
     QVERIFY( database_1.open() );
@@ -274,14 +276,14 @@ void TestQgsMssqlProvider::concurentQueryDuringTransaction()
     //qDebug() << "Myyyyyyyyyy connection name _1:" << database_1.connectionName();
 
     QVERIFY( database_1.transaction() );
-    //QVERIFY( !dataBase_2.isValid() );
+    QVERIFY( !dataBase_2.isValid() );
 
     QgsMssqlQuery query_1( database_1 );
     QVERIFY( query_1.exec( QStringLiteral( "INSERT INTO  qgis_test.someData(pk,name) VALUES(100,'a name')" ) ) );
 
-//  QgsMssqlQuery query_2( dataBase_2 );
-//  QVERIFY( query_2.exec( QStringLiteral( "select * from qgis_test.someData" ) ) );
-//  query_2.next();
+//    QgsMssqlQuery query_2( dataBase_2 );
+//    QVERIFY( query_2.exec( QStringLiteral( "select * from qgis_test.someData" ) ) );
+//    query_2.next();
 
     future_1.waitForFinished();
   }
