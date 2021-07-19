@@ -49,11 +49,6 @@ class TestQgsMssqlProvider : public QObject
 
     void transaction();
 
-
-    void threadSafeConnection();
-
-
-
   private:
 
 };
@@ -170,45 +165,6 @@ void TestQgsMssqlProvider::openLayer()
 }
 
 
-void TestQgsMssqlProvider::threadSafeConnection()
-{
-//  QgsDataSourceUri uri;
-//  uri.setConnection( "localhost", "", "qgis", "sa", "<YourStrong!Passw0rd>" );
-//  QSqlDatabase dataBase = QgsMssqlConnection::getDatabaseConnection( uri, "simpleConnection" );
-
-//  QVERIFY( dataBase.isValid() );
-//  QVERIFY( dataBase.open() );
-
-//  QgsMssqlSharableConnection threadSafeConnection( uri );
-//  QVERIFY( !threadSafeConnection.isOpen() );
-//  threadSafeConnection.initConnection();
-//  QVERIFY( threadSafeConnection.isOpen() );
-
-//  QgsMssqlQuery query = threadSafeConnection.createQuery();
-
-//  QVERIFY( query.exec( QStringLiteral( "select s.name as schema_name from sys.schemas s" ) ) );
-
-//  QStringList schemas;
-//  while ( query.next() )
-//    schemas << query.value( 0 ).toString();
-
-//  QVERIFY( schemas.contains( QStringLiteral( "dbo" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "guest" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "INFORMATION_SCHEMA" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "sys" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "qgis_test" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "db_owner" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "db_accessadmin" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "db_securityadmin" ) ) );
-//  QVERIFY( schemas.contains( QStringLiteral( "db_ddladmin" ) ) );
-
-//  QVERIFY( query.exec( QStringLiteral( "select name as schema_name from qgis_test.someData" ) ) );
-
-//  QVariantList names;
-//  while ( query.next() )
-//    names << query.value( 0 );
-}
-
 static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QString &queryString, bool forwardOnly )
 {
   QgsMssqlDatabase connection = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
@@ -222,9 +178,6 @@ static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QSt
   query.setForwardOnly( forwardOnly );
   query.exec( queryString );
   bool r = query.next();
-  if ( !r )
-    qDebug() << query.lastError();
-
 
   for ( int i = 0; i < 10; ++i )
   {
@@ -249,7 +202,7 @@ static void repeatedQueryFromOtherThread( const QgsDataSourceUri &uri, const QSt
       qDebug() << "query " << i << " value: " << var;
     query.next();
 
-    QThread::msleep( 10 );
+    QThread::msleep( 50 );
   }
 
   qDebug() << "concurrent query end";
@@ -267,13 +220,11 @@ void TestQgsMssqlProvider::concurentQueryDuringTransaction()
     QString statement = QStringLiteral( "select * from qgis_test.someData" );
     QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, uri, statement, false );
 
-    // let them the concurrent query starting and working a bit
+    // lets the concurrent query starting and working a bit before starting a trnasction
     QThread::msleep( 100 );
 
     QVERIFY( database_1.isValid() );
     QVERIFY( database_1.open() );
-
-    //qDebug() << "Myyyyyyyyyy connection name _1:" << database_1.connectionName();
 
     QVERIFY( database_1.transaction() );
     QVERIFY( !dataBase_2.isValid() );
@@ -281,9 +232,14 @@ void TestQgsMssqlProvider::concurentQueryDuringTransaction()
     QgsMssqlQuery query_1( database_1 );
     QVERIFY( query_1.exec( QStringLiteral( "INSERT INTO  qgis_test.someData(pk,name) VALUES(100,'a name')" ) ) );
 
-//    QgsMssqlQuery query_2( dataBase_2 );
-//    QVERIFY( query_2.exec( QStringLiteral( "select * from qgis_test.someData" ) ) );
-//    query_2.next();
+    dataBase_2 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
+
+    QVERIFY( dataBase_2.isValid() );
+    QVERIFY( dataBase_2.open() );
+
+    QgsMssqlQuery query_2( dataBase_2 );
+    QVERIFY( query_2.exec( QStringLiteral( "select * from qgis_test.someData" ) ) );
+    QVERIFY( query_2.next() );
 
     future_1.waitForFinished();
   }

@@ -22,13 +22,39 @@
 #include <QVariant>
 #include <QSqlQuery>
 #include <QPointer>
+
+#include <QSqlError>
+#include <QSqlRecord>
+#include <QThread>
+
 #include <QDebug>
+
 
 #include "qsqldatabase.h"
 #include "qgsdatasourceuri.h"
 
 class QgsMssqlDatabase;
 class QgsMssqlDatabaseConnection;
+
+class MssqlQueryRef
+{
+  public:
+    struct Data
+    {
+      QgsMssqlDatabaseConnection *mDatabaseConnection = nullptr;
+      std::weak_ptr<QSqlQuery> mSqlQueryWeakRef;
+      QAtomicInt ref;
+    };
+
+    MssqlQueryRef() {};
+    MssqlQueryRef( Data *d );
+    ~MssqlQueryRef();
+    bool isValid() const;
+
+    Data *md = nullptr;
+};
+
+Q_DECLARE_METATYPE( MssqlQueryRef )
 
 /**
  * @brief The QgsMssqlQuery class
@@ -64,29 +90,13 @@ class QgsMssqlQuery
     QVariant value( const QString &name ) const;
 
   private:
-    struct Data
-    {
-      QAtomicInt ref;
-      QgsMssqlDatabaseConnection *mDatabaseConnection = nullptr;
-      std::weak_ptr<QSqlQuery> mSqlQueryWeakRef;
-    };
-
-    class QueryValidity
-    {
-      public:
-        QueryValidity( Data *d );
-        ~QueryValidity();
-        bool isValid() const;
-
-        Data *md;
-    };
 
     std::shared_ptr<QSqlQuery> sqlQuery() const
     {
       return d->mSqlQueryWeakRef.lock();
     }
 
-    Data *d = nullptr;
+    MssqlQueryRef::Data *d = nullptr;
 
     bool isValidPrivate() const;
 
@@ -125,9 +135,7 @@ class QgsMssqlDatabase
     QSqlError lastError() const;
 
     QStringList tables( QSql::TableType type = QSql::Tables ) const;
-
     bool transaction();
-
     QgsMssqlQuery createQuery();
 
     //! Create a database object
@@ -178,7 +186,7 @@ class QgsMssqlDatabaseConnection : public QObject
     virtual bool isValid() const = 0;
     virtual QSqlError lastError() const = 0;
     virtual QStringList tables( QSql::TableType type = QSql::Tables ) const = 0;
-    virtual std::shared_ptr<QSqlQuery> createQuery() = 0;
+    virtual MssqlQueryRef createQuery() = 0;
 
     virtual void invalidate() = 0;
 
@@ -214,38 +222,35 @@ class QgsMssqlDatabaseConnection : public QObject
       emit isStopped();
     }
 
-
   private:
 
-    using Checker = QgsMssqlQuery::QueryValidity;
+    virtual void addBindValue( MssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In ) = 0;
+    virtual void clear( MssqlQueryRef &queryRef ) = 0;
+    virtual bool exec( MssqlQueryRef &queryRef, const QString &queryString ) = 0;
 
-    virtual void addBindValue( Checker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) = 0;
-    virtual void clear( Checker &checker ) = 0;
-    virtual bool exec( Checker &checker, const QString &queryString ) = 0;
+    virtual bool exec( MssqlQueryRef &queryRef ) = 0;
+    virtual void finish( MssqlQueryRef &queryRef ) = 0;
+    virtual bool first( MssqlQueryRef &queryRef ) = 0;
+    virtual bool isActive( MssqlQueryRef &queryRef ) const = 0;
+    virtual bool isValid( MssqlQueryRef &queryRef ) const = 0;
+    virtual bool isForwardOnly( MssqlQueryRef &queryRef ) const = 0;
+    virtual QSqlError lastError( MssqlQueryRef &queryRef ) const = 0;
+    virtual QString lastQuery( MssqlQueryRef &queryRef ) const = 0;
+    virtual bool next( MssqlQueryRef &queryRef ) = 0;
+    virtual int numRowsAffected( MssqlQueryRef &queryRef ) const = 0;
+    virtual bool prepare( MssqlQueryRef &queryRef, const QString &queryString ) = 0;
+    virtual QSqlRecord record( MssqlQueryRef &queryRef ) const = 0;
+    virtual void setForwardOnly( MssqlQueryRef &queryRef, bool forward ) = 0;
+    virtual int size( MssqlQueryRef &queryRef ) const = 0;
 
-    virtual bool exec( Checker &checker ) = 0;
-    virtual void finish( Checker &checker ) = 0;
-    virtual bool first( Checker &checker ) = 0;
-    virtual bool isActive( Checker &checker ) const = 0;
-    virtual bool isValid( Checker &checker ) const = 0;
-    virtual bool isForwardOnly( Checker &checker ) const = 0;
-    virtual QSqlError lastError( Checker &checker ) const = 0;
-    virtual QString lastQuery( Checker &checker ) const = 0;
-    virtual bool next( Checker &checker ) = 0;
-    virtual int numRowsAffected( Checker &checker ) const = 0;
-    virtual bool prepare( Checker &checker, const QString &queryString ) = 0;
-    virtual QSqlRecord record( Checker &checker ) const = 0;
-    virtual void setForwardOnly( Checker &checker, bool forward ) = 0;
-    virtual int size( Checker &checker ) const = 0;
-
-    virtual QVariant value( Checker &checker, int index ) const = 0;
-    virtual QVariant value( Checker &checker, const QString &name ) const = 0;
+    virtual QVariant value( MssqlQueryRef &queryRef, int index ) const = 0;
+    virtual QVariant value( MssqlQueryRef &queryRef, const QString &name ) const = 0;
 
     virtual void removeSqlQuery( std::weak_ptr<QSqlQuery> queryRef ) = 0;
 
 
     friend class QgsMssqlQuery;
-    friend class QgsMssqlQuery::QueryValidity;
+    friend class MssqlQueryRef;
 
 };
 
@@ -255,6 +260,13 @@ class QgsMssqlDatabaseConnectionClassic : public QgsMssqlDatabaseConnection
   public:
     QgsMssqlDatabaseConnectionClassic( QgsDataSourceUri uri, QString connectionName );
     ~QgsMssqlDatabaseConnectionClassic();
+
+    bool isTransaction() const override;
+    void invalidate() override;
+
+
+
+  public slots:
     void init() override;
     bool open() override;
     void close() override;
@@ -262,43 +274,39 @@ class QgsMssqlDatabaseConnectionClassic : public QgsMssqlDatabaseConnection
     bool isValid() const override;
     QSqlError lastError() const override;
     QStringList tables( QSql::TableType type = QSql::Tables ) const override;
-    bool isTransaction() const override;
-    void invalidate() override;
+    bool beginTransaction() override;
 
-    std::shared_ptr<QSqlQuery> createQuery() override;
+  protected slots:
 
-    bool beginTransaction() override
-    {
-      return mDatabase.transaction();
-    }
+    void addBindValue( MssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
+    void clear( MssqlQueryRef &queryRef ) override;
+    bool exec( MssqlQueryRef &queryRef, const QString &queryString ) override;
+
+    bool exec( MssqlQueryRef &queryRef ) override;
+    void finish( MssqlQueryRef &queryRef ) override;
+    bool first( MssqlQueryRef &queryRef ) override;
+    bool isActive( MssqlQueryRef &queryRef ) const override;
+    bool isValid( MssqlQueryRef &queryRef ) const override;
+    bool isForwardOnly( MssqlQueryRef &queryRef ) const override;
+    QSqlError lastError( MssqlQueryRef &queryRef ) const override;
+    QString lastQuery( MssqlQueryRef &queryRef ) const override;
+    bool next( MssqlQueryRef &queryRef ) override;
+    int numRowsAffected( MssqlQueryRef &queryRef ) const override;
+    bool prepare( MssqlQueryRef &queryRef, const QString &queryString ) override;
+    QSqlRecord record( MssqlQueryRef &queryRef ) const override;
+    void setForwardOnly( MssqlQueryRef &queryRef, bool forward ) override;
+    int size( MssqlQueryRef &queryRef ) const override;
+
+    QVariant value( MssqlQueryRef &queryRef, int index ) const override;
+    QVariant value( MssqlQueryRef &queryRef, const QString &name ) const override;
+
+    MssqlQueryRef createQuery() override;
 
   private:
     QSqlDatabase mDatabase;
     QList<std::shared_ptr<QSqlQuery>> mSqlQueries;
 
-    using Checker = QgsMssqlQuery::QueryValidity;
 
-    void addBindValue( Checker &checker, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
-    void clear( Checker &checker ) override;
-    bool exec( Checker &checker, const QString &queryString ) override;
-
-    bool exec( Checker &checker ) override;
-    void finish( Checker &checker ) override;
-    bool first( Checker &checker ) override;
-    bool isActive( Checker &checker ) const override;
-    bool isValid( Checker &checker ) const override;
-    bool isForwardOnly( Checker &checker ) const override;
-    QSqlError lastError( Checker &checker ) const override;
-    QString lastQuery( Checker &checker ) const override;
-    bool next( Checker &checker ) override;
-    int numRowsAffected( Checker &checker ) const override;
-    bool prepare( Checker &checker, const QString &queryString ) override;
-    QSqlRecord record( Checker &checker ) const override;
-    void setForwardOnly( Checker &checker, bool forward ) override;
-    int size( Checker &checker ) const override;
-
-    QVariant value( Checker &checker, int index ) const override;
-    QVariant value( Checker &checker, const QString &name ) const override;
 
     void removeSqlQuery( std::weak_ptr<QSqlQuery> queryRef ) override;
 
@@ -310,14 +318,200 @@ class QgsMssqlDatabaseConnectionTransaction : public QgsMssqlDatabaseConnection
   public:
 
     bool isTransaction() const override;
-
+    QgsMssqlDatabaseConnectionTransaction( QgsDataSourceUri uri, QString connectionName ): QgsMssqlDatabaseConnection( uri, connectionName )
+    {
+      mThread = new QThread;
+      mThreadedConnection = new QgsMssqlDatabaseConnectionClassic( uri, connectionName );
+      mThreadedConnection->moveToThread( mThread );
+      connect( mThread, &QThread::started, this, &QgsMssqlDatabaseConnectionTransaction::init );
+      connect( mThread, &QThread::finished, mThreadedConnection, &QgsMssqlDatabaseConnectionClassic::deleteLater );
+      mThread->start();
+    }
 
   private:
-    QgsMssqlDatabaseConnectionClassic *mTreadedConnection;
+    QgsMssqlDatabaseConnectionClassic *mThreadedConnection;
+    QThread *mThread;
 
 
-    using Checker = QgsMssqlQuery::QueryValidity;
+  public:
+    void init()
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "init", Qt::BlockingQueuedConnection );
+    }
+    bool open() override
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "open", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ) );
+      return ret;
+    }
+    void close() override
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "close", Qt::BlockingQueuedConnection );
+    }
+    bool isOpen() const override
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "isOpen", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ) );
+      return ret;
+    }
 
+    bool isValid() const override
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "isValid", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ) );
+      return ret;
+    }
+    QSqlError lastError() const
+    {
+      QSqlError ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "lastError", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QSqlError, ret ) );
+      return ret;
+    }
+
+    QStringList tables( QSql::TableType type ) const
+    {
+      QStringList ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "tables", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QStringList, ret ), Q_ARG( QSql::TableType, type ) );
+      return ret;
+    }
+
+
+    MssqlQueryRef createQuery()
+    {
+      MssqlQueryRef ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "createQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( MssqlQueryRef, ret ) );
+      return ret;
+    }
+
+    void invalidate()
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "invalidate", Qt::BlockingQueuedConnection );
+    }
+
+
+    bool beginTransaction()
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "beginTransaction", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ) );
+      return ret;
+    }
+
+  private:
+
+    virtual void addBindValue( MssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In )
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "addBindValue", Qt::BlockingQueuedConnection, Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( QVariant, val ), Q_ARG( QSql::ParamType, paramType ) );
+    }
+
+    void clear( MssqlQueryRef &queryRef )
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "clear", Qt::BlockingQueuedConnection, Q_ARG( MssqlQueryRef &, queryRef ) );
+    }
+    bool exec( MssqlQueryRef &queryRef, const QString &queryString )
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "exec", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( QString, queryString ) );
+      return ret;
+    }
+    bool exec( MssqlQueryRef &queryRef )
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "exec", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    void finish( MssqlQueryRef &queryRef )
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "finish", Qt::BlockingQueuedConnection, Q_ARG( MssqlQueryRef &, queryRef ) );
+    }
+    bool first( MssqlQueryRef &queryRef )
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "first", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    bool isActive( MssqlQueryRef &queryRef ) const
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "isActive", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    bool isValid( MssqlQueryRef &queryRef ) const
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "isValid", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    bool isForwardOnly( MssqlQueryRef &queryRef ) const
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "isForwardOnly", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    QSqlError lastError( MssqlQueryRef &queryRef ) const
+    {
+      QSqlError ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "lastError", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QSqlError, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    QString lastQuery( MssqlQueryRef &queryRef ) const
+    {
+      QString ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "lastQuery", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QString, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    bool next( MssqlQueryRef &queryRef )
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "next", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    int numRowsAffected( MssqlQueryRef &queryRef ) const
+    {
+      int ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "numRowsAffected", Qt::BlockingQueuedConnection, Q_RETURN_ARG( int, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    bool prepare( MssqlQueryRef &queryRef, const QString &queryString )
+    {
+      bool ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "next", Qt::BlockingQueuedConnection, Q_RETURN_ARG( bool, ret ), Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( QString, queryString ) );
+      return ret;
+    }
+    QSqlRecord record( MssqlQueryRef &queryRef ) const
+    {
+      QSqlRecord ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "record", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QSqlRecord, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    void setForwardOnly( MssqlQueryRef &queryRef, bool forward )
+    {
+      QMetaObject::invokeMethod( mThreadedConnection, "setForwardOnly", Qt::BlockingQueuedConnection, Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( bool, forward ) );
+    }
+    int size( MssqlQueryRef &queryRef ) const
+    {
+      int ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "size", Qt::BlockingQueuedConnection, Q_RETURN_ARG( int, ret ), Q_ARG( MssqlQueryRef &, queryRef ) );
+      return ret;
+    }
+    QVariant value( MssqlQueryRef &queryRef, int index ) const
+    {
+      QVariant ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "value", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QVariant, ret ), Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( int, index ) );
+      return ret;
+    }
+    QVariant value( MssqlQueryRef &queryRef, const QString &name ) const
+    {
+      QVariant ret;
+      QMetaObject::invokeMethod( mThreadedConnection, "value", Qt::BlockingQueuedConnection, Q_RETURN_ARG( QVariant, ret ), Q_ARG( MssqlQueryRef &, queryRef ), Q_ARG( QString, name ) );
+      return ret;
+    }
+
+
+    void removeSqlQuery( std::weak_ptr<QSqlQuery> queryRef )
+    {
+
+    }
 };
 
 
