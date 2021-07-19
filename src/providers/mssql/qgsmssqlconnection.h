@@ -271,7 +271,6 @@ class QgsMssqlConnection
 #else
     static QRecursiveMutex sMutex;
 #endif
-    static QMap<QString, QgsMssqlSharableConnection> mtransactionConnection;
 
 };
 
