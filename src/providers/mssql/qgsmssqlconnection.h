@@ -40,17 +40,6 @@ class QgsMssqlConnection
 
   public:
 
-    /**
-     * Returns a QSqlDatabase object for queries to SQL Server.
-     *
-     * The database may not be open -- openDatabase() should be called to
-     * ensure that it is ready for use.
-     */
-    static QSqlDatabase getDatabaseConnection( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
-    static QSqlDatabase getDatabaseConnection( const QgsDataSourceUri &uri, const QString &connectionName );
-
-    static QgsMssqlDataBaseConnectionBase *getDataBaseConnection_v2( const QgsDataSourceUri &uri );
-
     static bool openDatabase( QgsMssqlDatabase &db );
 
     /**
