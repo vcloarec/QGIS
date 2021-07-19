@@ -69,6 +69,8 @@ class QgsMssqlFeatureSource final: public QgsAbstractFeatureSource
 
     QgsCoordinateReferenceSystem mCrs;
 
+    QgsMssqlTransaction *mTransaction = nullptr;
+
     // Return True if this feature source has spatial attributes.
     bool isSpatial() { return !mGeometryColName.isEmpty() || !mGeometryColType.isEmpty(); }
 
@@ -102,10 +104,10 @@ class QgsMssqlFeatureIterator final: public QgsAbstractFeatureIteratorFromSource
     double validLon( double longitude ) const;
 
     // The current database
-    QSqlDatabase mDatabase;
+    QgsMssqlDatabase mDatabase;
 
     // The current sql query
-    std::unique_ptr< QSqlQuery > mQuery;
+    std::unique_ptr< QgsMssqlQuery > mQuery;
 
     // The current sql statement
     QString mStatement;
@@ -122,6 +124,8 @@ class QgsMssqlFeatureIterator final: public QgsAbstractFeatureIteratorFromSource
     bool mExpressionCompiled = false;
     bool mOrderByCompiled = false;
     bool mDisableInvalidGeometryHandling = false;
+
+    QgsMssqlTransaction *mTransaction = nullptr;
 
     QgsCoordinateTransform mTransform;
     QgsRectangle mFilterRect;

@@ -136,7 +136,7 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
 
   readConnectionSettings();
 
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( mService, mHost, mDatabase, mUsername, mPassword );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
@@ -151,7 +151,7 @@ QVector<QgsDataItem *> QgsMssqlConnectionItem::createChildren()
   const bool disableInvalidGeometryHandling = QgsMssqlConnection::isInvalidGeometryHandlingDisabled( mName );
 
   // issue the sql query
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
   ( void )q.exec( query );
 
