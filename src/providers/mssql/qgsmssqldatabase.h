@@ -48,10 +48,11 @@ class MssqlQueryRef
 
     MssqlQueryRef() {};
     MssqlQueryRef( Data *d );
+    MssqlQueryRef( QgsMssqlDatabaseConnection *databaseConnection, std::shared_ptr<QSqlQuery> query );
     ~MssqlQueryRef();
     bool isValid() const;
 
-    Data *md = nullptr;
+    Data *data = nullptr;
 };
 
 Q_DECLARE_METATYPE( MssqlQueryRef )
@@ -336,7 +337,6 @@ class QgsMssqlDatabaseConnectionTransaction : public QgsMssqlDatabaseConnection
   public:
     void init()
     {
-      bool ret;
       QMetaObject::invokeMethod( mThreadedConnection, "init", Qt::BlockingQueuedConnection );
     }
     bool open() override
