@@ -36,7 +36,8 @@ class QgsMssqlDatabaseConnection;
  * @brief The QgssMssqlQueryRef class represents a reference to a query handled by a QgsMssqlDatabaseConnection instance.
  * This reference contains following related data to this query:
  *  - a weak reference to the query
- *  - a pointer to the QgsMssqlDatabaseConnection
+ *  - a pointer to the QgsMssqlDatabaseConnection to provide quick and direct access to the connection
+ *  - a weak pointer that is used as a reference to the connection for dereference it when deleting the data
  *  - whether the query has been invalidated
  *
  *  This reference is used to access the query and to handle invalidation of the query only when the query is not working
@@ -48,10 +49,10 @@ class QgsMssqlQueryRef
     //! Data related to the query
     struct Data
     {
-      QgsMssqlDatabaseConnection *mDatabaseConnection = nullptr;
-      std::weak_ptr<QgsMssqlDatabaseConnection> mConnectionWeakRef;
-      std::weak_ptr<QSqlQuery> mSqlQueryWeakRef;
-      QAtomicInt ref;
+      QgsMssqlDatabaseConnection *mDatabaseConnection = nullptr; //!< used to access quickly and directly the connection, user of this pointer must be sure the pointer is not dangling
+      std::weak_ptr<QgsMssqlDatabaseConnection> mConnectionWeakRef; //!< used to reference the connection and derefence it with a thread safe way when query is destructed
+      std::weak_ptr<QSqlQuery> mSqlQueryWeakRef; //!< Weak reference to the SQL query that could be expired if the connection is invalidated
+      QAtomicInt ref; //! Count of QgsMssqlQuery instance that shared this Data instance
       bool isInvalidate = true;
     };
 
@@ -61,7 +62,7 @@ class QgsMssqlQueryRef
     //! Constructor with the data \a d related to the query
     QgsMssqlQueryRef( Data *d );
 
-    //! Constructor with the \a databaseConnection and a shared pointer to the query
+    //! Constructor with the \a databaseConnection and a shared pointer to the query, must be used only to provide a Data instance when creating a new QgsMssqlQuery instance
     QgsMssqlQueryRef( QgsMssqlDatabaseConnection *databaseConnection, std::shared_ptr<QSqlQuery> query );
 
     //! Destructor
@@ -249,7 +250,13 @@ class QgsMssqlDatabase
     QgsMssqlDatabase( const QgsDataSourceUri &mUri );
 
     QgsDataSourceUri mUri;
-    std::weak_ptr<QgsMssqlDatabaseConnection> mDatabaseConnectionRef;
+    std::weak_ptr<QgsMssqlDatabaseConnection> mDatabaseConnectionRef;  // Weak reference to the databse connection
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
+    static QMutex sMutex;
+#else
+    static QRecursiveMutex sMutex;
+#endif
 
     static std::shared_ptr<QgsMssqlDatabaseConnection> getConnection( const QgsDataSourceUri &uri, bool transaction );
 
@@ -267,12 +274,6 @@ class QgsMssqlDatabase
     static QString threadString();
 
     QgsMssqlQueryRef::Data createQueryData();
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    static QMutex sMutex;
-#else
-    static QRecursiveMutex sMutex;
-#endif
 
     friend class QgsMssqlQuery;
     friend class QgsMssqlQueryRef;
@@ -357,16 +358,6 @@ class QgsMssqlDatabaseConnection: public QObject
     //! Emitted after the connetion is invaldated and the work is finished
     void finished() const;
 
-  protected:
-    QgsDataSourceUri mUri;
-    QString mConnectionName;
-    QAtomicInt mRef;
-    std::atomic<bool> mIsInvalidated = false;
-    std::atomic<bool> mIsWorking = false;
-    std::atomic<bool> mIsFinished = false;
-
-    void onQueryFinish();
-
   protected slots:
 
     /**
@@ -392,6 +383,16 @@ class QgsMssqlDatabaseConnection: public QObject
     virtual int size( QgsMssqlQueryRef &queryRef ) const;
     virtual QVariant value( QgsMssqlQueryRef &queryRef, int index ) const;
     virtual QVariant value( QgsMssqlQueryRef &queryRef, const QString &name ) const;
+
+  protected:
+    void onQueryFinish();
+
+    QgsDataSourceUri mUri;
+    QString mConnectionName;
+    QAtomicInt mRef;
+    std::atomic<bool> mIsInvalidated = false;
+    std::atomic<bool> mIsWorking = false;
+    std::atomic<bool> mIsFinished = false;
 
   private:
     std::unique_ptr<QSqlDatabase> mDatabase;
