@@ -71,14 +71,14 @@ void QgsMssqlGeomColumnTypeThread::run()
                                   layerProperty.sql.isEmpty() ? QString() : QStringLiteral( " AND %1" ).arg( layerProperty.sql ) );
 
       // issue the sql query
-      QSqlDatabase db = QgsMssqlConnection::getDatabase( mService, mHost, mDatabase, mUsername, mPassword );
+      QgsMssqlDatabase db = QgsMssqlDatabase::database( mService, mHost, mDatabase, mUsername, mPassword );
       if ( !QgsMssqlConnection::openDatabase( db ) )
       {
         QgsDebugMsg( db.lastError().text() );
         continue;
       }
 
-      QSqlQuery q = QSqlQuery( db );
+      QgsMssqlQuery q = QgsMssqlQuery( db );
       q.setForwardOnly( true );
       if ( !q.exec( query ) )
       {

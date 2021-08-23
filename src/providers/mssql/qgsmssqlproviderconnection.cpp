@@ -243,7 +243,7 @@ QgsAbstractDatabaseProviderConnection::QueryResult QgsMssqlProviderConnection::e
   const QgsDataSourceUri dsUri { uri() };
 
   // connect to database
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( dsUri.service(), dsUri.host(), dsUri.database(), dsUri.username(), dsUri.password() );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( dsUri );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
@@ -259,7 +259,7 @@ QgsAbstractDatabaseProviderConnection::QueryResult QgsMssqlProviderConnection::e
     }
 
     //qDebug() << "MSSQL QUERY:" << sql;
-    QSqlQuery q = QSqlQuery( db );
+    QgsMssqlQuery q = QgsMssqlQuery( db );
     q.setForwardOnly( true );
 
     const std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -292,7 +292,7 @@ QgsAbstractDatabaseProviderConnection::QueryResult QgsMssqlProviderConnection::e
 }
 
 
-QgssMssqlProviderResultIterator::QgssMssqlProviderResultIterator( bool resolveTypes, int columnCount, const QSqlQuery &query )
+QgssMssqlProviderResultIterator::QgssMssqlProviderResultIterator( bool resolveTypes, int columnCount, const QgsMssqlQuery &query )
   : mResolveTypes( resolveTypes )
   , mColumnCount( columnCount )
   , mQuery( query )

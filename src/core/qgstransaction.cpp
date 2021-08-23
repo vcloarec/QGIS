@@ -122,7 +122,6 @@ bool QgsTransaction::addLayer( QgsVectorLayer *layer )
     return false;
 
   //connection string not compatible
-
   if ( connectionString( layer->source() ) != mConnString )
   {
     QgsDebugMsg( QStringLiteral( "Couldn't start transaction because connection string for layer %1 : '%2' does not match '%3'" ).arg(
@@ -223,16 +222,7 @@ QString QgsTransaction::createSavepoint( QString &error SIP_OUT )
   }
 
   const QString name( QStringLiteral( "qgis" ) + ( QUuid::createUuid().toString().mid( 1, 24 ).replace( '-', QString() ) ) );
-
-  if ( !executeSql( QStringLiteral( "SAVEPOINT %1" ).arg( QgsExpression::quotedColumnRef( name ) ), error ) )
-  {
-    QgsMessageLog::logMessage( tr( "Could not create savepoint (%1)" ).arg( error ) );
-    return QString();
-  }
-
-  mSavepoints.push( name );
-  mLastSavePointIsDirty = false;
-  return name;
+  return createSavepoint( name, error );
 }
 
 QString QgsTransaction::createSavepoint( const QString &savePointId, QString &error SIP_OUT )

@@ -508,7 +508,7 @@ void QgsMssqlSourceSelect::btnConnect_clicked()
     mConnInfo += " service='" + service + '\'';
 
   QgsDebugMsg( QStringLiteral( "GetDatabase" ) );
-  QSqlDatabase db = QgsMssqlConnection::getDatabase( service, host, database, username, password );
+  QgsMssqlDatabase db = QgsMssqlDatabase::database( service, host, database, username, password );
 
   if ( !QgsMssqlConnection::openDatabase( db ) )
   {
@@ -519,7 +519,7 @@ void QgsMssqlSourceSelect::btnConnect_clicked()
   }
 
   // Test for geometry columns table first.  Don't use it if not found.
-  QSqlQuery q = QSqlQuery( db );
+  QgsMssqlQuery q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
 
   if ( useGeometryColumns )
@@ -545,7 +545,7 @@ void QgsMssqlSourceSelect::btnConnect_clicked()
   const QString query = QgsMssqlConnection::buildQueryForTables( cmbConnections->currentText(), allowGeometrylessTables );
 
   // issue the sql query
-  q = QSqlQuery( db );
+  q = QgsMssqlQuery( db );
   q.setForwardOnly( true );
   ( void )q.exec( query );
 

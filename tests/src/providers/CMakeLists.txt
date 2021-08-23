@@ -9,6 +9,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/providers/wms
   ${CMAKE_SOURCE_DIR}/src/providers/postgres
   ${CMAKE_SOURCE_DIR}/src/providers/mdal
+  ${CMAKE_SOURCE_DIR}/src/providers/mssql
   ${CMAKE_SOURCE_DIR}/src/providers/ogr
   ${CMAKE_SOURCE_DIR}/src/providers/virtualraster
   ${CMAKE_SOURCE_DIR}/src/test
@@ -38,6 +39,9 @@ add_qgis_test(testqgswmsprovider.cpp MODULE provider LINKEDLIBRARIES provider_wm
 add_qgis_test(testqgspostgresexpressioncompiler.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core)
 add_qgis_test(testqgspostgresprovider.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core)
 add_qgis_test(testqgspostgresconn.cpp MODULE provider LINKEDLIBRARIES provider_postgres_a qgis_core LABELS "POSTGRES")
+
+add_qgis_test(testqgsmssqlprovider.cpp MODULE provider LINKEDLIBRARIES provider_mssql_a qgis_core LABELS "MSSQL")
+
 
 if (NOT FORCE_STATIC_PROVIDERS)
   add_qgis_test(testqgsmdalprovider.cpp MODULE provider LINKEDLIBRARIES qgis_core)

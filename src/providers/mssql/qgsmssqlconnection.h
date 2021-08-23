@@ -21,11 +21,14 @@
 #include <QStringList>
 #include <QMutex>
 
+#include "qgsmssqldatabase.h"
+#include "qgsmssqltransaction.h"
 #include "qgsdatasourceuri.h"
 #include "qgsvectordataprovider.h"
 
 class QString;
 class QSqlDatabase;
+class QgsMssqlDataBaseConnectionBase;
 
 /**
  * \class QgsMssqlProvider
@@ -37,15 +40,7 @@ class QgsMssqlConnection
 
   public:
 
-    /**
-     * Returns a QSqlDatabase object for queries to SQL Server.
-     *
-     * The database may not be open -- openDatabase() should be called to
-     * ensure that it is ready for use.
-     */
-    static QSqlDatabase getDatabase( const QString &service, const QString &host, const QString &database, const QString &username, const QString &password );
-
-    static bool openDatabase( QSqlDatabase &db );
+    static bool openDatabase( QgsMssqlDatabase &db );
 
     /**
      * Returns true if the connection with matching \a name should
@@ -197,7 +192,7 @@ class QgsMssqlConnection
      * Returns a list of all schemas on the \a dataBase.
      * \since QGIS 3.18
      */
-    static QStringList schemas( QSqlDatabase &dataBase, QString *errorMessage );
+    static QStringList schemas( QgsMssqlDatabase &dataBase, QString *errorMessage );
 
     /**
      * Returns true if the given \a schema is a system schema.
@@ -263,20 +258,12 @@ class QgsMssqlConnection
      */
     static QString buildQueryForTables( const QString &connName );
 
-  private:
-
-    /**
-     * Returns a thread-safe connection name for use with QSqlDatabase
-     */
-    static QString dbConnectionName( const QString &name );
-
-    static int sConnectionId;
-
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
     static QMutex sMutex;
 #else
     static QRecursiveMutex sMutex;
 #endif
+
 };
 
 #endif // QGSMSSQLCONNECTION_H

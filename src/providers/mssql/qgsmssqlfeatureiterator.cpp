@@ -27,6 +27,7 @@
 #include <QObject>
 #include <QTextStream>
 #include <QSqlRecord>
+#include <QThread>
 
 
 QgsMssqlFeatureIterator::QgsMssqlFeatureIterator( QgsMssqlFeatureSource *source, bool ownSource, const QgsFeatureRequest &request )
@@ -438,11 +439,16 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
 {
   feature.setValid( false );
 
+
   if ( !mDatabase.isValid() )
   {
     // No existing connection, so set it up now. It's safe to do here as we're now in
     // the thread were iteration is actually occurring.
-    mDatabase = QgsMssqlConnection::getDatabase( mSource->mService, mSource->mHost, mSource->mDatabaseName, mSource->mUserName, mSource->mPassword );
+    mDatabase = QgsMssqlDatabase::database( mSource->mService,
+                                            mSource->mHost,
+                                            mSource->mDatabaseName,
+                                            mSource->mUserName,
+                                            mSource->mPassword );
 
     if ( !mDatabase.open() )
     {
@@ -452,12 +458,13 @@ bool QgsMssqlFeatureIterator::fetchFeature( QgsFeature &feature )
     }
 
     // create sql query
-    mQuery.reset( new QSqlQuery( mDatabase ) );
+    mQuery.reset( new QgsMssqlQuery( mDatabase ) );
 
     // start selection
     if ( !rewind() )
       return false;
   }
+
 
   if ( !mQuery )
     return false;
