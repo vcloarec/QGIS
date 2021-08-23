@@ -19,33 +19,29 @@
 #include <memory>
 
 #include <QMutex>
-#include <QVariant>
-#include <QSqlQuery>
 #include <QPointer>
-
+#include <QSqlQuery>
+#include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlRecord>
 #include <QThread>
+#include <QVariant>
 
-#include <QDebug>
-
-
-#include "qsqldatabase.h"
 #include "qgsdatasourceuri.h"
 
 class QgsMssqlDatabase;
 class QgsMssqlDatabaseConnection;
 
 /**
- * @brief The QgssMssqlQueryRef class represents an reference to a QSqlQuery handle by a QgsMssqlDatabaseConnection instance.
+ * @brief The QgssMssqlQueryRef class represents a reference to a query handled by a QgsMssqlDatabaseConnection instance.
  * This reference contains following related data to this query:
  *  - a weak reference to the query
  *  - a pointer to the QgsMssqlDatabaseConnection
  *  - whether the query has been invalidated
  *
- *  This reference is used to acces the query and to handle invalidation of the query and its related connection only when the query is not working
+ *  This reference is used to access the query and to handle invalidation of the query only when the query is not working
  */
-class MssqlQueryRef
+class QgsMssqlQueryRef
 {
   public:
 
@@ -60,16 +56,16 @@ class MssqlQueryRef
     };
 
     //! Default constructor
-    MssqlQueryRef() = default;
+    QgsMssqlQueryRef() = default;
 
     //! Constructor with the data \a d related to the query
-    MssqlQueryRef( Data *d );
+    QgsMssqlQueryRef( Data *d );
 
     //! Constructor with the \a databaseConnection and a shared pointer to the query
-    MssqlQueryRef( QgsMssqlDatabaseConnection *databaseConnection, std::shared_ptr<QSqlQuery> query );
+    QgsMssqlQueryRef( QgsMssqlDatabaseConnection *databaseConnection, std::shared_ptr<QSqlQuery> query );
 
     //! Destructor
-    ~MssqlQueryRef();
+    ~QgsMssqlQueryRef();
 
     //! Returns whether the reference is still valid
     bool isValid() const;
@@ -77,7 +73,7 @@ class MssqlQueryRef
     Data *data = nullptr;
 };
 
-Q_DECLARE_METATYPE( MssqlQueryRef )
+Q_DECLARE_METATYPE( QgsMssqlQueryRef )
 
 /**
  * @brief The QgsMssqlQuery class represents a query from a QgsMssqlDatabase.
@@ -162,7 +158,7 @@ class QgsMssqlQuery
 
   private:
 
-    MssqlQueryRef::Data *d = nullptr;
+    QgsMssqlQueryRef::Data *d = nullptr;
 
     friend class QgsMssqlDatabase;
     friend class QgsMssqlDatabaseConnection;
@@ -171,13 +167,13 @@ class QgsMssqlQuery
 
 /**
  * @brief The QgsMssqlDatabase class provides an interface for accessing a MSSQL database through a connection.
- * An instance of QgsMssqlDatabase handles a connection that can be shared by severals instance if they are created in the same thread.
+ * An instance of QgsMssqlDatabase handles a connection that can be shared by several instances if they are created in the same thread.
  *
  * A connection is obtains by calling the static method database(). If the wanted connection does not exist in the caller thread,
  * a new connection is created that will be handle by the new created instance of QgsMssqlDatabase.
- * If a such connection exists, the new QgsMssqlInstance will handle the existing one.
+ * If a such connection exists, the new QgsMssqlDatabase instance will handle the existing one.
  *
- * If an instance of QgsMssqlDatabase starts a transaction, all existing connection that have the have the same uri are not valid anymore
+ * If an instance of QgsMssqlDatabase starts a transaction, all existing connection that have the have the same uri are invalidated
  * and a new one is created in the starting transaction QgsMssqlDatabase instance. Then, while the transaction is open, all new instance
  * of QgsMssqlDatabase with the same uri will share the same connection even if they are created on a different thread.
  */
@@ -218,7 +214,7 @@ class QgsMssqlDatabase
     /**
      * \see QSqlDataBase::transaction()
      *
-     * \note all existing connection with the same uri are invalidated a new unique thread safe connection is created (\see QgsMssqlDatabaseConnectionTransaction)
+     * \note all existing connection with the same uri are invalidated, a new unique thread safe connection is created (\see QgsMssqlDatabaseConnectionTransaction)
      */
     bool transaction();
 
@@ -234,20 +230,21 @@ class QgsMssqlDatabase
     /**
      * Returns an instance corresponding to the \a uri
      *
-     * \note Except if a transaction is opened, If a existing connection exists in the same thread than the caller, this connection is returned.
-     *       If such connection does not exist a nex one is created and returned.
+     * \note Except if a transaction is opened, if a existing connection exists in the same thread than the caller, this connection is returned.
+     *       If such connection does not exist, a new one is created and returned.
      */
     static QgsMssqlDatabase database( const QgsDataSourceUri &uri );
 
     /**
-     * Returns an instance corresponding connection parameter \a service, \a host, database \a db, \a username, \a password
+     * Returns an instance corresponding to connection parameters \a service, \a host, database \a db, \a username, \a password
      *
-     * \note Except if a transaction is opened, If a existing connection exists in the same thread than the caller, this connection is returned.
-     *       If such connection does not exist a nex one is created and returned.
+     * \note Except if a transaction is opened, if a existing connection exists in the same thread than the caller, this connection is returned.
+     *       If such connection does not exist, a new one is created and returned.
      */
     static QgsMssqlDatabase database( const QString &service, const QString &host, const QString &db, const QString &username, const QString &password );
 
   private:
+
     //! Constructor
     QgsMssqlDatabase( const QgsDataSourceUri &mUri );
 
@@ -269,7 +266,7 @@ class QgsMssqlDatabase
 
     static QString threadString();
 
-    MssqlQueryRef::Data createQueryData();
+    QgsMssqlQueryRef::Data createQueryData();
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
     static QMutex sMutex;
@@ -278,11 +275,13 @@ class QgsMssqlDatabase
 #endif
 
     friend class QgsMssqlQuery;
-    friend class MssqlQueryRef;
+    friend class QgsMssqlQueryRef;
 };
 
 /**
- * @brief The QgsMssqlDatabaseConnection represents a connection to a database. This class wrap a QSqlDatabase instance
+ * @brief The QgsMssqlDatabaseConnection represents a connection to a database. This class wrap a QSqlDatabase instance.
+ *
+ * The connection can be invalidated from another thread than the one where this connection had been created.
  */
 class QgsMssqlDatabaseConnection: public QObject
 {
@@ -298,19 +297,20 @@ class QgsMssqlDatabaseConnection: public QObject
     //! Destructor
     ~QgsMssqlDatabaseConnection();
 
-    //! Returns whether this connection is a transaction, default implementation return false
+    //! Returns whether this connection is a transaction, default implementation return FALSE
     virtual bool isTransaction() const;
 
-    //! Increments the count of existing instance of QgsMssqlDatabase or QgsMssqlQuery that use this object
+    //! Increments the count of instance of other class that uses this object as an aggregation member, returns TRUE is this count is non-zero
     bool ref();
 
-    //! Decrements the count of existing instance of QgsMssqlDatabase or QgsMssqlQuery that use this object, returns TRUE is this count is non-zero
+    //! Decrements the count of instance of other class that uses this object as an aggregation member, returns TRUE is this count is non-zero
     bool deref();
 
     //! Returns whether this connection has been invalidated
     bool isInvalidated() const;
 
-    //! Returns Whether this connection is finished after its invalidation
+    //! Returns whether this connection is finished after its invalidation,
+    //! a connection is finished if it has been invalidted (\see invalidate()) and has finished to work
     bool isFinished() const;
 
   public slots:
@@ -348,7 +348,7 @@ class QgsMssqlDatabaseConnection: public QObject
     virtual void invalidate();
 
     //! Creates a new query and return a weak pointer to it
-    virtual MssqlQueryRef createQuery();
+    virtual QgsMssqlQueryRef createQuery();
 
     //! Returns the name of the connection
     QString connectionName() const;
@@ -372,26 +372,26 @@ class QgsMssqlDatabaseConnection: public QObject
     /**
      * Following methods execute methods of a QsqlQuery instance linked to QgsMssqlQueryRef instance
      */
-    virtual void removeSqlQuery( MssqlQueryRef &queryRef );
-    virtual void addBindValue( MssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In );
-    virtual void clear( MssqlQueryRef &queryRef );
-    virtual bool exec( MssqlQueryRef &queryRef, const QString &queryString );
-    virtual bool exec( MssqlQueryRef &queryRef );
-    virtual void finish( MssqlQueryRef &queryRef );
-    virtual bool first( MssqlQueryRef &queryRef );
-    virtual bool isActive( MssqlQueryRef &queryRef ) const;
-    virtual bool isValid( MssqlQueryRef &queryRef ) const;
-    virtual bool isForwardOnly( MssqlQueryRef &queryRef ) const;
-    virtual QSqlError lastError( MssqlQueryRef &queryRef ) const;
-    virtual QString lastQuery( MssqlQueryRef &queryRef ) const;
-    virtual bool next( MssqlQueryRef &queryRef );
-    virtual int numRowsAffected( MssqlQueryRef &queryRef ) const;
-    virtual bool prepare( MssqlQueryRef &queryRef, const QString &queryString );
-    virtual QSqlRecord record( MssqlQueryRef &queryRef ) const;
-    virtual void setForwardOnly( MssqlQueryRef &queryRef, bool forward );
-    virtual int size( MssqlQueryRef &queryRef ) const;
-    virtual QVariant value( MssqlQueryRef &queryRef, int index ) const;
-    virtual QVariant value( MssqlQueryRef &queryRef, const QString &name ) const;
+    virtual void removeSqlQuery( QgsMssqlQueryRef &queryRef );
+    virtual void addBindValue( QgsMssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In );
+    virtual void clear( QgsMssqlQueryRef &queryRef );
+    virtual bool exec( QgsMssqlQueryRef &queryRef, const QString &queryString );
+    virtual bool exec( QgsMssqlQueryRef &queryRef );
+    virtual void finish( QgsMssqlQueryRef &queryRef );
+    virtual bool first( QgsMssqlQueryRef &queryRef );
+    virtual bool isActive( QgsMssqlQueryRef &queryRef ) const;
+    virtual bool isValid( QgsMssqlQueryRef &queryRef ) const;
+    virtual bool isForwardOnly( QgsMssqlQueryRef &queryRef ) const;
+    virtual QSqlError lastError( QgsMssqlQueryRef &queryRef ) const;
+    virtual QString lastQuery( QgsMssqlQueryRef &queryRef ) const;
+    virtual bool next( QgsMssqlQueryRef &queryRef );
+    virtual int numRowsAffected( QgsMssqlQueryRef &queryRef ) const;
+    virtual bool prepare( QgsMssqlQueryRef &queryRef, const QString &queryString );
+    virtual QSqlRecord record( QgsMssqlQueryRef &queryRef ) const;
+    virtual void setForwardOnly( QgsMssqlQueryRef &queryRef, bool forward );
+    virtual int size( QgsMssqlQueryRef &queryRef ) const;
+    virtual QVariant value( QgsMssqlQueryRef &queryRef, int index ) const;
+    virtual QVariant value( QgsMssqlQueryRef &queryRef, const QString &name ) const;
 
   private:
     std::unique_ptr<QSqlDatabase> mDatabase;
@@ -405,14 +405,14 @@ class QgsMssqlDatabaseConnection: public QObject
     mutable QRecursiveMutex mMutex;
 #endif
     friend class QgsMssqlQuery;
-    friend class MssqlQueryRef;
+    friend class QgsMssqlQueryRef;
     friend class QgsMssqlDatabase;
 };
 
 /**
  * @brief The QgsMssqlDatabaseConnectionTransaction is derived from QgsMssqlDatabaseConnection and embed a QgsMssqlDatabaseConnection instance in a independant thread.
  *
- *  The query from this class can be created and called from different threads.
+ *  An instance of this class ca be used from different thread, and queries from this class can be created and called from different threads.
  */
 class QgsMssqlDatabaseConnectionTransaction : public QgsMssqlDatabaseConnection
 {
@@ -432,43 +432,37 @@ class QgsMssqlDatabaseConnectionTransaction : public QgsMssqlDatabaseConnection
     bool open() override;
     void close() override;
     bool isOpen() const override;
-
     bool isValid() const override;
     QSqlError lastError() const override;
-
     QStringList tables( QSql::TableType type ) const override;
-
-    MssqlQueryRef createQuery() override;
-
+    QgsMssqlQueryRef createQuery() override;
     void invalidate() override;
-
     bool beginTransaction() override;
     bool commit() override;
     bool rollback() override;
 
   private:
 
-    virtual void addBindValue( MssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
-    void clear( MssqlQueryRef &queryRef ) override;
-    bool exec( MssqlQueryRef &queryRef, const QString &queryString ) override;
-    bool exec( MssqlQueryRef &queryRef ) override;
-    void finish( MssqlQueryRef &queryRef ) override;
-    bool first( MssqlQueryRef &queryRef ) override;
-    bool isActive( MssqlQueryRef &queryRef ) const override;
-    bool isValid( MssqlQueryRef &queryRef ) const override;
-    bool isForwardOnly( MssqlQueryRef &queryRef ) const override;
-    QSqlError lastError( MssqlQueryRef &queryRef ) const override;
-    QString lastQuery( MssqlQueryRef &queryRef ) const override;
-    bool next( MssqlQueryRef &queryRef ) override;
-    int numRowsAffected( MssqlQueryRef &queryRef ) const override;
-    bool prepare( MssqlQueryRef &queryRef, const QString &queryString ) override;
-    QSqlRecord record( MssqlQueryRef &queryRef ) const override;
-    void setForwardOnly( MssqlQueryRef &queryRef, bool forward ) override;
-    int size( MssqlQueryRef &queryRef ) const override;
-    QVariant value( MssqlQueryRef &queryRef, int index ) const override;
-    QVariant value( MssqlQueryRef &queryRef, const QString &name ) const override;
-
-    void removeSqlQuery( MssqlQueryRef &queryRef ) override;
+    virtual void addBindValue( QgsMssqlQueryRef &queryRef, const QVariant &val, QSql::ParamType paramType = QSql::In ) override;
+    void clear( QgsMssqlQueryRef &queryRef ) override;
+    bool exec( QgsMssqlQueryRef &queryRef, const QString &queryString ) override;
+    bool exec( QgsMssqlQueryRef &queryRef ) override;
+    void finish( QgsMssqlQueryRef &queryRef ) override;
+    bool first( QgsMssqlQueryRef &queryRef ) override;
+    bool isActive( QgsMssqlQueryRef &queryRef ) const override;
+    bool isValid( QgsMssqlQueryRef &queryRef ) const override;
+    bool isForwardOnly( QgsMssqlQueryRef &queryRef ) const override;
+    QSqlError lastError( QgsMssqlQueryRef &queryRef ) const override;
+    QString lastQuery( QgsMssqlQueryRef &queryRef ) const override;
+    bool next( QgsMssqlQueryRef &queryRef ) override;
+    int numRowsAffected( QgsMssqlQueryRef &queryRef ) const override;
+    bool prepare( QgsMssqlQueryRef &queryRef, const QString &queryString ) override;
+    QSqlRecord record( QgsMssqlQueryRef &queryRef ) const override;
+    void setForwardOnly( QgsMssqlQueryRef &queryRef, bool forward ) override;
+    int size( QgsMssqlQueryRef &queryRef ) const override;
+    QVariant value( QgsMssqlQueryRef &queryRef, int index ) const override;
+    QVariant value( QgsMssqlQueryRef &queryRef, const QString &name ) const override;
+    void removeSqlQuery( QgsMssqlQueryRef &queryRef ) override;
 };
 
 

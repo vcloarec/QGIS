@@ -19,15 +19,14 @@
 
 #include <QSqlError>
 #include <QRandomGenerator>
-
-//qgis includes...
-#include <qgis.h>
-#include <qgsapplication.h>
-#include <qgsmssqltransaction.h>
-#include <qgsmssqlconnection.h>
-#include <qgsvectorlayer.h>
 #include <qtconcurrentrun.h>
 
+//qgis includes...
+#include "qgis.h"
+#include "qgsapplication.h"
+#include "qgsmssqltransaction.h"
+#include "qgsmssqlconnection.h"
+#include "qgsvectorlayer.h"
 #include "qgsmssqldatabase.h"
 #include "qgsproject.h"
 
@@ -309,29 +308,29 @@ void TestQgsMssqlProvider::concurentQueryDuringTransaction()
 
       const QgsDataSourceUri uri;
       QString statement = QStringLiteral( "select * from qgis_test.someData" );
-      QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, QString( "query_1" ), statement, false );
+      QFuture<void> future_1 = QtConcurrent::run( repeatedQueryFromOtherThread, statement, false );
 
       // lets the concurrent queries starting and working a bit before starting a new one and then a transaction
       QThread::msleep( QRandomGenerator::global()->bounded( 200 ) );
 
-      QFuture<void> future_2 = QtConcurrent::run( repeatedQueryFromOtherThread, QString( "query_2" ), statement, false );
+      QFuture<void> future_2 = QtConcurrent::run( repeatedQueryFromOtherThread, statement, false );
 
       QVERIFY( database_1.isValid() );
       QVERIFY( database_1.open() );
 
       QVERIFY( database_1.transaction() );
 
-      QFuture<void> future_5 = QtConcurrent::run( repeatedQueryFromOtherThread, QString( "query_5" ), statement, false );
+      QFuture<void> future_5 = QtConcurrent::run( repeatedQueryFromOtherThread, statement, false );
 
       QVERIFY( !dataBase_2.isValid() );
 
       QgsMssqlQuery query_1( database_1 );
       QVERIFY( query_1.exec( QStringLiteral( "INSERT INTO  qgis_test.someData(pk,name) VALUES(100,'a name')" ) ) );
 
-      QFuture<void> future_3 = QtConcurrent::run( repeatedQueryFromOtherThread, QString( "query_3" ), statement, false );
+      QFuture<void> future_3 = QtConcurrent::run( repeatedQueryFromOtherThread, statement, false );
 
       QThread::msleep( QRandomGenerator::global()->bounded( 100 ) );
-      QFuture<void> future_4 = QtConcurrent::run( repeatedQueryFromOtherThread, QString( "query_4" ), statement, false );
+      QFuture<void> future_4 = QtConcurrent::run( repeatedQueryFromOtherThread, statement, false );
 
       dataBase_2 = QgsMssqlDatabase::database( "", "localhost", "qgis", "sa", "<YourStrong!Passw0rd>" );
 

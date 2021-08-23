@@ -31,12 +31,6 @@
 #include <QApplication>
 #include <QDebug>
 
-//int QgsMssqlConnection::sConnectionId = 0;
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-QMutex QgsMssqlConnection::sMutex { QMutex::Recursive };
-#else
-QRecursiveMutex QgsMssqlConnection::sMutex;
-#endif
 
 
 bool QgsMssqlConnection::openDatabase( QgsMssqlDatabase &db )

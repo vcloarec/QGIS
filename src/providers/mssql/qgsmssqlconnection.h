@@ -19,16 +19,13 @@
 #define QGSMSSQLCONNECTION_H
 
 #include <QStringList>
-#include <QMutex>
 
 #include "qgsmssqldatabase.h"
 #include "qgsmssqltransaction.h"
 #include "qgsdatasourceuri.h"
 #include "qgsvectordataprovider.h"
 
-class QString;
-class QSqlDatabase;
-class QgsMssqlDataBaseConnectionBase;
+class QgsMssqlDatabase;
 
 /**
  * \class QgsMssqlProvider
@@ -257,12 +254,6 @@ class QgsMssqlConnection
      * \since QGIS 3.18
      */
     static QString buildQueryForTables( const QString &connName );
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    static QMutex sMutex;
-#else
-    static QRecursiveMutex sMutex;
-#endif
 
 };
 
