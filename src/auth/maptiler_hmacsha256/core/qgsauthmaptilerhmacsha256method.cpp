@@ -85,7 +85,10 @@ bool QgsAuthMapTilerHmacSha256Method::updateNetworkRequest( QNetworkRequest &req
 
   QUrl url = request.url();
   QUrlQuery query( url.query() );
+  query.removeQueryItem( QStringLiteral( "key" ) );
+
   QList<QPair<QString, QString> > queryItems = query.queryItems();
+
   queryItems.append( {QStringLiteral( "key" ), key} );
 
   query.setQueryItems( queryItems );
@@ -93,6 +96,8 @@ bool QgsAuthMapTilerHmacSha256Method::updateNetworkRequest( QNetworkRequest &req
 
   QString signature = calculateSignature( secret, url.url() );
   request.setUrl( QString( url.url() + QStringLiteral( "&signature=" ) + signature ) );
+
+  QString urlString = request.url().url();
 
   return true;
 }
