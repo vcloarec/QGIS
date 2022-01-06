@@ -25,7 +25,7 @@
 #include "qgsauthmethodmetadata.h"
 
 
-class QgsAuthHmacSha256Method : public QgsAuthMethod
+class QgsAuthMapTilerHmacSha256Method : public QgsAuthMethod
 {
     Q_OBJECT
 
@@ -35,7 +35,7 @@ class QgsAuthHmacSha256Method : public QgsAuthMethod
     static const QString AUTH_METHOD_DESCRIPTION;
     static const QString AUTH_METHOD_DISPLAY_DESCRIPTION;
 
-    explicit QgsAuthHmacSha256Method();
+    explicit QgsAuthMapTilerHmacSha256Method();
 
     // QgsAuthMethod interface
     QString key() const override;
@@ -68,13 +68,13 @@ class QgsAuthHmacSha256Method : public QgsAuthMethod
 };
 
 
-class QgsAuthHmacSha256MethodMetadata : public QgsAuthMethodMetadata
+class QgsAuthMapTilerHmacSha256MethodMetadata : public QgsAuthMethodMetadata
 {
   public:
-    QgsAuthHmacSha256MethodMetadata()
-      : QgsAuthMethodMetadata( QgsAuthHmacSha256Method::AUTH_METHOD_KEY, QgsAuthHmacSha256Method::AUTH_METHOD_DESCRIPTION )
+    QgsAuthMapTilerHmacSha256MethodMetadata()
+      : QgsAuthMethodMetadata( QgsAuthMapTilerHmacSha256Method::AUTH_METHOD_KEY, QgsAuthMapTilerHmacSha256Method::AUTH_METHOD_DESCRIPTION )
     {}
-    QgsAuthHmacSha256Method *createAuthMethod() const override {return new QgsAuthHmacSha256Method;}
+    QgsAuthMapTilerHmacSha256Method *createAuthMethod() const override {return new QgsAuthMapTilerHmacSha256Method;}
 };
 
 #endif // QGSAUTHHMACSHA256METHOD_H

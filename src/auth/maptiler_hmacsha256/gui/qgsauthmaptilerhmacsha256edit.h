@@ -19,17 +19,17 @@
 
 #include <QWidget>
 #include "qgsauthmethodedit.h"
-#include "ui_qgsauthhmacsha256edit.h"
+#include "ui_qgsauthmaptilerhmacsha256edit.h"
 
 #include "qgsauthconfig.h"
 
 
-class QgsAuthHmacSha256Edit : public QgsAuthMethodEdit, private Ui::QgsAuthEsriTokenEdit
+class QgsAuthMapTilerHmacSha256Edit : public QgsAuthMethodEdit, private Ui::QgsAuthEsriTokenEdit
 {
     Q_OBJECT
 
   public:
-    explicit QgsAuthHmacSha256Edit( QWidget *parent = nullptr );
+    explicit QgsAuthMapTilerHmacSha256Edit( QWidget *parent = nullptr );
 
     bool validateConfig() override;
 

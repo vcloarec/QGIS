@@ -14,27 +14,28 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "qgsauthhmacsha256method.h"
+#include "qgsauthmaptilerhmacsha256method.h"
 
 #include <QMessageAuthenticationCode>
+#include <QUrlQuery>
 
 #include "qgsauthmanager.h"
 #include "qgslogger.h"
 #include "qgsapplication.h"
 
 #ifdef HAVE_GUI
-#include "qgsauthhmacsha256edit.h"
+#include "qgsauthmaptilerhmacsha256edit.h"
 #endif
 
 
-const QString QgsAuthHmacSha256Method::AUTH_METHOD_KEY = QStringLiteral( "HmacSha256" );
-const QString QgsAuthHmacSha256Method::AUTH_METHOD_DESCRIPTION = QStringLiteral( "HMAC SHA256" );
-const QString QgsAuthHmacSha256Method::AUTH_METHOD_DISPLAY_DESCRIPTION = tr( "HMAC SHA256" );
+const QString QgsAuthMapTilerHmacSha256Method::AUTH_METHOD_KEY = QStringLiteral( "MapTilerHmacSha256" );
+const QString QgsAuthMapTilerHmacSha256Method::AUTH_METHOD_DESCRIPTION = QStringLiteral( "MapTiler HMAC-SHA256" );
+const QString QgsAuthMapTilerHmacSha256Method::AUTH_METHOD_DISPLAY_DESCRIPTION = tr( "MapTiler HMAC SHA256-Signature" );
 
-QMap<QString, QgsAuthMethodConfig> QgsAuthHmacSha256Method::sAuthConfigCache = QMap<QString, QgsAuthMethodConfig>();
+QMap<QString, QgsAuthMethodConfig> QgsAuthMapTilerHmacSha256Method::sAuthConfigCache = QMap<QString, QgsAuthMethodConfig>();
 
 
-QgsAuthHmacSha256Method::QgsAuthHmacSha256Method()
+QgsAuthMapTilerHmacSha256Method::QgsAuthMapTilerHmacSha256Method()
 {
   setVersion( 1 );
   setExpansions( QgsAuthMethod::NetworkRequest );
@@ -44,22 +45,22 @@ QgsAuthHmacSha256Method::QgsAuthHmacSha256Method()
 
 }
 
-QString QgsAuthHmacSha256Method::key() const
+QString QgsAuthMapTilerHmacSha256Method::key() const
 {
   return AUTH_METHOD_KEY;
 }
 
-QString QgsAuthHmacSha256Method::description() const
+QString QgsAuthMapTilerHmacSha256Method::description() const
 {
   return AUTH_METHOD_DESCRIPTION;
 }
 
-QString QgsAuthHmacSha256Method::displayDescription() const
+QString QgsAuthMapTilerHmacSha256Method::displayDescription() const
 {
   return AUTH_METHOD_DISPLAY_DESCRIPTION;
 }
 
-bool QgsAuthHmacSha256Method::updateNetworkRequest( QNetworkRequest &request, const QString &authcfg,
+bool QgsAuthMapTilerHmacSha256Method::updateNetworkRequest( QNetworkRequest &request, const QString &authcfg,
     const QString &dataprovider )
 {
   Q_UNUSED( dataprovider )
@@ -70,26 +71,38 @@ bool QgsAuthHmacSha256Method::updateNetworkRequest( QNetworkRequest &request, co
     return false;
   }
 
-  const QString key = mconfig.config( QStringLiteral( "key" ) );
   const QString token = mconfig.config( QStringLiteral( "token" ) );
+  const QStringList splitToken = token.split( '_' );
 
-  QString baseUrl = request.url().toString();
+  if ( splitToken.count() != 2 )
+  {
+    QgsDebugMsg( QStringLiteral( "Update request config FAILED for authcfg: %1: config invalid" ).arg( authcfg ) );
+    return false;
+  }
 
-  QString keyedUrl = baseUrl + QStringLiteral( "?key=" ) + key;
+  const QString key = splitToken.at( 0 );
+  const QString secret = splitToken.at( 1 );
 
-  QByteArray signature = calculateSignature( token, keyedUrl );
+  QUrl url = request.url();
+  QUrlQuery query( url.query() );
+  QList<QPair<QString, QString> > queryItems = query.queryItems();
+  queryItems.append( {QStringLiteral( "key" ), key} );
 
-  request.setUrl( QString( keyedUrl + QStringLiteral( "&signature=" )  + signature ) );
+  query.setQueryItems( queryItems );
+  url.setQuery( query );
+
+  QString signature = calculateSignature( secret, url.url() );
+  request.setUrl( QString( url.url() + QStringLiteral( "&signature=" ) + signature ) );
 
   return true;
 }
 
-void QgsAuthHmacSha256Method::clearCachedConfig( const QString &authcfg )
+void QgsAuthMapTilerHmacSha256Method::clearCachedConfig( const QString &authcfg )
 {
   removeMethodConfig( authcfg );
 }
 
-void QgsAuthHmacSha256Method::updateMethodConfig( QgsAuthMethodConfig &mconfig )
+void QgsAuthMapTilerHmacSha256Method::updateMethodConfig( QgsAuthMethodConfig &mconfig )
 {
   if ( mconfig.hasConfig( QStringLiteral( "oldconfigstyle" ) ) )
   {
@@ -99,7 +112,7 @@ void QgsAuthHmacSha256Method::updateMethodConfig( QgsAuthMethodConfig &mconfig )
   // NOTE: add updates as method version() increases due to config storage changes
 }
 
-QgsAuthMethodConfig QgsAuthHmacSha256Method::getMethodConfig( const QString &authcfg, bool fullconfig )
+QgsAuthMethodConfig QgsAuthMapTilerHmacSha256Method::getMethodConfig( const QString &authcfg, bool fullconfig )
 {
   const QMutexLocker locker( &mMutex );
   QgsAuthMethodConfig mconfig;
@@ -125,14 +138,14 @@ QgsAuthMethodConfig QgsAuthHmacSha256Method::getMethodConfig( const QString &aut
   return mconfig;
 }
 
-void QgsAuthHmacSha256Method::putMethodConfig( const QString &authcfg, const QgsAuthMethodConfig &mconfig )
+void QgsAuthMapTilerHmacSha256Method::putMethodConfig( const QString &authcfg, const QgsAuthMethodConfig &mconfig )
 {
   const QMutexLocker locker( &mMutex );
   QgsDebugMsg( QStringLiteral( "Putting token config for authcfg: %1" ).arg( authcfg ) );
   sAuthConfigCache.insert( authcfg, mconfig );
 }
 
-void QgsAuthHmacSha256Method::removeMethodConfig( const QString &authcfg )
+void QgsAuthMapTilerHmacSha256Method::removeMethodConfig( const QString &authcfg )
 {
   const QMutexLocker locker( &mMutex );
   if ( sAuthConfigCache.contains( authcfg ) )
@@ -142,7 +155,7 @@ void QgsAuthHmacSha256Method::removeMethodConfig( const QString &authcfg )
   }
 }
 
-QByteArray QgsAuthHmacSha256Method::calculateSignature( const QString &token, const QString &keyedUrl )
+QByteArray QgsAuthMapTilerHmacSha256Method::calculateSignature( const QString &token, const QString &keyedUrl )
 {
   QByteArray decodedToken = QByteArray::fromHex( token.toStdString().c_str() );
 
@@ -153,9 +166,9 @@ QByteArray QgsAuthHmacSha256Method::calculateSignature( const QString &token, co
 }
 
 #ifdef HAVE_GUI
-QWidget *QgsAuthHmacSha256Method::editWidget( QWidget *parent ) const
+QWidget *QgsAuthMapTilerHmacSha256Method::editWidget( QWidget *parent ) const
 {
-  return new QgsAuthHmacSha256Edit( parent );
+  return new QgsAuthMapTilerHmacSha256Edit( parent );
 }
 #endif
 
@@ -167,6 +180,6 @@ QWidget *QgsAuthHmacSha256Method::editWidget( QWidget *parent ) const
 #ifndef HAVE_STATIC_PROVIDERS
 QGISEXTERN QgsAuthMethodMetadata *authMethodMetadataFactory()
 {
-  return new QgsAuthHmacSha256MethodMetadata();
+  return new QgsAuthMapTilerHmacSha256MethodMetadata();
 }
 #endif

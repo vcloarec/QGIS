@@ -14,21 +14,24 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "qgsauthhmacsha256edit.h"
-#include "ui_qgsauthhmacsha256edit.h"
+#include "qgsauthmaptilerhmacsha256edit.h"
+#include "ui_qgsauthmaptilerhmacsha256edit.h"
 
 
-QgsAuthHmacSha256Edit::QgsAuthHmacSha256Edit( QWidget *parent )
+QgsAuthMapTilerHmacSha256Edit::QgsAuthMapTilerHmacSha256Edit( QWidget *parent )
   : QgsAuthMethodEdit( parent )
 {
   setupUi( this );
-  connect( mKeyEdit, &QLineEdit::textChanged, this, &QgsAuthHmacSha256Edit::configChanged );
-  connect( mTokenEdit, &QPlainTextEdit::textChanged, this, &QgsAuthHmacSha256Edit::configChanged );
+  mLinkLabel->setText( "Secure Token from <a href=\"https://cloud.maptiler.com/account/credentials/\">MapTiler Account Credentials</a>" );
+  mLinkLabel->setTextFormat( Qt::RichText );
+  mLinkLabel->setTextInteractionFlags( Qt::TextBrowserInteraction );
+  mLinkLabel->setOpenExternalLinks( true );
+  connect( mTokenEdit, &QPlainTextEdit::textChanged, this, &QgsAuthMapTilerHmacSha256Edit::configChanged );
 }
 
-bool QgsAuthHmacSha256Edit::validateConfig()
+bool QgsAuthMapTilerHmacSha256Edit::validateConfig()
 {
-  const bool curvalid = !mTokenEdit->toPlainText().isEmpty() && !mKeyEdit->text().isEmpty();
+  const bool curvalid = !mTokenEdit->toPlainText().isEmpty();
   if ( mValid != curvalid )
   {
     mValid = curvalid;
@@ -37,38 +40,35 @@ bool QgsAuthHmacSha256Edit::validateConfig()
   return curvalid;
 }
 
-QgsStringMap QgsAuthHmacSha256Edit::configMap() const
+QgsStringMap QgsAuthMapTilerHmacSha256Edit::configMap() const
 {
   QgsStringMap config;
-  config.insert( QStringLiteral( "key" ), mKeyEdit->text() );
   config.insert( QStringLiteral( "token" ), mTokenEdit->toPlainText() );
 
   return config;
 }
 
-void QgsAuthHmacSha256Edit::loadConfig( const QgsStringMap &configmap )
+void QgsAuthMapTilerHmacSha256Edit::loadConfig( const QgsStringMap &configmap )
 {
   clearConfig();
 
   mConfigMap = configmap;
-  mKeyEdit->setText( configmap.value( QStringLiteral( "key" ) ) );
   mTokenEdit->setPlainText( configmap.value( QStringLiteral( "token" ) ) );
 
   validateConfig();
 }
 
-void QgsAuthHmacSha256Edit::resetConfig()
+void QgsAuthMapTilerHmacSha256Edit::resetConfig()
 {
   loadConfig( mConfigMap );
 }
 
-void QgsAuthHmacSha256Edit::clearConfig()
+void QgsAuthMapTilerHmacSha256Edit::clearConfig()
 {
-  mKeyEdit->clear();
   mTokenEdit->clear();
 }
 
-void QgsAuthHmacSha256Edit::configChanged()
+void QgsAuthMapTilerHmacSha256Edit::configChanged()
 {
   validateConfig();
 }
