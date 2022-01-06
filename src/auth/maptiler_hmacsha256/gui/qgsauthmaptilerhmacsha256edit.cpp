@@ -22,10 +22,6 @@ QgsAuthMapTilerHmacSha256Edit::QgsAuthMapTilerHmacSha256Edit( QWidget *parent )
   : QgsAuthMethodEdit( parent )
 {
   setupUi( this );
-  mLinkLabel->setText( "Secure Token from <a href=\"https://cloud.maptiler.com/account/credentials/\">MapTiler Account Credentials</a>" );
-  mLinkLabel->setTextFormat( Qt::RichText );
-  mLinkLabel->setTextInteractionFlags( Qt::TextBrowserInteraction );
-  mLinkLabel->setOpenExternalLinks( true );
   connect( mTokenEdit, &QPlainTextEdit::textChanged, this, &QgsAuthMapTilerHmacSha256Edit::configChanged );
 }
 
