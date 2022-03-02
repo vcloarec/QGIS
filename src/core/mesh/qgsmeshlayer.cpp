@@ -282,6 +282,14 @@ const QgsMesh *QgsMeshLayer::nativeMesh() const
   return mNativeMesh.get();
 }
 
+QgsMesh *QgsMeshLayer::nativeMeshFrame()
+{
+  if ( !mNativeMesh )
+    mNativeMesh.reset( new QgsMesh );
+
+  return mNativeMesh.get();
+}
+
 QgsTriangularMesh *QgsMeshLayer::triangularMesh( double minimumTriangleSize ) const
 {
   for ( const std::unique_ptr<QgsTriangularMesh> &lod : mTriangularMeshes )
@@ -720,9 +728,8 @@ QgsMeshDatasetIndex QgsMeshLayer::activeVectorDatasetAtTime( const QgsDateTimeRa
 
 void QgsMeshLayer::fillNativeMesh()
 {
-  Q_ASSERT( !mNativeMesh );
-
-  mNativeMesh.reset( new QgsMesh() );
+  if ( !mNativeMesh )
+    mNativeMesh.reset( new QgsMesh() );
 
   if ( !( dataProvider() && dataProvider()->isValid() ) )
     return;
@@ -1585,7 +1592,7 @@ bool QgsMeshLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &con
   QString errorMsg;
   readSymbology( layer_node, errorMsg, context );
 
-  if ( !mTemporalProperties->timeExtent().begin().isValid() )
+  if ( dataProvider() && !mTemporalProperties->timeExtent().begin().isValid() )
     temporalProperties()->setDefaultsFromDataProviderTemporalCapabilities( dataProvider()->temporalCapabilities() );
 
   // read static dataset

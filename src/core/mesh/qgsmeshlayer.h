@@ -248,6 +248,15 @@ class CORE_EXPORT QgsMeshLayer : public QgsMapLayer, public QgsAbstractProfileSo
     const QgsMesh *nativeMesh() const SIP_SKIP;
 
     /**
+     * Returns native mesh frame, create a void one it if doesn't exist (return pointer can't be nullptr)
+     *
+     * \note Not available in Python bindings
+     *
+     * \since QGIS 3.26
+     */
+    QgsMesh *nativeMeshFrame() SIP_SKIP;
+
+    /**
      * Returns triangular mesh (NULLPTR before rendering or calling to updateMesh).
      *
      * If the parameter triangleSize is provided, among the base triangular mesh

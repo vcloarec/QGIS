@@ -673,6 +673,8 @@ class CORE_EXPORT QgsMeshDatasetGroup
     //! Sets the reference time of the dataset group
     void setReferenceTime( const QDateTime &referenceTime );
 
+    static QgsMeshDatasetGroup *createFromXml( QgsMeshLayer *layer, const QDomElement &element, const QgsReadWriteContext &context );
+
   protected:
     QString mName;
 
@@ -808,9 +810,10 @@ class CORE_EXPORT QgsMeshVerticesElevationDatasetGroup : public QgsMeshDatasetGr
     int datasetCount() const override;;
     QgsMeshDataset *dataset( int index ) const override;;
     QgsMeshDatasetGroup::Type type() const override;
-    QDomElement writeXml( QDomDocument &, const QgsReadWriteContext & ) const override {return QDomElement();};
+    QDomElement writeXml( QDomDocument &, const QgsReadWriteContext & ) const override;;
 
   private:
+    QgsMeshLayer *mLayer;
     std::unique_ptr<QgsMeshVerticesElevationDataset> mDataset;
 };
 

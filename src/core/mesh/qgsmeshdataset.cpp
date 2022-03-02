@@ -18,6 +18,7 @@
 #include "qgsmeshdataset.h"
 #include "qgsmeshdataprovider.h"
 #include "qgsrectangle.h"
+#include "qgsmeshvirtualdatasetgroup.h"
 #include "qgis.h"
 
 QgsMeshDatasetIndex::QgsMeshDatasetIndex( int group, int dataset )
@@ -998,6 +999,34 @@ void QgsMeshDatasetGroup::setReferenceTime( const QDateTime &referenceTime )
   mReferenceTime = referenceTime;
 }
 
+QgsMeshDatasetGroup *QgsMeshDatasetGroup::createFromXml( QgsMeshLayer *layer, const QDomElement &element, const QgsReadWriteContext & )
+{
+  const QString sourceType = element.attribute( QStringLiteral( "source-type" ) );
+
+  std::unique_ptr<QgsMeshDatasetGroup> datasetGroup;
+
+  if ( sourceType == QLatin1String( "virtual" ) )
+  {
+    QString name = element.attribute( QStringLiteral( "name" ) );
+    QString formula = element.attribute( QStringLiteral( "formula" ) );
+    qint64 startTime = element.attribute( QStringLiteral( "start-time" ) ).toLongLong();
+    qint64 endTime = element.attribute( QStringLiteral( "end-time" ) ).toLongLong();
+
+    datasetGroup.reset( new QgsMeshVirtualDatasetGroup( name, formula, layer, startTime, endTime ) );
+  }
+  else if ( sourceType == QLatin1String( "virtual-vertices-Z-value" ) )
+  {
+    QString name = element.attribute( QStringLiteral( "name" ) );
+    datasetGroup.reset( new QgsMeshVerticesElevationDatasetGroup( name, layer->nativeMeshFrame() ) );
+  }
+  else
+  {
+    QgsDebugMsg( QStringLiteral( "Unhandled source-type: %1." ).arg( sourceType ) );
+  }
+
+  return datasetGroup.release();
+}
+
 void QgsMeshDatasetGroup::updateStatictic() const
 {
   if ( !mIsStatisticObsolete )
@@ -1185,5 +1214,13 @@ QgsMeshDataset *QgsMeshVerticesElevationDatasetGroup::dataset( int index ) const
 QgsMeshDatasetGroup::Type QgsMeshVerticesElevationDatasetGroup::type() const
 {
   return QgsMeshDatasetGroup::Memory; //maybe create a new type ?
+}
+
+QDomElement QgsMeshVerticesElevationDatasetGroup::writeXml( QDomDocument &doc, const QgsReadWriteContext & ) const
+{
+  QDomElement elemDataset = doc.createElement( QStringLiteral( "mesh-dataset" ) );
+  elemDataset.setAttribute( QStringLiteral( "source-type" ), QStringLiteral( "virtual-vertices-Z-value" ) );
+  elemDataset.setAttribute( QStringLiteral( "name" ), name() );
+  return elemDataset;
 }
 

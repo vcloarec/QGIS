@@ -336,22 +336,17 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
       sourceIndex = datasetElem.attribute( QStringLiteral( "source-index" ) ).toInt();
       mPersistentExtraDatasetGroupIndexes.append( globalIndex );
     }
-    else if ( sourceType == QLatin1String( "virtual" ) )
-    {
-      source = mExtraDatasets.get();
-      QString name = datasetElem.attribute( QStringLiteral( "name" ) );
-      QString formula = datasetElem.attribute( QStringLiteral( "formula" ) );
-      qint64 startTime = datasetElem.attribute( QStringLiteral( "start-time" ) ).toLongLong();
-      qint64 endTime = datasetElem.attribute( QStringLiteral( "end-time" ) ).toLongLong();
-
-      QgsMeshDatasetGroup *dsg = new QgsMeshVirtualDatasetGroup( name, formula, mLayer, startTime, endTime );
-      extraDatasetGroups[globalIndex] = dsg;
-      sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
-    }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Unhandled source-type: %1." ).arg( sourceType ) );
+      QgsMeshDatasetGroup *dsg = QgsMeshDatasetGroup::createFromXml( mLayer, datasetElem, context );
+      if ( dsg )
+      {
+        source = mExtraDatasets.get();
+        extraDatasetGroups[globalIndex] = dsg;
+        sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
+      }
     }
+
     if ( source )
     {
       mRegistery[globalIndex] = DatasetGroup{source, sourceIndex};
