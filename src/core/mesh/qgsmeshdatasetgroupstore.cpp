@@ -359,7 +359,13 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
     }
     else
     {
-      QgsDebugMsg( QStringLiteral( "Unhandled source-type: %1." ).arg( sourceType ) );
+      QgsMeshDatasetGroup *dsg = QgsMeshDatasetGroup::createFromXml( mLayer, datasetElem, context );
+      if ( dsg )
+      {
+        source = mExtraDatasets.get();
+        extraDatasetGroups[globalIndex] = dsg;
+        sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
+      }
     }
 
     datasetElem = datasetElem.nextSiblingElement( QStringLiteral( "mesh-dataset" ) );
