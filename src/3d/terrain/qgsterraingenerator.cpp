@@ -28,8 +28,8 @@ QgsAABB QgsTerrainGenerator::rootChunkBbox( const Qgs3DMapSettings &map ) const
 
   float hMin, hMax;
   rootChunkHeightRange( hMin, hMax );
-  return QgsAABB( te.xMinimum() - map.origin().x(), hMin * map.terrainVerticalScale(), -te.yMaximum() + map.origin().y(),
-                  te.xMaximum() - map.origin().x(), hMax * map.terrainVerticalScale(), -te.yMinimum() + map.origin().y() );
+  return QgsAABB( te.xMinimum() - map.origin().x(), hMin, -te.yMaximum() + map.origin().y(),
+                  te.xMaximum() - map.origin().x(), hMax, -te.yMinimum() + map.origin().y() );
 }
 
 float QgsTerrainGenerator::rootChunkError( const Qgs3DMapSettings &map ) const

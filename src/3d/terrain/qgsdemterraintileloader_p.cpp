@@ -123,7 +123,7 @@ Qt3DCore::QEntity *QgsDemTerrainTileLoader::createEntity( Qt3DCore::QEntity *par
   transform->setScale( side );
   transform->setTranslation( QVector3D( x0 + half, 0, - ( y0 + half ) ) );
 
-  mNode->setExactBbox( QgsAABB( x0, zMin * map.terrainVerticalScale(), -y0, x0 + side, zMax * map.terrainVerticalScale(), -( y0 + side ) ) );
+  mNode->setExactBbox( QgsAABB( x0, zMin, -y0, x0 + side, zMax, -( y0 + side ) ) );
   mNode->updateParentBoundingBoxesRecursively();
 
   entity->setEnabled( false );

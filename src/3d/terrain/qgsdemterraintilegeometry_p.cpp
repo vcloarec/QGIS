@@ -86,7 +86,7 @@ static QByteArray createPlaneVertexData( int res, float side, float vertScale, f
 
       // position
       *fptr++ = x;
-      *fptr++ = height / side * vertScale;
+      *fptr++ = height / side ;
       *fptr++ = z;
 
       // texture coordinates
@@ -94,7 +94,7 @@ static QByteArray createPlaneVertexData( int res, float side, float vertScale, f
       *fptr++ = v;
 
       // calculate normal coordinates
-#define zAt( ii, jj )  zData[ jj * resolution.width() + ii ] * vertScale
+#define zAt( ii, jj )  zData[ jj * resolution.width() + ii ]
       float zi0 = zAt( std::clamp( i - 1, 0, iMax ), jBound );
       float zi1 = zAt( std::clamp( i + 1, 0, iMax ), jBound );
       float zj0 = zAt( iBound, std::clamp( j - 1, 0, jMax ) );
@@ -106,7 +106,7 @@ static QByteArray createPlaneVertexData( int res, float side, float vertScale, f
       else
       {
         float di, dj;
-        float zij = height * vertScale;
+        float zij = height ;
 
         if ( i == 0 )
           di = 2 * ( zij - zi1 );
