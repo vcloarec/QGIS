@@ -163,6 +163,9 @@ class _3D_EXPORT Qgs3DMapScene : public Qt3DCore::QEntity
     //! Emitted when the number of terrain's pending jobs changes
     void terrainPendingJobsCountChanged();
 
+    //! Emitted when a terrain entity is created
+    void terrainEntityCreated( Qt3DCore::QEntity *entity );
+
     /**
      * Emitted when the total number of pending jobs changes
      * \since QGIS 3.12

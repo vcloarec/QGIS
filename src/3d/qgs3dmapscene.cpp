@@ -126,7 +126,11 @@ Qgs3DMapScene::Qgs3DMapScene( Qgs3DMapSettings &map, QgsAbstract3DEngine *engine
 
   createTerrainDeferred();
   connect( &map, &Qgs3DMapSettings::terrainGeneratorChanged, this, &Qgs3DMapScene::createTerrain );
-  connect( &map, &Qgs3DMapSettings::terrainVerticalScaleChanged, this, &Qgs3DMapScene::createTerrain );
+  connect( &map, &Qgs3DMapSettings::terrainVerticalScaleChanged, this, [this]
+  {
+    if ( mTerrain )
+      mTerrain->transform()->setScale3D( QVector3D( 1, mMap.terrainVerticalScale(), 1 ) );
+  } );
   connect( &map, &Qgs3DMapSettings::mapTileResolutionChanged, this, &Qgs3DMapScene::createTerrain );
   connect( &map, &Qgs3DMapSettings::maxTerrainScreenErrorChanged, this, &Qgs3DMapScene::createTerrain );
   connect( &map, &Qgs3DMapSettings::maxTerrainGroundErrorChanged, this, &Qgs3DMapScene::createTerrain );
@@ -601,6 +605,12 @@ void Qgs3DMapScene::createTerrain()
     mChunkEntities.removeOne( mTerrain );
 
     mTerrain->deleteLater();
+//    qDebug() << "terrain will be changed";
+//    QgsTerrainEntity *ter = mTerrain;
+//    connect( this, &Qgs3DMapScene::terrainEntityCreated, ter, [ter]
+//    {
+//      QTimer::singleShot( 1, ter, &QObject::deleteLater );
+//    } );
     mTerrain = nullptr;
   }
 
@@ -631,12 +641,15 @@ void Qgs3DMapScene::createTerrainDeferred()
     mTerrain->setParent( this );
     mTerrain->setShowBoundingBoxes( mMap.showTerrainBoundingBoxes() );
 
+    mTerrain->transform()->setScale3D( QVector3D( 1, mMap.terrainVerticalScale(), 1 ) );
+
     mCameraController->setTerrainEntity( mTerrain );
 
     mChunkEntities << mTerrain;
 
     connect( mTerrain, &QgsChunkedEntity::pendingJobsCountChanged, this, &Qgs3DMapScene::totalPendingJobsCountChanged );
     connect( mTerrain, &QgsTerrainEntity::pendingJobsCountChanged, this, &Qgs3DMapScene::terrainPendingJobsCountChanged );
+    connect( mTerrain, &QgsChunkedEntity::newEntityCreated, this, &Qgs3DMapScene::terrainEntityCreated );
   }
   else
   {
