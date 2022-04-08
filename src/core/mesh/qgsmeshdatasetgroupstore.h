@@ -100,13 +100,13 @@ class QgsMeshExtraDatasetStore: public QgsMeshDatasetSourceInterface
  *
  * \brief Class used to register and access all the dataset groups related to a mesh layer
  *
- * The registered dataset group are :
+ * The registered dataset group are:
  *
  * - the ones from the data provider of the mesh layer
- * - extra dataset group that can be added, for example by the mesh calculator
+ * - extra dataset groups that can be added, for example by the mesh calculator
  *
  * Every dataset group has a unique global index group that can be different from the native index group of the dataset group.
- * This storing class has the repsonsability to assign this unique grlobal dataset group index and to link this dataset group index with the dataset group
+ * This storing class has the repsonsability to assign this unique global dataset group index and to link this dataset group index with the dataset group
  *
  * All dataset values or information needed can be retrieved from a QgsMeshDatasetIndex with the group index corresponding to the global group index.
  * The native group index is not exposed and global index can be obtained with datasetGroupIndexes() that returns the list of global index available.
