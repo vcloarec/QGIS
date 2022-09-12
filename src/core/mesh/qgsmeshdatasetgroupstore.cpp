@@ -337,7 +337,8 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
   while ( !datasetElem.isNull() )
   {
     int globalIndex = datasetElem.attribute( QStringLiteral( "global-index" ) ).toInt();
-
+    QgsMeshDatasetSourceInterface *source = nullptr;
+    int sourceIndex = -1;
     const QString sourceType = datasetElem.attribute( QStringLiteral( "source-type" ) );
     if ( sourceType == QLatin1String( "persitent-provider" ) )
     {
@@ -345,7 +346,7 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
     }
     else if ( sourceType == QLatin1String( "virtual" ) )
     {
-      QgsMeshDatasetSourceInterface *source = mExtraDatasets.get();
+      source = mExtraDatasets.get();
       QString name = datasetElem.attribute( QStringLiteral( "name" ) );
       QString formula = datasetElem.attribute( QStringLiteral( "formula" ) );
       qint64 startTime = datasetElem.attribute( QStringLiteral( "start-time" ) ).toLongLong();
@@ -353,9 +354,7 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
 
       QgsMeshDatasetGroup *dsg = new QgsMeshVirtualDatasetGroup( name, formula, mLayer, startTime, endTime );
       extraDatasetGroups[globalIndex] = dsg;
-      int sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
-
-      mRegistery[globalIndex] = DatasetGroup{source, sourceIndex};
+      sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
     }
     else
     {
@@ -366,6 +365,11 @@ void QgsMeshDatasetGroupStore::readXml( const QDomElement &storeElem, const QgsR
         extraDatasetGroups[globalIndex] = dsg;
         sourceIndex = mExtraDatasets->addDatasetGroup( dsg );
       }
+    }
+
+    if ( source )
+    {
+      mRegistery[globalIndex] = DatasetGroup{source, sourceIndex};
     }
 
     datasetElem = datasetElem.nextSiblingElement( QStringLiteral( "mesh-dataset" ) );
