@@ -1266,9 +1266,8 @@ QList<int> QgsMeshLayer::selectVerticesByExpression( QgsExpression expression )
     return ret;
 
   QgsExpressionContext context;
-  std::unique_ptr<QgsExpressionContextScope> expScope( QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Vertex ) );
-  context.appendScope( expScope.release() );
-  context.lastScope()->setVariable( QStringLiteral( "_mesh_layer" ), QVariant::fromValue( this ) );
+  context << createExpressionContextScope()
+          << QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Vertex );
 
   expression.prepare( &context );
 
@@ -1297,9 +1296,8 @@ QList<int> QgsMeshLayer::selectFacesByExpression( QgsExpression expression )
     return ret;
 
   QgsExpressionContext context;
-  std::unique_ptr<QgsExpressionContextScope> expScope( QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Face ) );
-  context.appendScope( expScope.release() );
-  context.lastScope()->setVariable( QStringLiteral( "_mesh_layer" ), QVariant::fromValue( this ) );
+  context << createExpressionContextScope()
+          << QgsExpressionContextUtils::meshExpressionScope( QgsMesh::Face );
 
   expression.prepare( &context );
 

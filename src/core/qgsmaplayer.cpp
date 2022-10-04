@@ -47,6 +47,7 @@
 #include "qgslayernotesutils.h"
 #include "qgsdatums.h"
 #include "qgsprojoperation.h"
+#include <qgsexpressioncontextutils.h>
 
 #include <QDir>
 #include <QDomDocument>
@@ -2458,3 +2459,14 @@ QString QgsMapLayer::crsHtmlMetadata() const
   metadata += QLatin1String( "</table>\n<br><br>\n" );
   return metadata;
 }
+
+QgsExpressionContext QgsMapLayer::createExpressionContext() const
+{
+  return QgsExpressionContext( QgsExpressionContextUtils::globalProjectLayerScopes( this ) );
+}
+
+QgsExpressionContextScope *QgsMapLayer::createExpressionContextScope() const
+{
+  return QgsExpressionContextUtils::layerScope( this );
+}
+

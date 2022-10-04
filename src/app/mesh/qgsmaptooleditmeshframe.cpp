@@ -2732,6 +2732,7 @@ void QgsMapToolEditMeshFrame::showSelectByExpressionDialog()
   onEditingStarted();
   QgsMeshSelectByExpressionDialog *dialog = new QgsMeshSelectByExpressionDialog( canvas() );
   dialog->setAttribute( Qt::WA_DeleteOnClose );
+  dialog->setMeshLayer( mCurrentLayer );
   dialog->show();
   connect( dialog, &QgsMeshSelectByExpressionDialog::select, this, &QgsMapToolEditMeshFrame::selectByExpression );
   connect( dialog, &QgsMeshSelectByExpressionDialog::zoomToSelected, this, &QgsMapToolEditMeshFrame::onZoomToSelected );
