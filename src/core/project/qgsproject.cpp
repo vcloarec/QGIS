@@ -70,6 +70,7 @@
 #include "qgsprojectgpssettings.h"
 #include "qgsthreadingutils.h"
 #include "qgssensormanager.h"
+#include "qgsproviderregistry.h"
 
 #include <algorithm>
 #include <QApplication>
@@ -1350,11 +1351,42 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
   const QVector<QDomNode> sortedLayerNodes = depSorter.sortedLayerNodes();
   const int totalLayerCount = sortedLayerNodes.count();
 
-  int i = 0;
+
+  QVector<QDomNode> asynchronousLoading;
+  QVector<QDomNode> synchronousLoading;
+
   for ( const QDomNode &node : sortedLayerNodes )
   {
     const QDomElement element = node.toElement();
+    if ( element.attribute( QStringLiteral( "embedded" ) ) != QLatin1String( "1" ) )
+    {
+      if ( !depSorter.isDependent( node ) )
+      {
+        const QDomNode mnl = layerElement.namedItem( QStringLiteral( "provider" ) );
+        const QDomElement mne = mnl.toElement();
+        const QString provider = mne.text();
+        QgsProviderMetadata *meta = QgsProviderRegistry::instance()->providerMetadata( provider );
+        if ( meta && meta->providerCapabilities().testFlag( QgsProviderMetadata::AsynchronusCreation ) )
+        {
+          asynchronousLoading.append( node );
+          continue;
+        }
+      }
+    }
 
+    synchronousLoading.append( node );
+  }
+
+  int i = 0;
+  for ( const QDomNode &node : std::as_const( asynchronousLoading ) )
+  {
+    i++;
+  }
+
+
+  for ( const QDomNode &node : std::as_const( synchronousLoading ) )
+  {
+    const QDomElement element = node.toElement();
     const QString name = translate( QStringLiteral( "project:layers:%1" ).arg( node.namedItem( QStringLiteral( "id" ) ).toElement().text() ), node.namedItem( QStringLiteral( "layername" ) ).toElement().text() );
     if ( !name.isNull() )
       emit loadingLayer( tr( "Loading layer %1" ).arg( name ) );
