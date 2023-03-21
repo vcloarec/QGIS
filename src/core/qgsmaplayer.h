@@ -654,7 +654,7 @@ class CORE_EXPORT QgsMapLayer : public QObject
      *
      * \returns TRUE if successful
      */
-    bool readLayerXml( const QDomElement &layerElement, QgsReadWriteContext &context, QgsMapLayer::ReadFlags flags = QgsMapLayer::ReadFlags() );
+    bool readLayerXml( const QDomElement &layerElement, QgsReadWriteContext &context, QgsMapLayer::ReadFlags flags = QgsMapLayer::ReadFlags(), QgsDataProvider *preloadedProvider = nullptr );
 
     /**
      * Stores state in DOM node
@@ -2089,6 +2089,8 @@ class CORE_EXPORT QgsMapLayer : public QObject
      */
     QString generalHtmlMetadata() const;
 #endif
+
+    std::unique_ptr<QgsDataProvider> mPreloadedProvider;
 
   private:
 

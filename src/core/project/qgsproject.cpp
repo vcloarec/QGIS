@@ -71,6 +71,7 @@
 #include "qgsthreadingutils.h"
 #include "qgssensormanager.h"
 #include "qgsproviderregistry.h"
+#include "qgsrunnableprovidercreator.h"
 
 #include <algorithm>
 #include <QApplication>
@@ -84,6 +85,7 @@
 #include <QStandardPaths>
 #include <QUuid>
 #include <QRegularExpression>
+#include <QThreadPool>
 
 #ifdef _MSC_VER
 #include <sys/utime.h>
@@ -1306,6 +1308,51 @@ void QgsProject::setAvoidIntersectionsMode( const Qgis::AvoidIntersectionsMode m
   emit avoidIntersectionsModeChanged();
 }
 
+static void _preloadProviders( const QVector<QDomNode> &asynchronusLayerNodes,
+                               const QgsReadWriteContext &context, QMap<QString,
+                               QgsDataProvider *> &loadedProviders )
+{
+  QVector<QgsDataProvider *> dps;
+  QElapsedTimer t;
+  t.start();
+
+  int maxThreads = QThread::idealThreadCount();// Is there a place in QGIS where we defined the max threads count?
+
+  qDebug() << "$$$ starting preload " << maxThreads << " threads";
+
+  QVector<QgsRunnableProviderCreator *> runnables;
+  QThreadPool threadPool;
+  threadPool.setMaxThreadCount( maxThreads );
+  for ( const QDomNode &node : asynchronusLayerNodes )
+  {
+    const QDomElement layerElement = node.toElement();
+    QString layerId = layerElement.namedItem( QStringLiteral( "id" ) ).toElement().text();
+    QString provider = layerElement.namedItem( QStringLiteral( "provider" ) ).toElement().text();
+    QString dataSource = layerElement.namedItem( QStringLiteral( "datasource" ) ).toElement().text();
+
+    dataSource = QgsProviderRegistry::instance()->relativeToAbsoluteUri( provider, dataSource, context );
+
+    // TODO: other possible transforms ?
+
+    // TODO
+    QgsDataProvider::ProviderOptions options;
+    QgsDataProvider::ReadFlags flags;
+
+    QgsRunnableProviderCreator *run = new QgsRunnableProviderCreator( layerId, provider, dataSource, options, flags );
+    runnables.append( run );
+    threadPool.start( run );
+  }
+  threadPool.waitForDone();
+
+  for ( QgsRunnableProviderCreator *run : std::as_const( runnables ) )
+  {
+    // let's include all layers, even when we failed to load the provider
+    loadedProviders.insert( run->layerId(), run->dataProvider() );
+  }
+
+  qDeleteAll( runnables );  // also deletes providers
+}
+
 bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &brokenNodes, Qgis::ProjectReadFlags flags )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
@@ -1351,40 +1398,39 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
   const QVector<QDomNode> sortedLayerNodes = depSorter.sortedLayerNodes();
   const int totalLayerCount = sortedLayerNodes.count();
 
-
   QVector<QDomNode> asynchronousLoading;
-  QVector<QDomNode> synchronousLoading;
+  QMap<QString, QgsDataProvider *> loadedProviders;
 
-  for ( const QDomNode &node : sortedLayerNodes )
+  if ( mFlags & Qgis::ProjectFlag::AllowAsynchronousProviderCreation )
   {
-    const QDomElement element = node.toElement();
-    if ( element.attribute( QStringLiteral( "embedded" ) ) != QLatin1String( "1" ) )
+    profile.switchTask( tr( "preload providers" ) );
+    for ( const QDomNode &node : sortedLayerNodes )
     {
-      if ( !depSorter.isDependent( node ) )
+      const QDomElement element = node.toElement();
+      if ( element.attribute( QStringLiteral( "embedded" ) ) != QLatin1String( "1" ) )
       {
-        const QDomNode mnl = layerElement.namedItem( QStringLiteral( "provider" ) );
-        const QDomElement mne = mnl.toElement();
-        const QString provider = mne.text();
-        QgsProviderMetadata *meta = QgsProviderRegistry::instance()->providerMetadata( provider );
-        if ( meta && meta->providerCapabilities().testFlag( QgsProviderMetadata::AsynchronusCreation ) )
+        if ( !depSorter.isDependent( node ) )
         {
-          asynchronousLoading.append( node );
-          continue;
+          const QDomNode mnl = element.namedItem( QStringLiteral( "provider" ) );
+          const QDomElement mne = mnl.toElement();
+          const QString provider = mne.text();
+          QgsProviderMetadata *meta = QgsProviderRegistry::instance()->providerMetadata( provider );
+          if ( meta && meta->providerCapabilities().testFlag( QgsProviderMetadata::AsynchronusCreation ) )
+          {
+            asynchronousLoading.append( node );
+            continue;
+          }
         }
       }
     }
 
-    synchronousLoading.append( node );
+    QgsReadWriteContext context;
+    context.setPathResolver( pathResolver() );
+    _preloadProviders( asynchronousLoading, context, loadedProviders );
   }
 
-  int i = 0;
-  for ( const QDomNode &node : std::as_const( asynchronousLoading ) )
-  {
-    i++;
-  }
-
-
-  for ( const QDomNode &node : std::as_const( synchronousLoading ) )
+  int i = loadedProviders.count();
+  for ( const QDomNode &node : std::as_const( sortedLayerNodes ) )
   {
     const QDomElement element = node.toElement();
     const QString name = translate( QStringLiteral( "project:layers:%1" ).arg( node.namedItem( QStringLiteral( "id" ) ).toElement().text() ), node.namedItem( QStringLiteral( "layername" ) ).toElement().text() );
@@ -1392,7 +1438,6 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
       emit loadingLayer( tr( "Loading layer %1" ).arg( name ) );
 
     profile.switchTask( name );
-
     if ( element.attribute( QStringLiteral( "embedded" ) ) == QLatin1String( "1" ) )
     {
       createEmbeddedLayer( element.attribute( QStringLiteral( "id" ) ), readPath( element.attribute( QStringLiteral( "project" ) ) ), brokenNodes, true, flags );
@@ -1403,8 +1448,9 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
       context.setPathResolver( pathResolver() );
       context.setProjectTranslator( this );
       context.setTransformContext( transformContext() );
+      QString layerId = element.namedItem( QStringLiteral( "id" ) ).toElement().text();
 
-      if ( !addLayer( element, brokenNodes, context, flags ) )
+      if ( !addLayer( element, brokenNodes, context, flags, loadedProviders.take( layerId ) ) )
       {
         returnStatus = false;
       }
@@ -1421,7 +1467,11 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
   return returnStatus;
 }
 
-bool QgsProject::addLayer( const QDomElement &layerElem, QList<QDomNode> &brokenNodes, QgsReadWriteContext &context, Qgis::ProjectReadFlags flags )
+bool QgsProject::addLayer( const QDomElement &layerElem,
+                           QList<QDomNode> &brokenNodes,
+                           QgsReadWriteContext &context,
+                           Qgis::ProjectReadFlags flags,
+                           QgsDataProvider *provider )
 {
   QGIS_PROTECT_QOBJECT_THREAD_ACCESS
 
@@ -1509,7 +1559,7 @@ bool QgsProject::addLayer( const QDomElement &layerElem, QList<QDomNode> &broken
     layerFlags |= QgsMapLayer::FlagForceReadOnly;
 
   profile.switchTask( tr( "Load layer source" ) );
-  const bool layerIsValid = mapLayer->readLayerXml( layerElem, context, layerFlags ) && mapLayer->isValid();
+  const bool layerIsValid = mapLayer->readLayerXml( layerElem, context, layerFlags, provider ) && mapLayer->isValid();
 
   // apply specific settings to vector layer
   if ( QgsVectorLayer *vl = qobject_cast<QgsVectorLayer *>( mapLayer.get() ) )

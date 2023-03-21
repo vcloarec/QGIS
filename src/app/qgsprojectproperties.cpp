@@ -1047,6 +1047,7 @@ QgsProjectProperties::QgsProjectProperties( QgsMapCanvas *mapCanvas, QWidget *pa
   mTrustProjectCheckBox->setChecked( QgsProject::instance()->flags() & Qgis::ProjectFlag::TrustStoredLayerStatistics );
   mCheckRememberEditStatus->setChecked( QgsProject::instance()->flags() & Qgis::ProjectFlag::RememberLayerEditStatusBetweenSessions );
   mCheckBoxRememberAttributeTables->setChecked( QgsProject::instance()->flags() & Qgis::ProjectFlag::RememberAttributeTableWindowsBetweenSessions );
+  mAsynchProviderCreationCheckBox->setChecked( QgsProject::instance()->flags() & Qgis::ProjectFlag::AllowAsynchronousProviderCreation );
 
   // Variables editor
   mVariableEditor->context()->appendScope( QgsExpressionContextUtils::globalScope() );
@@ -1195,6 +1196,7 @@ void QgsProjectProperties::apply()
 
   QgsProject::instance()->setFlag( Qgis::ProjectFlag::RememberLayerEditStatusBetweenSessions, mCheckRememberEditStatus->isChecked() );
   QgsProject::instance()->setFlag( Qgis::ProjectFlag::RememberAttributeTableWindowsBetweenSessions, mCheckBoxRememberAttributeTables->isChecked() );
+  QgsProject::instance()->setFlag( Qgis::ProjectFlag::AllowAsynchronousProviderCreation, mAsynchProviderCreationCheckBox->isChecked() );
 
   // Time settings
   QDateTime start = mStartDateTimeEdit->dateTime();
