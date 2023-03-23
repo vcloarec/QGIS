@@ -2356,16 +2356,8 @@ bool QgsRasterLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &c
   if ( !( mReadFlags & QgsMapLayer::FlagDontResolveLayers ) )
   {
     const QgsDataProvider::ProviderOptions providerOptions { context.transformContext() };
-    QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags();
-    if ( mReadFlags & QgsMapLayer::FlagTrustLayerMetadata )
-    {
-      flags |= QgsDataProvider::FlagTrustDataSource;
-    }
-    if ( mReadFlags & QgsMapLayer::FlagForceReadOnly )
-    {
-      flags |= QgsDataProvider::ForceReadOnly;
-    }
-    // read extent
+    QgsDataProvider::ReadFlags flags = layerReadFlagsToProviderReadFlags( layer_node, mReadFlags );
+
     if ( mReadFlags & QgsMapLayer::FlagReadExtentFromXml )
     {
       const QDomNode extentNode = layer_node.namedItem( QStringLiteral( "extent" ) );
@@ -2376,9 +2368,6 @@ bool QgsRasterLayer::readXml( const QDomNode &layer_node, QgsReadWriteContext &c
 
         // store the extent
         setExtent( mbr );
-
-        // skip get extent
-        flags |= QgsDataProvider::SkipGetExtent;
       }
     }
     setDataProvider( mProviderKey, providerOptions, flags );

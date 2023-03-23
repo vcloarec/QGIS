@@ -1308,9 +1308,25 @@ void QgsProject::setAvoidIntersectionsMode( const Qgis::AvoidIntersectionsMode m
   emit avoidIntersectionsModeChanged();
 }
 
+static  QgsMapLayer::ReadFlags _projectFlagsToLayerReadFlags( Qgis::ProjectReadFlags projectReadFlags, Qgis::ProjectFlags projectFlags )
+{
+  QgsMapLayer::ReadFlags layerFlags = QgsMapLayer::ReadFlags();
+  if ( projectReadFlags & Qgis::ProjectReadFlag::DontResolveLayers )
+    layerFlags |= QgsMapLayer::FlagDontResolveLayers;
+  // Propagate trust layer metadata flag
+  if ( ( projectFlags & Qgis::ProjectFlag::TrustStoredLayerStatistics ) || ( projectReadFlags & Qgis::ProjectReadFlag::TrustLayerMetadata ) )
+    layerFlags |= QgsMapLayer::FlagTrustLayerMetadata;
+  // Propagate open layers in read-only mode
+  if ( ( projectReadFlags & Qgis::ProjectReadFlag::ForceReadOnlyLayers ) )
+    layerFlags |= QgsMapLayer::FlagForceReadOnly;
+
+  return layerFlags;
+}
+
 static void _preloadProviders( const QVector<QDomNode> &asynchronusLayerNodes,
-                               const QgsReadWriteContext &context, QMap<QString,
-                               QgsDataProvider *> &loadedProviders )
+                               const QgsReadWriteContext &context,
+                               QMap<QString, QgsDataProvider *> &loadedProviders,
+                               QgsMapLayer::ReadFlags layerReadFlags )
 {
   QVector<QgsDataProvider *> dps;
   QElapsedTimer t;
@@ -1332,11 +1348,8 @@ static void _preloadProviders( const QVector<QDomNode> &asynchronusLayerNodes,
 
     dataSource = QgsProviderRegistry::instance()->relativeToAbsoluteUri( provider, dataSource, context );
 
-    // TODO: other possible transforms ?
-
-    // TODO
-    QgsDataProvider::ProviderOptions options;
-    QgsDataProvider::ReadFlags flags;
+    QgsDataProvider::ProviderOptions options( {context.transformContext()} );
+    QgsDataProvider::ReadFlags flags = QgsMapLayer::layerReadFlagsToProviderReadFlags( node, layerReadFlags );
 
     QgsRunnableProviderCreator *run = new QgsRunnableProviderCreator( layerId, provider, dataSource, options, flags );
     runnables.append( run );
@@ -1426,7 +1439,7 @@ bool QgsProject::_getMapLayers( const QDomDocument &doc, QList<QDomNode> &broken
 
     QgsReadWriteContext context;
     context.setPathResolver( pathResolver() );
-    _preloadProviders( asynchronousLoading, context, loadedProviders );
+    _preloadProviders( asynchronousLoading, context, loadedProviders, _projectFlagsToLayerReadFlags( flags, mFlags ) );
   }
 
   int i = loadedProviders.count();
@@ -1548,15 +1561,7 @@ bool QgsProject::addLayer( const QDomElement &layerElem,
   const bool layerWasStored { layerStore()->mapLayer( layerId ) != nullptr };
 
   // have the layer restore state that is stored in Dom node
-  QgsMapLayer::ReadFlags layerFlags = QgsMapLayer::ReadFlags();
-  if ( flags & Qgis::ProjectReadFlag::DontResolveLayers )
-    layerFlags |= QgsMapLayer::FlagDontResolveLayers;
-  // Propagate trust layer metadata flag
-  if ( ( mFlags & Qgis::ProjectFlag::TrustStoredLayerStatistics ) || ( flags & Qgis::ProjectReadFlag::TrustLayerMetadata ) )
-    layerFlags |= QgsMapLayer::FlagTrustLayerMetadata;
-  // Propagate open layers in read-only mode
-  if ( ( flags & Qgis::ProjectReadFlag::ForceReadOnlyLayers ) )
-    layerFlags |= QgsMapLayer::FlagForceReadOnly;
+  QgsMapLayer::ReadFlags layerFlags = _projectFlagsToLayerReadFlags( flags, mFlags );
 
   profile.switchTask( tr( "Load layer source" ) );
   const bool layerIsValid = mapLayer->readLayerXml( layerElem, context, layerFlags, provider ) && mapLayer->isValid();

@@ -144,7 +144,7 @@ bool QgsPointCloudLayer::readXml( const QDomNode &layerNode, QgsReadWriteContext
   if ( !( mReadFlags & QgsMapLayer::FlagDontResolveLayers ) )
   {
     const QgsDataProvider::ProviderOptions providerOptions { context.transformContext() };
-    QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags();
+    QgsDataProvider::ReadFlags flags = layerReadFlagsToProviderReadFlags( layerNode, mReadFlags );
     // read extent
     if ( mReadFlags & QgsMapLayer::FlagReadExtentFromXml )
     {
@@ -156,19 +156,9 @@ bool QgsPointCloudLayer::readXml( const QDomNode &layerNode, QgsReadWriteContext
 
         // store the extent
         setExtent( mbr );
-
-        // skip get extent
-        flags |= QgsDataProvider::SkipGetExtent;
       }
     }
-    if ( mReadFlags & QgsMapLayer::FlagTrustLayerMetadata )
-    {
-      flags |= QgsDataProvider::FlagTrustDataSource;
-    }
-    if ( mReadFlags & QgsMapLayer::FlagForceReadOnly )
-    {
-      flags |= QgsDataProvider::ForceReadOnly;
-    }
+
     setDataSource( mDataSource, mLayerName, mProviderKey, providerOptions, flags );
     const QDomNode subset = layerNode.namedItem( QStringLiteral( "subset" ) );
     const QString subsetText = subset.toElement().text();

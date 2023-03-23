@@ -914,6 +914,30 @@ void QgsMapLayer::setMapTipTemplate( const QString &mapTip )
   emit mapTipTemplateChanged();
 }
 
+QgsDataProvider::ReadFlags QgsMapLayer::layerReadFlagsToProviderReadFlags( const QDomNode &layerNode, QgsMapLayer::ReadFlags layerReadFlags )
+{
+  QgsDataProvider::ReadFlags flags = QgsDataProvider::ReadFlags();
+  if ( layerReadFlags & QgsMapLayer::FlagTrustLayerMetadata )
+  {
+    flags |= QgsDataProvider::FlagTrustDataSource;
+  }
+  if ( layerReadFlags & QgsMapLayer::FlagForceReadOnly )
+  {
+    flags |= QgsDataProvider::ForceReadOnly;
+  }
+
+  if ( layerReadFlags & QgsMapLayer::FlagReadExtentFromXml )
+  {
+    const QDomNode extentNode = layerNode.namedItem( QStringLiteral( "extent" ) );
+    if ( !extentNode.isNull() )
+    {
+      flags |= QgsDataProvider::SkipGetExtent;
+    }
+  }
+
+  return flags;
+}
+
 bool QgsMapLayer::isValid() const
 {
   // because QgsVirtualLayerProvider is not anywhere NEAR thread safe:

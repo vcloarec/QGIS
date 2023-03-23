@@ -1571,6 +1571,9 @@ class CORE_EXPORT QgsMapLayer : public QObject
      */
     void setMapTipTemplate( const QString &mapTipTemplate );
 
+
+    static QgsDataProvider::ReadFlags layerReadFlagsToProviderReadFlags(const QDomNode &layerNode, QgsMapLayer::ReadFlags layerReadFlags );
+
   public slots:
 
     /**

@@ -2225,7 +2225,11 @@ class CORE_EXPORT QgsProject : public QObject, public QgsExpressionContextGenera
      *
      * \note not available in Python bindings
      */
-    bool addLayer( const QDomElement &layerElem, QList<QDomNode> &brokenNodes, QgsReadWriteContext &context, Qgis::ProjectReadFlags flags = Qgis::ProjectReadFlags(), QgsDataProvider *provider = nullptr ) SIP_SKIP;
+    bool addLayer( const QDomElement &layerElem,
+                   QList<QDomNode> &brokenNodes,
+                   QgsReadWriteContext &context,
+                   Qgis::ProjectReadFlags flags = Qgis::ProjectReadFlags(),
+                   QgsDataProvider *provider = nullptr ) SIP_SKIP;
 
     /**
      * Remove auxiliary layer of the corresponding layer.
