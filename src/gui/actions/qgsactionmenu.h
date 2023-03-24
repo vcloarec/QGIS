@@ -60,10 +60,10 @@ class GUI_EXPORT QgsActionMenu : public QMenu
     /**
      * Constructs a new QgsActionMenu
      *
-     * \param layer    The layer that this action will be run upon.
+     * \param layer    The layer that this action will be run upon
      * \param feature  The feature that this action will be run upon. Make sure that this feature is available
-     *                 for the lifetime of this object.
-     * \param parent   The usual QWidget parent.
+     *                 for the lifetime of this object
+     * \param parent   The usual QWidget parent
      * \param actionScope The action scope this menu will run in
      */
     explicit QgsActionMenu( QgsVectorLayer *layer, const QgsFeature &feature, const QString &actionScope, QWidget *parent SIP_TRANSFERTHIS = nullptr );
