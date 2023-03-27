@@ -2012,7 +2012,11 @@ bool QgsVectorLayer::setDataProvider( QString const &provider, const QgsDataProv
   if ( QgsApplication::profiler()->groupIsActive( QStringLiteral( "projectload" ) ) )
     profile = std::make_unique< QgsScopedRuntimeProfile >( tr( "Create %1 provider" ).arg( provider ), QStringLiteral( "projectload" ) );
 
-  mDataProvider = qobject_cast<QgsVectorDataProvider *>( QgsProviderRegistry::instance()->createProvider( provider, mDataSource, options, flags ) );
+  if ( mPreloadedProvider )
+    mDataProvider = qobject_cast< QgsVectorDataProvider * >( mPreloadedProvider.release() );
+  else
+    mDataProvider = qobject_cast<QgsVectorDataProvider *>( QgsProviderRegistry::instance()->createProvider( provider, mDataSource, options, flags ) );
+
   if ( !mDataProvider )
   {
     setValid( false );
