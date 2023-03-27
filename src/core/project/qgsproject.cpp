@@ -1328,7 +1328,6 @@ static void _preloadProviders( const QVector<QDomNode> &asynchronusLayerNodes,
                                QMap<QString, QgsDataProvider *> &loadedProviders,
                                QgsMapLayer::ReadFlags layerReadFlags )
 {
-  QVector<QgsDataProvider *> dps;
   QElapsedTimer t;
   t.start();
 
