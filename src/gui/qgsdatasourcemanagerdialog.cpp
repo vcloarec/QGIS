@@ -229,6 +229,7 @@ void QgsDataSourceManagerDialog::makeConnections( QgsAbstractDataSourceWidget *d
       case Qgis::LayerType::Annotation:
       case Qgis::LayerType::PointCloud:
       case Qgis::LayerType::Group:
+      case Qgis::LayerType::TiledMesh:
         // for compatibility with older API, we ignore these signals and rely on the older granular signals (eg "addVectorLayer").
         // otherwise we will be emitting double signals for the old/new signal for these layer types
         break;
