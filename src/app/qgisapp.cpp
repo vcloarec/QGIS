@@ -2651,7 +2651,7 @@ void QgisApp::dataSourceManager( const QString &pageName )
         case Qgis::LayerType::Plugin:
         case Qgis::LayerType::Annotation:
         case Qgis::LayerType::Group:
-          break;
+        case Qgis::LayerType::TiledMesh:           break;
       }
     } );
 
@@ -8309,6 +8309,7 @@ void QgisApp::saveStyleFile( QgsMapLayer *layer )
     case Qgis::LayerType::Annotation:
     case Qgis::LayerType::Plugin:
     case Qgis::LayerType::Group:
+    case Qgis::LayerType::TiledMesh:
     default:
       break;
   }
