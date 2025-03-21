@@ -2431,6 +2431,7 @@ target_include_directories(qgis_core PUBLIC
   providers/ogr
   providers/meshmemory
   providers/sensorthings
+  providers/vpc
   raster
   renderer
   scalebar
