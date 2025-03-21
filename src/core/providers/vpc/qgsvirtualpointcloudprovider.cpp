@@ -20,8 +20,12 @@
 #include "qgsproviderregistry.h"
 #include "qgsvirtualpointcloudprovider.h"
 #include "moc_qgsvirtualpointcloudprovider.cpp"
+#ifdef HAVE_COPC
 #include "qgscopcpointcloudindex.h"
+#endif
+#ifdef HAVE_EPT
 #include "qgseptpointcloudindex.h"
+#endif
 #include "qgspointcloudsubindex.h"
 #include "qgspointcloudclassifiedrenderer.h"
 #include "qgspointcloudextentrenderer.h"
@@ -413,10 +417,14 @@ void QgsVirtualPointCloudProvider::loadSubIndex( int i )
   if ( sl.index() )
     return;
 
+#ifdef HAVE_COPC
   if ( sl.uri().endsWith( QStringLiteral( "copc.laz" ), Qt::CaseSensitivity::CaseInsensitive ) )
     sl.setIndex( QgsPointCloudIndex( new QgsCopcPointCloudIndex() ) );
+#ifdef HAVE_EPT
   else if ( sl.uri().endsWith( QStringLiteral( "ept.json" ), Qt::CaseSensitivity::CaseInsensitive ) )
     sl.setIndex( QgsPointCloudIndex( new QgsEptPointCloudIndex() ) );
+#endif
+#endif
 
   // check if the index is created and also check if the file actually exists too
   const QFile file( sl.uri() );
