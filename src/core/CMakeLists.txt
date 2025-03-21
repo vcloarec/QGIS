@@ -2233,11 +2233,13 @@ if (WITH_EPT)
   )
 
   set(QGIS_CORE_SRCS ${QGIS_CORE_SRCS}
+      pointcloud/qgseptdecoder.cpp
       providers/ept/qgseptprovider.cpp
       pointcloud/qgseptpointcloudindex.cpp
       pointcloud/qgseptpointcloudblockrequest.cpp
   )
   set(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
+      pointcloud/qgseptdecoder.h
       providers/ept/qgseptprovider.h
       pointcloud/qgseptpointcloudindex.h
       pointcloud/qgseptpointcloudblockrequest.h
@@ -2298,13 +2300,11 @@ if (WITH_EPT OR WITH_COPC)
   endif()
 
   set(QGIS_CORE_SRCS ${QGIS_CORE_SRCS}
-      pointcloud/qgseptdecoder.cpp
       pointcloud/qgslazdecoder.cpp
       pointcloud/qgslazinfo.cpp
       pointcloud/qgscopcupdate.cpp
   )
   set(QGIS_CORE_HDRS ${QGIS_CORE_HDRS}
-      pointcloud/qgseptdecoder.h
       pointcloud/qgslazdecoder.h
       pointcloud/qgslazinfo.h
       pointcloud/qgscopcupdate.h
