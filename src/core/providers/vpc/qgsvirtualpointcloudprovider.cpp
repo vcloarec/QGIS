@@ -214,6 +214,7 @@ void QgsVirtualPointCloudProvider::parseFile()
       uri = QString::fromStdString( f["assets"]["data"]["href"] );
     }
 
+#ifdef HAVE_COPC
     // look for vpc overview reference
     if ( !mOverview && f["assets"].contains( "overview" ) && f["assets"]["overview"].contains( "href" ) )
     {
@@ -233,6 +234,7 @@ void QgsVirtualPointCloudProvider::parseFile()
         mOverview.load( vpcDir.absoluteFilePath( vpcDir.entryList().first() ) );
       }
     }
+#endif
 
     // Only COPC and EPT formats are currently supported. Other files will only have their bounds rendered
     if ( !uri.endsWith( QStringLiteral( "ept.json" ), Qt::CaseSensitivity::CaseInsensitive ) &&
