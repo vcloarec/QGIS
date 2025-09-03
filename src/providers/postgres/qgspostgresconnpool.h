@@ -57,7 +57,10 @@ class QgsPostgresConnPoolGroup : public QObject, public QgsConnectionPoolGroup<Q
 
   protected slots:
     void handleConnectionExpired() { onConnectionExpired(); }
-    void startExpirationTimer() { expirationTimer->start(); }
+    void startExpirationTimer() { 
+      std::cout << "Start expiration timer" << std::endl;
+      expirationTimer->start(); 
+    }
     void stopExpirationTimer() { expirationTimer->stop(); }
 
   protected:

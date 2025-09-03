@@ -235,10 +235,14 @@ class QgsConnectionPoolGroup
 
       // what connections have expired?
       QList<int> toDelete;
+      std::cout << "On Connection expired"<< std::endl;
       for ( int i = 0; i < conns.count(); ++i )
       {
         if ( conns.at( i ).lastUsedTime.secsTo( now ) >= CONN_POOL_EXPIRATION_TIME )
+        {
+           std::cout << "Connection to delete: "<<i<< std::endl;
           toDelete.append( i );
+        }
       }
 
       // delete expired connections
