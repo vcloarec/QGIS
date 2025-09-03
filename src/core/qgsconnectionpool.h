@@ -33,7 +33,7 @@
 #include <QThread>
 #include <QElapsedTimer>
 
-#define CONN_POOL_EXPIRATION_TIME           5    // in seconds
+#define CONN_POOL_EXPIRATION_TIME           -1    // in seconds
 #define CONN_POOL_SPARE_CONNECTIONS          2    // number of spare connections in case all the base connections are used but we have a nested request with the risk of a deadlock
 
 
@@ -191,7 +191,16 @@ class QgsConnectionPoolGroup
         if ( !expirationTimer->isActive() )
         {
           // will call the slot directly or queue the call (if the object lives in a different thread)
-          QMetaObject::invokeMethod( expirationTimer->parent(), "startExpirationTimer" );
+          if (CONN_POOL_EXPIRATION_TIME<=0)
+          {
+            connMutex.unlock();
+            onConnectionExpired();
+          }
+          else
+          {
+            QMetaObject::invokeMethod( expirationTimer->parent(), "startExpirationTimer" );
+          }
+         
         }
       }
 
@@ -240,7 +249,7 @@ class QgsConnectionPoolGroup
       {
         if ( conns.at( i ).lastUsedTime.secsTo( now ) >= CONN_POOL_EXPIRATION_TIME )
         {
-           std::cout << "Connection to delete: "<<i<< std::endl;
+          std::cout << "Connection to delete: "<<i<< std::endl;
           toDelete.append( i );
         }
       }
