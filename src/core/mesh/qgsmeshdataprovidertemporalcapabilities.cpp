@@ -139,6 +139,9 @@ QgsDateTimeRange QgsMeshDataProviderTemporalCapabilities::timeExtent( const QDat
       begin = groupReference.addMSecs( durationSinceFirst );
   }
 
+  begin = begin.toTimeZone( reference.timeZone() );
+  end = end.toTimeZone( reference.timeZone() );
+
   return QgsDateTimeRange( begin, end );
 }
 
